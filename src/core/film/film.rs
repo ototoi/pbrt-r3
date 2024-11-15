@@ -96,7 +96,11 @@ impl Film {
                         //fixed
                         let xx = (x as f32) * (radius.x / (FT_W - 1) as f32);
                         let yy = (y as f32) * (radius.y / (FT_W - 1) as f32);
-                        filter_table[y * FT_W + x] = f.evaluate(&Vector2f::new(xx, yy));
+                        if xx < radius.x && yy < radius.y {
+                            filter_table[y * FT_W + x] = f.evaluate(&Vector2f::new(xx, yy));
+                        } else {
+                            filter_table[y * FT_W + x] = 0.0;
+                        }
                     }
                 }
             }

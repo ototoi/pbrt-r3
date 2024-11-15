@@ -88,8 +88,8 @@ impl FilmTile {
 
         //let p0 = Self::floor(&(p_film_discrete - self.filter_radius));
         //let p1 = Self::ceil(&(p_film_discrete + self.filter_radius));
-        let p0 = Self::floor(&(p_film_discrete - self.filter_radius));
-        let p1 = Self::ceil(&(p_film_discrete + self.filter_radius));
+        let p0 = Self::floor(&(p_film_discrete - Point2f::from(0.5) - self.filter_radius)); //0.5-0.5-0.5 -> floor(-0.5) -> -1
+        let p1 = Self::ceil(&(p_film_discrete - Point2f::from(0.5) + self.filter_radius)); //0.5-0.5+0.5 -> ceil(0.5) -> +1
 
         assert!(p1.x - p0.x > 0);
         assert!(p1.y - p0.y > 0);
@@ -104,21 +104,19 @@ impl FilmTile {
 
         let filter_table_size = FT_W;
         let mut ifx: Vec<i32> = vec![0; (p1.x - p0.x) as usize];
-        //let lx = inv_filter_radius.x * filter_table_size as f32;//
         let lx = inv_filter_radius.x * (filter_table_size - 1) as f32;
         for x in p0.x..p1.x {
-            let fx = f32::abs((x as f32 - p_film_discrete.x) * lx);
-            let idx = (x - p0.x) as usize;
-            ifx[idx] = i32::min(f32::floor(fx) as i32, (filter_table_size - 1) as i32);
+            let d = f32::abs(x as f32 + 0.5 - p_film_discrete.x);
+            ifx[(x - p0.x) as usize] =
+                i32::min(f32::floor(d * lx) as i32, (filter_table_size - 1) as i32);
         }
 
         let mut ify: Vec<i32> = vec![0; (p1.y - p0.y) as usize];
-        //let ly = inv_filter_radius.y * filter_table_size as f32;//
         let ly = inv_filter_radius.y * (filter_table_size - 1) as f32;
         for y in p0.y..p1.y {
-            let fy = f32::abs((y as f32 - p_film_discrete.y) * ly);
-            let idx = (y - p0.y) as usize;
-            ify[idx] = i32::min(f32::floor(fy) as i32, (filter_table_size - 1) as i32);
+            let d = f32::abs(y as f32 + 0.5 - p_film_discrete.y);
+            ify[(y - p0.y) as usize] =
+                i32::min(f32::floor(d * ly) as i32, (filter_table_size - 1) as i32);
         }
 
         let width = (self.pixel_bounds.max.x - self.pixel_bounds.min.x) as usize;

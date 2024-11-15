@@ -1,7 +1,7 @@
 # pbrt-r3
 
 ## What is pbrt-r3
-pbrt-r3 is the Rust implementation version of the pbrt-v3.
+pbrt-r3 is the rust implementation version of the pbrt-v3.
 
 ## License
 pbrt-r3 is distributed under the BSD license based on the original pbrt-v3.

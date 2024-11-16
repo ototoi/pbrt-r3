@@ -146,7 +146,12 @@ fn validate_radiance_result(l: Spectrum, pixel: &Point2i) -> Spectrum {
         return Spectrum::zero();
     }
     if l.y() < -1e-5 {
-        error!("Negative luminance value, {}, returned for pixel ({}, {}). Setting to black.", l.y(), pixel.x, pixel.y);
+        error!(
+            "Negative luminance value, {}, returned for pixel ({}, {}). Setting to black.",
+            l.y(),
+            pixel.x,
+            pixel.y
+        );
         return Spectrum::zero();
     }
     if l.y().is_infinite() {

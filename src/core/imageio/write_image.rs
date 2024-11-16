@@ -107,4 +107,3 @@ pub fn write_cache_image(
         }
     }
 }
-

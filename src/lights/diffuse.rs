@@ -37,9 +37,9 @@ impl DiffuseAreaLight {
         }
     }
 
-    fn sample_wo(&self, u1: &Vector2f, u2: &Vector2f) -> (Vector3f, Float) {
+    fn sample_wo(&self, _u1: &Vector2f, u2: &Vector2f) -> (Vector3f, Float) {
         if self.two_sided {
-            let mut u = *u1;
+            let mut u = *u2;
             // Choose a side to sample and then remap u[0] to [0,1] before
             // applying cosine-weighted hemisphere sampling for the chosen side.
             let mut w;
@@ -109,9 +109,10 @@ impl Light for DiffuseAreaLight {
         if let Some(mut_p_shape) = p_shape.as_surface_interaction_mut() {
             mut_p_shape.medium_interface = self.base.medium_interface.clone();
         }
-        assert!(p_shape.get_n().length() > 0.0);
-        let (w, pdf_dir) = self.sample_wo(u1, u2);
         let n = p_shape.get_n();
+
+        // Sample a cosine-weighted outgoing direction _w_ for area light
+        let (w, pdf_dir) = self.sample_wo(u1, u2);
         let (v1, v2) = coordinate_system(&n);
         let w = w.x * v1 + w.y * v2 + w.z * n;
         let ray = p_shape.spawn_ray(&w);

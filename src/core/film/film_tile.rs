@@ -83,6 +83,7 @@ impl FilmTile {
             l *= self.max_sample_luminance / l.y();
         }
         let filter_table = self.filter_table.read().unwrap();
+        let filter_radius = self.filter_radius;
         let inv_filter_radius = self.inv_filter_radius;
         let p_film_discrete = *p_film;
 
@@ -103,32 +104,70 @@ impl FilmTile {
         }
 
         let filter_table_size = FT_W;
-        let mut ifx: Vec<i32> = vec![0; (p1.x - p0.x) as usize];
+        let mut ifx: Vec<i32> = vec![0; delta.x as usize];
         let lx = inv_filter_radius.x * (filter_table_size - 1) as f32;
         for x in p0.x..p1.x {
-            let d = f32::abs(x as f32 + 0.5 - p_film_discrete.x);
-            ifx[(x - p0.x) as usize] =
-                i32::min(f32::floor(d * lx) as i32, (filter_table_size - 1) as i32);
+            let d = x as f32 + 0.5 - p_film_discrete.x;
+            let id = if -filter_radius.x <= d && d < filter_radius.x {
+                i32::min(
+                    f32::floor(d.abs() * lx) as i32,
+                    (filter_table_size - 1) as i32,
+                )
+            } else {
+                -1
+            };
+            ifx[(x - p0.x) as usize] = id;
         }
 
-        let mut ify: Vec<i32> = vec![0; (p1.y - p0.y) as usize];
+        let mut ify: Vec<i32> = vec![0; delta.y as usize];
         let ly = inv_filter_radius.y * (filter_table_size - 1) as f32;
         for y in p0.y..p1.y {
-            let d = f32::abs(y as f32 + 0.5 - p_film_discrete.y);
-            ify[(y - p0.y) as usize] =
-                i32::min(f32::floor(d * ly) as i32, (filter_table_size - 1) as i32);
+            let d = y as f32 + 0.5 - p_film_discrete.y;
+            let id = if -filter_radius.y <= d && d < filter_radius.y {
+                i32::min(
+                    f32::floor(d.abs() * ly) as i32,
+                    (filter_table_size - 1) as i32,
+                )
+            } else {
+                -1
+            };
+            ify[(y - p0.y) as usize] = id;
+        }
+        let mut weights = vec![0.0; ifx.len() * ify.len()];
+        for y in p0.y..p1.y {
+            let yidx = (y - p0.y) as usize;
+            let iy = ify[yidx];
+            if iy == -1 {
+                continue;
+            }
+            for x in p0.x..p1.x {
+                let xidx = (x - p0.x) as usize;
+                let ix = ifx[xidx];
+                if ix == -1 {
+                    continue;
+                }
+                let offset = (iy * filter_table_size as i32 + ix) as usize;
+                let filter_weight = filter_table[offset];
+                weights[(yidx * ifx.len() + xidx) as usize] = filter_weight;
+            }
+        }
+        {
+            let sum = weights.iter().sum::<f32>();
+            if sum <= 0.0 {
+                return;
+            }
+            let isum = 1.0 / sum;
+            for w in weights.iter_mut() {
+                *w *= isum;
+            }
         }
 
         let width = (self.pixel_bounds.max.x - self.pixel_bounds.min.x) as usize;
         for y in p0.y..p1.y {
             for x in p0.x..p1.x {
-                let xidx = x - p0.x;
-                let yidx = y - p0.y;
-                assert!(xidx >= 0);
-                assert!(yidx >= 0);
-                let offset =
-                    (ify[yidx as usize] * filter_table_size as i32 + ifx[xidx as usize]) as usize;
-                let filter_weight = filter_table[offset];
+                let xidx = (x - p0.x) as usize;
+                let yidx = (y - p0.y) as usize;
+                let filter_weight = weights[yidx * ifx.len() + xidx];
 
                 let xx = x - self.pixel_bounds.min.x;
                 let yy = y - self.pixel_bounds.min.y;

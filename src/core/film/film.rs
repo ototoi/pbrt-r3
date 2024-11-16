@@ -96,31 +96,10 @@ impl Film {
                         //fixed
                         let xx = (x as f32) * (radius.x / (FT_W - 1) as f32);
                         let yy = (y as f32) * (radius.y / (FT_W - 1) as f32);
-                        if xx < radius.x && yy < radius.y {
-                            filter_table[y * FT_W + x] = f.evaluate(&Vector2f::new(xx, yy));
-                        } else {
-                            filter_table[y * FT_W + x] = 0.0;
-                        }
+                        filter_table[y * FT_W + x] = f.evaluate(&Vector2f::new(xx, yy));
                     }
                 }
             }
-            /*
-            {
-                let mut total = 0.0;
-                for y in 0..FT_W {
-                    for x in 0..FT_W {
-                        total += filter_table[y * FT_W + x];
-                    }
-                }
-                let inv_total = 1.0 / total;
-                for y in 0..FT_W {
-                    for x in 0..FT_W {
-                        filter_table[y * FT_W + x] *= inv_total;
-                    }
-                }
-                //println!("{:?}", filter_table);
-            }
-            */
         }
 
         let mut splat_tiles = Vec::new();

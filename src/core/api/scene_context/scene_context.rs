@@ -375,7 +375,7 @@ impl SceneContext {
     ) -> Vec<Arc<dyn Shape>> {
         let attr = self.graphics_states[self.graphics_states.len() - 1].borrow();
         if !attr.area_light_name.is_empty() {
-            let two_sided = attr.area_light_params.find_one_bool("twosided", false);
+            let two_sided = attr.area_light_params.find_one_bool("twosided", true);
             let two_sided = params.find_one_bool("twosided", two_sided);
             let mut params = params.clone();
             params.replace_one_bool("bool twosided", two_sided);

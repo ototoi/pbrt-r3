@@ -533,21 +533,17 @@ fn parse_coord_sys_transform(s: &str) -> IResult<&str, OPNode> {
     return parse_op_string(s, "CoordSysTransform");
 }
 
-fn parse_active_transform_token(s: &str) -> IResult<&str, &str> {
-    return sequence::terminated(
-        nom::branch::alt((
-            bytes::complete::tag("All"),
-            bytes::complete::tag("EndTime"),
-            bytes::complete::tag("StartTime"),
-        )),
-        space0,
-    )(s);
-}
-
 fn parse_active_transform(s: &str) -> IResult<&str, OPNode> {
     let (s, (op, t)) = nom::branch::permutation((
         sequence::terminated(bytes::complete::tag("ActiveTransform"), space1),
-        parse_active_transform_token,
+        sequence::terminated(
+            nom::branch::alt((
+                bytes::complete::tag("All"),
+                bytes::complete::tag("EndTime"),
+                bytes::complete::tag("StartTime"),
+            )),
+            space0,
+        ),
     ))(s)?;
 
     //fn pbrt_active_transform_all(&mut self);

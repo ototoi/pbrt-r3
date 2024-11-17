@@ -5,19 +5,8 @@ use nom::sequence;
 use nom::IResult;
 
 pub fn remove_comment(s: &str) -> IResult<&str, String> {
-    let r = nom::combinator::all_consuming(nom::multi::many0(parse_one))(s);
-    match r {
-        Ok((rs, vs)) => {
-            let mut ss = String::new();
-            for s in vs {
-                ss += &s;
-            }
-            return Ok((rs, ss));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let (rs, vs) = nom::combinator::all_consuming(nom::multi::many0(parse_one))(s)?;
+    return Ok((rs, vs.join("")));
 }
 
 fn parse_one(s: &str) -> IResult<&str, String> {
@@ -32,56 +21,26 @@ fn parse_one(s: &str) -> IResult<&str, String> {
 }
 
 fn parse_token(s: &str) -> IResult<&str, String> {
-    let r = nom::branch::permutation((
+    let (s, (a, b)) = nom::branch::permutation((
         character::complete::alpha1,
         bytes::complete::take_while(|c: char| c.is_alphanumeric() || c == '_'),
-    ))(s);
-    match r {
-        Ok((s, (a, b))) => {
-            let ss = format!("{}{}", a, b);
-            return Ok((s, ss));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    ))(s)?;
+    return Ok((s, format!("{}{}", a, b)));
 }
 
 fn parse_float(s: &str) -> IResult<&str, String> {
-    let r = nom::number::complete::recognize_float(s);
-    match r {
-        Ok((s, a)) => {
-            let ss = String::from(a);
-            return Ok((s, ss));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let (s, a) = nom::number::complete::recognize_float(s)?;
+    return Ok((s, a.to_string()));
 }
 
 fn parse_any(s: &str) -> IResult<&str, String> {
-    let r = character::complete::anychar(s);
-    match r {
-        Ok((s, b)) => {
-            return Ok((s, String::from(b)));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let (s, a) = character::complete::anychar(s)?;
+    return Ok((s, a.to_string()));
 }
 
 fn parse_space1(s: &str) -> IResult<&str, String> {
-    let r = character::complete::multispace1(s);
-    match r {
-        Ok((s, b)) => {
-            return Ok((s, String::from(b)));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let (s, a) = character::complete::multispace1(s)?;
+    return Ok((s, a.to_string()));
 }
 
 fn parse_comment(s: &str) -> IResult<&str, &str> {
@@ -92,32 +51,17 @@ fn parse_comment(s: &str) -> IResult<&str, &str> {
 }
 
 fn parse_removed_comment(s: &str) -> IResult<&str, String> {
-    let r = parse_comment(s);
-    match r {
-        Ok((s, _)) => {
-            return Ok((s, String::from("")));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let (s, _) = parse_comment(s)?;
+    return Ok((s, String::from("")));
 }
 
 fn parse_string_literal(s: &str) -> IResult<&str, String> {
-    let r = sequence::delimited(
+    let (s, a) = sequence::delimited(
         character::complete::char('"'),
         bytes::complete::take_until("\""),
         character::complete::char('"'),
-    )(s);
-    match r {
-        Ok((s, ss)) => {
-            let k = format!("{}{}{}", "\"", ss, "\"");
-            return Ok((s, k));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    )(s)?;
+    return Ok((s, format!("{}{}{}", "\"", a, "\"")));
 }
 
 //----------------------------------------

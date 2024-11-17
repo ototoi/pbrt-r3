@@ -87,10 +87,8 @@ impl FilmTile {
         let inv_filter_radius = self.inv_filter_radius;
         let p_film_discrete = *p_film;
 
-        //let p0 = Self::floor(&(p_film_discrete - self.filter_radius));
-        //let p1 = Self::ceil(&(p_film_discrete + self.filter_radius));
-        let p0 = Self::floor(&(p_film_discrete - Point2f::from(0.5) - self.filter_radius)); //0.5-0.5-0.5 -> floor(-0.5) -> -1
-        let p1 = Self::ceil(&(p_film_discrete - Point2f::from(0.5) + self.filter_radius)); //0.5-0.5+0.5 -> ceil(0.5) -> +1
+        let p0 = Self::floor(&(p_film_discrete - self.filter_radius));
+        let p1 = Self::ceil(&(p_film_discrete + self.filter_radius));
 
         assert!(p1.x - p0.x > 0);
         assert!(p1.y - p0.y > 0);
@@ -107,12 +105,9 @@ impl FilmTile {
         let mut ifx: Vec<i32> = vec![0; delta.x as usize];
         let lx = inv_filter_radius.x * (filter_table_size - 1) as f32;
         for x in p0.x..p1.x {
-            let d = x as f32 + 0.5 - p_film_discrete.x;
-            let id = if -filter_radius.x <= d && d < filter_radius.x {
-                i32::min(
-                    f32::floor(d.abs() * lx) as i32,
-                    (filter_table_size - 1) as i32,
-                )
+            let d = Float::abs(x as f32 + 0.5 - p_film_discrete.x);
+            let id = if d <= filter_radius.x {
+                i32::min(f32::floor(d * lx) as i32, (filter_table_size - 1) as i32)
             } else {
                 -1
             };
@@ -122,12 +117,9 @@ impl FilmTile {
         let mut ify: Vec<i32> = vec![0; delta.y as usize];
         let ly = inv_filter_radius.y * (filter_table_size - 1) as f32;
         for y in p0.y..p1.y {
-            let d = y as f32 + 0.5 - p_film_discrete.y;
-            let id = if -filter_radius.y <= d && d < filter_radius.y {
-                i32::min(
-                    f32::floor(d.abs() * ly) as i32,
-                    (filter_table_size - 1) as i32,
-                )
+            let d = Float::abs(y as f32 + 0.5 - p_film_discrete.y);
+            let id = if d <= filter_radius.y {
+                i32::min(f32::floor(d * ly) as i32, (filter_table_size - 1) as i32)
             } else {
                 -1
             };
@@ -137,13 +129,13 @@ impl FilmTile {
         for y in p0.y..p1.y {
             let yidx = (y - p0.y) as usize;
             let iy = ify[yidx];
-            if iy == -1 {
+            if iy < 0 {
                 continue;
             }
             for x in p0.x..p1.x {
                 let xidx = (x - p0.x) as usize;
                 let ix = ifx[xidx];
-                if ix == -1 {
+                if ix < 0 {
                     continue;
                 }
                 let offset = (iy * filter_table_size as i32 + ix) as usize;

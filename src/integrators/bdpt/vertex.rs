@@ -158,16 +158,13 @@ impl Vertex {
 
         assert!(t != VertexType::Light);
         // Compute directional density depending on the vertex types
-        if t == VertexType::Camera {
+        let pdf = if t == VertexType::Camera {
             let interaction = &self.core.as_ref().read().unwrap().interaction;
             let ei = interaction.as_camera().unwrap();
             let ray = ei.0.spawn_ray(&wn);
             let camera = ei.1.as_ref().unwrap().upgrade().unwrap();
             let (_pdf_pos, pdf_dir) = camera.pdf_we(&ray);
-            assert!(pdf_dir >= 0.0);
-            let pdf = self.convert_density(pdf_dir, next);
-            assert!(pdf >= 0.0);
-            return pdf;
+            pdf_dir
         } else {
             assert!(prev.is_some());
             let prev = prev.as_ref().unwrap();
@@ -182,22 +179,18 @@ impl Vertex {
                 let si = interaction.as_surface().unwrap();
                 let bsdf = si.bsdf.as_ref().unwrap().clone();
                 let pdf = bsdf.pdf(&wp, &wn, BSDF_ALL);
-                assert!(pdf >= 0.0);
-                let pdf = self.convert_density(pdf, next);
-                assert!(pdf >= 0.0);
-                return pdf;
+                pdf
             } else {
                 assert!(t == VertexType::Medium);
                 let interaction = &self.core.as_ref().read().unwrap().interaction;
                 let mi = interaction.as_medium().unwrap();
                 let phase = mi.phase.as_ref().unwrap();
                 let pdf = phase.p(&wp, &wn);
-                assert!(pdf >= 0.0);
-                let pdf = self.convert_density(pdf, next);
-                assert!(pdf >= 0.0);
-                return pdf;
+                pdf
             }
-        }
+        };
+        // Return probability per unit area at vertex _next_
+        return self.convert_density(pdf, next);
     }
 
     pub fn pdf_light(&self, scene: &Scene, v: &Vertex) -> Float {
@@ -397,9 +390,7 @@ impl Vertex {
             if let Some(si) = core.interaction.as_surface() {
                 if let Some(premitive) = si.primitive.as_ref() {
                     let premitive = premitive.upgrade().unwrap();
-                    let premitive = premitive.as_ref();
-                    let area_light = premitive.get_area_light();
-                    if let Some(area_light) = area_light.as_ref() {
+                    if let Some(area_light) = premitive.get_area_light() {
                         if let Some(area_light) = area_light.as_area_light() {
                             let inter = Interaction::from(si);
                             return area_light.l(&inter, &w);
@@ -407,6 +398,7 @@ impl Vertex {
                     }
                 }
             }
+            assert!(false);
             return Spectrum::zero();
         }
     }

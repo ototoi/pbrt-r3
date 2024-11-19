@@ -92,13 +92,14 @@ pub fn generate_light_subpath(
 
             let le_pdf = n_light.abs_dot(&ray.d) / (light_pdf * pdf_pos * pdf_dir);
             // pbrt-r3
-            let le_pdf = Float::min(le_pdf, 1.0);
+            // let le_pdf = Float::min(le_pdf, 1.0);
             // pbrt-r3
             let beta = le * le_pdf;
 
             let ray = RayDifferential::from(&ray);
 
             assert!(!path.is_empty());
+            let path_len = path.len();
             let n_vertices = random_walk(
                 scene,
                 &ray,
@@ -110,6 +111,7 @@ pub fn generate_light_subpath(
                 TransportMode::Importance,
                 path,
             );
+            assert!(path_len + n_vertices == path.len());
             //println!("n_vertices: {}", n_vertices);
             // Correct subpath sampling densities for infinite area lights
             {
@@ -278,7 +280,7 @@ fn random_walk(
                 // Sample BSDF at current vertex and compute reverse probability
                 if let Some((f, wi, pdf, t)) = bsdf.sample_f(&wo, &sampler.get_2d(), BSDF_ALL) {
                     pdf_fwd = pdf;
-                    if f.is_black() || pdf == 0.0 {
+                    if f.is_black() || pdf_fwd <= 0.0 {
                         break;
                     }
                     beta *= f * (Vector3f::abs_dot(&wi, &isect.shading.n) / pdf_fwd);
@@ -573,13 +575,11 @@ fn mis_weight(
             let cur_delta = *vert.delta.read().unwrap();
 
             let delta_light_vertex = if i > 0 {
-                let prev = light_vertices[(i - 1) as usize].clone();
-                let prev = prev.read().unwrap();
+                let prev = light_vertices[(i - 1) as usize].read().unwrap();
                 let prev_delta = *prev.delta.read().unwrap();
                 prev_delta
             } else {
-                let v0 = light_vertices[0].clone();
-                let v0 = v0.read().unwrap();
+                let v0 = light_vertices[0].read().unwrap();
                 let is_delta_light = v0.is_delta_light();
                 is_delta_light
             };

@@ -226,12 +226,11 @@ impl Camera for PerspectiveCamera {
     }
 
     fn pdf_we(&self, ray: &Ray) -> (Float, Float) {
-        // Interpolate camera matrix and check if $\w{}$ is forward-facing
+        // Interpolate camera matrix and fail if $\w{}$ is not forward-facing
         let c2w = self.base.base.camera_to_world.interpolate(ray.time);
         let w2c = c2w.inverse();
         let cos_theta = ray
             .d
-            .normalize()
             .dot(&c2w.transform_vector(&Vector3f::new(0.0, 0.0, 1.0)));
         if cos_theta <= 0.0 {
             return (0.0, 0.0);

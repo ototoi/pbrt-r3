@@ -196,7 +196,7 @@ impl Integrator for BDPTIntegrator {
                                 let n_light = n_light as i32;
                                 for t in 1..=n_camera {
                                     for s in 0..=n_light {
-                                        let depth = (s + t) - 2;
+                                        let depth = t + s - 2;
 
                                         if (s == 1 && t == 1)
                                             || depth < 0
@@ -204,6 +204,9 @@ impl Integrator for BDPTIntegrator {
                                         {
                                             continue;
                                         }
+                                        assert!(t > 0);//(t + s - 2) >= 0 -> t >= 2 - s
+                                        assert!(s >= 0);
+
                                         // Execute the $(s, t)$ connection strategy and
                                         // update _L_
                                         let (l_path, mis_weight, p_film_new) = connect_bdpt(

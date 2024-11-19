@@ -532,10 +532,7 @@ impl SceneContext {
         params: &ParamSet,
         shape: &Arc<dyn Shape>,
     ) -> Option<Arc<dyn Light>> {
-        let attr = self.graphics_states[self.graphics_states.len() - 1].borrow();
-        if attr.area_light_name.is_empty() {
-            return None;
-        }
+        assert!(name != "");
         match create_area_light(name, light2world, medium_interface, params, shape) {
             Ok(light) => {
                 N_LIGHTS.with(|c| c.inc());
@@ -1154,13 +1151,18 @@ impl ParseContext for SceneContext {
                 let mi = self.create_medium_interface();
 
                 for s in shapes {
-                    let area = self.make_area_light(
-                        &attr.area_light_name,
-                        &object2world,
-                        &mi,
-                        &attr.area_light_params,
-                        &s,
-                    );
+                    // Possibly create area light for shape
+                    let area = if attr.area_light_name != "" {
+                        self.make_area_light(
+                            &attr.area_light_name,
+                            &object2world,
+                            &mi,
+                            &attr.area_light_params,
+                            &s,
+                        )
+                    } else {
+                        None
+                    };
                     if let Some(a) = area.as_ref() {
                         area_lights.push(a.clone());
                     }

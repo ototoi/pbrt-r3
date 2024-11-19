@@ -71,13 +71,12 @@ impl EndpointInteraction {
 
     pub fn from_camera_ray(camera: &Arc<dyn Camera>, ray: &Ray) -> Self {
         let weak = Arc::downgrade(camera);
-        let n = -ray.d;
         let base = BaseInteraction {
             p: ray.o,
             time: ray.time,
             p_error: Vector3f::default(),
-            n,
-            wo: n,
+            n: Vector3f::default(),
+            wo: Vector3f::default(),
             medium_interface: MediumInterface::from(&ray.medium),
         };
         let inter = Interaction::Base(base);
@@ -96,7 +95,7 @@ impl EndpointInteraction {
             time: ray.time,
             p_error: Vector3f::default(),
             n: *n_light,
-            wo: -ray.d,
+            wo: Vector3f::default(),
             medium_interface: MediumInterface::from(&ray.medium),
         };
         let inter = Interaction::Base(base);
@@ -116,7 +115,7 @@ impl EndpointInteraction {
             time: ray.time,
             p_error: Vector3f::default(),
             n,
-            wo: n,
+            wo: Vector3f::default(),
             medium_interface: MediumInterface::from(&ray.medium),
         };
         let inter = Interaction::Base(base);

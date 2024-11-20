@@ -735,12 +735,9 @@ impl SceneContext {
                 .collect();
             for key in target_keys {
                 if let Some(values) = params.get_floats_ref(key) {
-                    let values = values.clone();
-                    if values.len() == 2 {
-                        let spc = SampledSpectrum::from_blackbody(values[0], values[1]);
-                        let spc = Spectrum::from(&spc);
-                        n_params.add_spectrum_no_key(key, &spc);
-                    }
+                    let spc = SampledSpectrum::from_blackbody(&values);
+                    let spc = Spectrum::from(&spc);
+                    n_params.add_spectrum_no_key(key, &spc);
                 }
             }
         }

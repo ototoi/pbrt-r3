@@ -47,7 +47,7 @@ impl FourierBSDFTable {
         return PbrtError::error(&msg);
     }
 
-    pub fn read(filename: &str) -> Result<Arc<RwLock<FourierBSDFTable>>, PbrtError> {
+    pub fn read(filename: &str) -> Result<FourierBSDFTable, PbrtError> {
         let path = Path::new(filename);
         let fp = File::open(path)?;
         let mut reader = BufReader::new(fp);
@@ -128,7 +128,7 @@ impl FourierBSDFTable {
             cdf,
             recip,
         };
-        return Ok(Arc::new(RwLock::new(table)));
+        return Ok(table);
     }
 
     pub fn get_weights_and_offset(&self, cos_theta: Float) -> Option<(i32, [Float; 4])> {
@@ -147,14 +147,14 @@ impl FourierBSDFTable {
 }
 
 pub struct FourierBSDF {
-    bsdf_table: Arc<RwLock<FourierBSDFTable>>,
+    bsdf_table: Arc<FourierBSDFTable>,
     mode: TransportMode,
 }
 
 pub type FourierOffsetsAndWeights = ((i32, [Float; 4]), (i32, [Float; 4]));
 
 impl FourierBSDF {
-    pub fn new(bsdf_table: &Arc<RwLock<FourierBSDFTable>>, mode: TransportMode) -> Self {
+    pub fn new(bsdf_table: &Arc<FourierBSDFTable>, mode: TransportMode) -> Self {
         FourierBSDF {
             bsdf_table: bsdf_table.clone(),
             mode,
@@ -228,10 +228,10 @@ impl BxDF for FourierBSDF {
         // Compute Fourier coefficients $a_k$ for $(\mui, \muo)$
 
         // Determine offsets and weights for $\mui$ and $\muo$
-        let bsdf_table = self.bsdf_table.as_ref().read().unwrap();
+        let bsdf_table = self.bsdf_table.as_ref();
         let n_channels = bsdf_table.n_channels as usize;
         if let Some(((offset_i, weights_i), (offset_o, weights_o))) =
-            Self::get_offsets_and_weights(bsdf_table.deref(), mu_i, mu_o)
+            Self::get_offsets_and_weights(bsdf_table, mu_i, mu_o)
         {
             /*
             let i_sums:Float = weights_i.iter().sum();
@@ -241,7 +241,7 @@ impl BxDF for FourierBSDF {
             */
 
             let ak = Self::create_ak(
-                bsdf_table.deref(),
+                bsdf_table,
                 offset_i,
                 &weights_i,
                 offset_o,
@@ -293,7 +293,7 @@ impl BxDF for FourierBSDF {
         wo: &Vector3f,
         u: &Vector2f,
     ) -> Option<(Spectrum, Vector3f, Float, BxDFType)> {
-        let bsdf_table = self.bsdf_table.as_ref().read().unwrap();
+        let bsdf_table = self.bsdf_table.as_ref();
         // Sample zenith angle component for _FourierBSDF_
         let mu_o = cos_theta(wo);
         let (mu_i, _, pdf_mu) = sample_catmull_rom_2d(
@@ -312,10 +312,10 @@ impl BxDF for FourierBSDF {
 
         let n_channels = bsdf_table.n_channels as usize;
         let ((offset_i, weights_i), (offset_o, weights_o)) =
-            Self::get_offsets_and_weights(bsdf_table.deref(), mu_i, mu_o)?;
+            Self::get_offsets_and_weights(bsdf_table, mu_i, mu_o)?;
 
         let ak = Self::create_ak(
-            bsdf_table.deref(),
+            bsdf_table,
             offset_i,
             &weights_i,
             offset_o,
@@ -404,13 +404,13 @@ impl BxDF for FourierBSDF {
         // Compute Fourier coefficients $a_k$ for $(\mui, \muo)$
 
         // Determine offsets and weights for $\mui$ and $\muo$
-        let bsdf_table = self.bsdf_table.as_ref().read().unwrap();
+        let bsdf_table = self.bsdf_table.as_ref();
         let n_channels = 1;
         if let Some(((offset_i, weights_i), (offset_o, weights_o))) =
-            Self::get_offsets_and_weights(bsdf_table.deref(), mu_i, mu_o)
+            Self::get_offsets_and_weights(bsdf_table, mu_i, mu_o)
         {
             let ak = Self::create_ak(
-                bsdf_table.deref(),
+                bsdf_table,
                 offset_i,
                 &weights_i,
                 offset_o,

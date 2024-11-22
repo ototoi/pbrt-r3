@@ -94,11 +94,13 @@ impl BSDF {
             let mut count = comp;
             for i in 0..n_bxdfs {
                 let bxdf = self.bxdfs[i].as_ref();
-                if bxdf.matches_flags(flags) && count == 0 {
-                    target_index = i as i32;
-                    break;
+                if bxdf.matches_flags(flags) {
+                    if count == 0 {
+                        target_index = i as i32;
+                        break;
+                    }
+                    count -= 1;
                 }
-                count -= 1;
             }
         }
         //assert!(target_index >= 0);
@@ -121,7 +123,7 @@ impl BSDF {
         let mut sampled_type = found_bxdf.get_type();
         if let Some((f, wi, pdf, t)) = found_bxdf.sample_f(&wo, &remapped) {
             assert!(Float::is_finite(f.y()));
-            if pdf == 0.0 {
+            if pdf <= 0.0 {
                 //t = 0;
                 return None;
             }

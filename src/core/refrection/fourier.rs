@@ -241,12 +241,7 @@ impl BxDF for FourierBSDF {
             */
 
             let ak = Self::create_ak(
-                bsdf_table,
-                offset_i,
-                &weights_i,
-                offset_o,
-                &weights_o,
-                n_channels,
+                bsdf_table, offset_i, &weights_i, offset_o, &weights_o, n_channels,
             );
             assert!(!ak.is_empty());
             let m_max = ak.len() / n_channels;
@@ -315,12 +310,7 @@ impl BxDF for FourierBSDF {
             Self::get_offsets_and_weights(bsdf_table, mu_i, mu_o)?;
 
         let ak = Self::create_ak(
-            bsdf_table,
-            offset_i,
-            &weights_i,
-            offset_o,
-            &weights_o,
-            n_channels,
+            bsdf_table, offset_i, &weights_i, offset_o, &weights_o, n_channels,
         );
         assert!(!ak.is_empty());
         let m_max = ak.len() / n_channels;
@@ -410,12 +400,7 @@ impl BxDF for FourierBSDF {
             Self::get_offsets_and_weights(bsdf_table, mu_i, mu_o)
         {
             let ak = Self::create_ak(
-                bsdf_table,
-                offset_i,
-                &weights_i,
-                offset_o,
-                &weights_o,
-                n_channels,
+                bsdf_table, offset_i, &weights_i, offset_o, &weights_o, n_channels,
             );
             assert!(!ak.is_empty());
             let m_max = ak.len() / n_channels;

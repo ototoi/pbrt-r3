@@ -38,6 +38,17 @@ impl Sampler for RandomSampler {
     }
 
     fn start_pixel(&mut self, p: &Point2i) {
+        let _p = ProfilePhase::new(Prof::StartPixel);
+        for i in 0..self.base.sample_array1d.len() {
+            for j in 0..self.base.sample_array1d[i].len() {
+                self.base.sample_array1d[i][j] = self.rng.uniform_float();
+            }
+        }
+        for i in 0..self.base.sample_array2d.len() {
+            for j in 0..self.base.sample_array2d[i].len() {
+                self.base.sample_array2d[i][j] = Vector2f::new(self.rng.uniform_float(), self.rng.uniform_float());
+            }
+        }
         self.base.start_pixel(p);
     }
 

@@ -22,6 +22,9 @@ You can render using pbrt-r3 with the following command.
 pbrt-r3 can take pbrt-v3 scene files as input.
 See the official pbrt-v3 scenes page on the pbrt website for information about how to download them.
 
+## Results
+Rendered images are stored at [pbrt-r3-devkit](https://github.com/ototoi/pbrt-r3-devkit).
+
 ## Differences
 
 ## Feature works

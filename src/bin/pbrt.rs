@@ -163,6 +163,12 @@ fn create_scene_and_integrator(
         sc.replace_params_int("Sampler", "pixelsamples", pixelsamples)?;
     }
 
+    if let Some(outfile) = opts.outfile.as_ref() {
+        let outfile = String::from(outfile.to_str().unwrap());
+        let mut sc = scene_context.borrow_mut();
+        sc.replace_params_string("Film", "filename", &outfile)?;
+    }
+
     let sc = scene_context.borrow();
     let scene = sc.make_scene();
     let integrator = sc.make_integrator();

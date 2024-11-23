@@ -168,6 +168,26 @@ impl SceneContext {
         }
     }
 
+    pub fn replace_params_string(
+        &mut self,
+        name: &str,
+        key: &str,
+        value: &str,
+    ) -> Result<(), PbrtError> {
+        match name {
+            "Film" => {
+                let mut opts = self.render_options.borrow_mut();
+                let params = &mut opts.film_params;
+                params.replace_one_string(key, value);
+                return Ok(());
+            }
+            _ => {
+                let msg = format!("\"{}\" is unknown params name.", name);
+                return Err(PbrtError::error(&msg));
+            }
+        }
+    }
+
     pub fn create_medium_interface(&self) -> MediumInterface {
         let attr = self.graphics_states[self.graphics_states.len() - 1].borrow();
         let opts = self.render_options.borrow();

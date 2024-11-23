@@ -147,7 +147,10 @@ impl Light for InfiniteAreaLight {
         let theta = uv[1] * PI;
         let phi = uv[0] * 2.0 * PI;
         let cos_theta = Float::cos(theta);
-        let sin_theta = Float::sin(theta);
+        // let sin_theta = Float::sin(theta);
+        // pbrt-r3: Clamp negative values to zero
+        let sin_theta = Float::clamp(Float::sin(theta), 0.0, 1.0);
+        // pbrt-r3
         let cos_phi = Float::cos(phi);
         let sin_phi = Float::sin(phi);
         let wi = Vector3f::new(sin_theta * cos_phi, sin_theta * sin_phi, cos_theta);
@@ -172,7 +175,11 @@ impl Light for InfiniteAreaLight {
         let wi = self.base.world_to_light.transform_vector(w);
         let theta = spherical_theta(&wi);
         let phi = spherical_phi(&wi);
-        let sin_theta = Float::sin(theta);
+        // let sin_theta = Float::sin(theta);
+        // pbrt-r3: Clamp negative values to zero
+        let sin_theta = Float::clamp(Float::sin(theta), 0.0, 1.0);
+        // pbrt-r3
+        assert!(sin_theta >= 0.0);
         if sin_theta == 0.0 {
             return 0.0;
         } else {
@@ -202,7 +209,10 @@ impl Light for InfiniteAreaLight {
         let theta = uv[1] * PI;
         let phi = uv[0] * 2.0 * PI;
         let cos_theta = Float::cos(theta);
-        let sin_theta = Float::sin(theta);
+        // let sin_theta = Float::sin(theta);
+        // pbrt-r3: Clamp negative values to zero
+        let sin_theta = Float::clamp(Float::sin(theta), 0.0, 1.0);
+        // pbrt-r3
         let sin_phi = Float::sin(phi);
         let cos_phi = Float::cos(phi);
         let d = -self.base.light_to_world.transform_vector(&Vector3f::new(
@@ -240,7 +250,10 @@ impl Light for InfiniteAreaLight {
         let d = -self.base.world_to_light.transform_vector(&ray.d);
         let theta = spherical_theta(&d);
         let phi = spherical_phi(&d);
-        let sin_theta = Float::sin(theta);
+        // let sin_theta = Float::sin(theta);
+        // pbrt-r3: Clamp negative values to zero
+        let sin_theta = Float::clamp(Float::sin(theta), 0.0, 1.0);
+        // pbrt-r3
 
         let bound = self.get_bound();
         //let world_center = bound.center;

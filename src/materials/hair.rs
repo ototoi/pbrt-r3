@@ -32,6 +32,11 @@ fn mp(
     };
     assert!(!mp.is_infinite());
     assert!(!mp.is_nan());
+
+    // pbrt-r3:
+    let mp = mp.max(0.0);
+    // pbrt-r3:
+
     return mp;
 }
 
@@ -116,7 +121,11 @@ fn np(phi_: Float, p: usize, s: Float, gamma_o: Float, gamma_t: Float) -> Float 
     while dphi < -PI {
         dphi += 2.0 * PI;
     }
-    return trimmed_logistic_cdf(dphi, s, -PI, PI);
+    let np = trimmed_logistic_cdf(dphi, s, -PI, PI);
+    // pbrt-r3:
+    let np = np.max(0.0);
+    // pbrt-r3:
+    return np;
 }
 
 #[inline]

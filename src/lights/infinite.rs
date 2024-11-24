@@ -56,9 +56,7 @@ fn make_mipmap(path: &str, l: &Spectrum) -> Result<MIPMap<RGBSpectrum>, PbrtErro
         let c = RGBSpectrum::from(l.to_rgb());
         for i in 0..total {
             let cc = texels[i].to_rgb();
-            // pbrt-r3: Clamp negative values to zero
-            let cc = cc.iter().map(|x| x.max(0.0)).collect::<Vec<Float>>();
-            // pbrt-rs: Clamp negative values to zero
+            let cc = cc.iter().map(|x| x.max(0.0)).collect::<Vec<Float>>();// pbrt-r3: Clamp negative values to zero
             texels[i] = RGBSpectrum::from(cc) * c;
 
             assert!(texels[i].y() >= 0.0);
@@ -88,9 +86,7 @@ fn make_distribution(lmap: &MIPMap<RGBSpectrum>) -> Result<Distribution2D, PbrtE
         for u in 0..width {
             let up = (u as Float + 0.5) / width as Float;
             let y = lmap.lookup(&Point2f::new(up, vp), fwidth).y();
-            // pbrt-r3: Clamp negative values to zero
-            let y = y.max(0.0);
-            // pbrt-rs: Clamp negative values to zero
+            let y = y.max(0.0); // pbrt-r3: Clamp negative values to zero
             let c = y * sin_theta;
             img[v * width + u] = c;
         }
@@ -147,10 +143,8 @@ impl Light for InfiniteAreaLight {
         let theta = uv[1] * PI;
         let phi = uv[0] * 2.0 * PI;
         let cos_theta = Float::cos(theta);
-        // let sin_theta = Float::sin(theta);
-        // pbrt-r3: Clamp negative values to zero
-        let sin_theta = Float::clamp(Float::sin(theta), 0.0, 1.0);
-        // pbrt-r3
+        let sin_theta = Float::sin(theta);
+        let sin_theta = Float::clamp(sin_theta, 0.0, 1.0); // pbrt-r3: Clamp negative values to zero
         let cos_phi = Float::cos(phi);
         let sin_phi = Float::sin(phi);
         let wi = Vector3f::new(sin_theta * cos_phi, sin_theta * sin_phi, cos_theta);
@@ -175,10 +169,8 @@ impl Light for InfiniteAreaLight {
         let wi = self.base.world_to_light.transform_vector(w);
         let theta = spherical_theta(&wi);
         let phi = spherical_phi(&wi);
-        // let sin_theta = Float::sin(theta);
-        // pbrt-r3: Clamp negative values to zero
-        let sin_theta = Float::clamp(Float::sin(theta), 0.0, 1.0);
-        // pbrt-r3
+        let sin_theta = Float::sin(theta);
+        let sin_theta = Float::clamp(sin_theta, 0.0, 1.0); // pbrt-r3: Clamp negative values to zero
         assert!(sin_theta >= 0.0);
         if sin_theta == 0.0 {
             return 0.0;
@@ -209,10 +201,8 @@ impl Light for InfiniteAreaLight {
         let theta = uv[1] * PI;
         let phi = uv[0] * 2.0 * PI;
         let cos_theta = Float::cos(theta);
-        // let sin_theta = Float::sin(theta);
-        // pbrt-r3: Clamp negative values to zero
-        let sin_theta = Float::clamp(Float::sin(theta), 0.0, 1.0);
-        // pbrt-r3
+        let sin_theta = Float::sin(theta);
+        let sin_theta = Float::clamp(sin_theta, 0.0, 1.0); // pbrt-r3: Clamp negative values to zero
         let sin_phi = Float::sin(phi);
         let cos_phi = Float::cos(phi);
         let d = -self.base.light_to_world.transform_vector(&Vector3f::new(
@@ -250,10 +240,8 @@ impl Light for InfiniteAreaLight {
         let d = -self.base.world_to_light.transform_vector(&ray.d);
         let theta = spherical_theta(&d);
         let phi = spherical_phi(&d);
-        // let sin_theta = Float::sin(theta);
-        // pbrt-r3: Clamp negative values to zero
-        let sin_theta = Float::clamp(Float::sin(theta), 0.0, 1.0);
-        // pbrt-r3
+        let sin_theta = Float::sin(theta);
+        let sin_theta = Float::clamp(sin_theta, 0.0, 1.0); // pbrt-r3: Clamp negative values to zero
 
         let bound = self.get_bound();
         //let world_center = bound.center;

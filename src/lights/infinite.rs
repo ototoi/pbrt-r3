@@ -50,13 +50,13 @@ impl InfiniteAreaLight {
 }
 
 fn make_mipmap(path: &str, l: &Spectrum) -> Result<MIPMap<RGBSpectrum>, PbrtError> {
-    if let Ok((mut texels, resolution)) = read_image(path) {
-        //println!("make_mipmap {}", path);
+    if !path.is_empty() {
+        let (mut texels, resolution) = read_image(path)?;
         let total = (resolution.x * resolution.y) as usize;
         let c = RGBSpectrum::from(l.to_rgb());
         for i in 0..total {
             let cc = texels[i].to_rgb();
-            let cc = cc.iter().map(|x| x.max(0.0)).collect::<Vec<Float>>();// pbrt-r3: Clamp negative values to zero
+            let cc = cc.iter().map(|x| x.max(0.0)).collect::<Vec<Float>>(); // pbrt-r3: Clamp negative values to zero
             texels[i] = RGBSpectrum::from(cc) * c;
 
             assert!(texels[i].y() >= 0.0);

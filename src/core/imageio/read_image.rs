@@ -122,7 +122,7 @@ fn convert_from_rgba32f(img: &image::Rgba32FImage) -> (Vec<RGBSpectrum>, Point2i
 }
 
 // use crate::image::*;
-pub fn read_image_gamma_correct_core(
+pub fn read_image_common(
     path: &Path,
     gamma: bool,
 ) -> Result<(Vec<RGBSpectrum>, Point2i), PbrtError> {
@@ -172,7 +172,7 @@ pub fn read_image_gamma_correct(
     if has_extension(path, "pfm") {
         return read_image_pfm(name);
     } else {
-        return read_image_gamma_correct_core(path, gamma);
+        return read_image_common(path, gamma);
     }
 }
 

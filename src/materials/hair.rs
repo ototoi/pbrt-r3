@@ -583,6 +583,7 @@ impl BxDF for HairBSDF {
 
         // Compute PDF for $A_p$ terms
         let ap_pdf = self.compute_ap_pdf(cos_theta_o);
+        let ap_pdf = ap_pdf.iter().map(|x| x.max(0.0)).collect::<Vec<_>>(); //pbrt-r3
 
         // Compute PDF sum for hair scattering events
         let phi = phi_i - phi_o;

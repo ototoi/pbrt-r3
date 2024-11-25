@@ -1,18 +1,14 @@
 use crate::core::pbrt::*;
-use nom::character::complete::{alphanumeric1, digit1, multispace0};
+use nom::character::complete::{alphanumeric1, multispace0};
 use nom::error::*;
 use nom::number::complete::*;
+use nom::sequence;
 use nom::IResult;
-use nom::{character, sequence};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
-/*
-PF
-512 256
--1
-*/
+use log::info;
 
 fn read_word(s: &[u8]) -> IResult<&[u8], &[u8]> {
     let (s, word) = sequence::delimited(multispace0, alphanumeric1, multispace0)(s)?;
@@ -24,25 +20,10 @@ fn read_value(s: &[u8]) -> IResult<&[u8], &[u8]> {
     return Ok((s, word));
 }
 
-fn read_cc(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    let (input, cc) = read_word(input)?;
-    return Ok((input, cc));
-}
-
-fn read_header(input: &[u8]) -> IResult<&[u8], (u32, u32, f32)> {
-    let (input, width) = read_value(input)?;
-    let (input, height) = read_value(input)?;
-    let (input, scale) = read_value(input)?;
-    let width = std::str::from_utf8(width).unwrap().parse::<u32>().unwrap();
-    let height = std::str::from_utf8(height).unwrap().parse::<u32>().unwrap();
-    let scale = std::str::from_utf8(scale).unwrap().parse::<f32>().unwrap();
-    return Ok((input, (width, height, scale)));
-}
-
 fn read_image_pfm_core(input: &[u8]) -> IResult<&[u8], (Vec<RGBSpectrum>, Point2i)> {
-    let (input, cc) = read_cc(input)?;
+    // read either "Pf" or "PF"
+    let (input, cc) = read_word(input)?;
     let cc = std::str::from_utf8(cc).unwrap();
-    let (input, (width, height, scale)) = read_header(input)?;
 
     let n_channels;
     if cc == "Pf" {
@@ -50,12 +31,27 @@ fn read_image_pfm_core(input: &[u8]) -> IResult<&[u8], (Vec<RGBSpectrum>, Point2
     } else if cc == "PF" {
         n_channels = 3;
     } else {
-        return Err(nom::Err::Error(Error::new(input, ErrorKind::Tag)));
+        return Err(nom::Err::Error(Error::new(input, ErrorKind::Fail)));
     }
 
-    let width = width as usize;
-    let height = height as usize;
-    let n_channels = n_channels as usize;
+    // read the rest of the header
+    // read width
+    let (input, width) = read_value(input)?;
+    let width = std::str::from_utf8(width)
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
+
+    // read height
+    let (input, height) = read_value(input)?;
+    let height = std::str::from_utf8(height)
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
+
+    // read scale
+    let (input, scale) = read_value(input)?;
+    let scale = std::str::from_utf8(scale).unwrap().parse::<f32>().unwrap();
 
     //println!("width: {}, height: {}, scale: {}, n_channels: {}", width, height, scale, n_channels);
 
@@ -66,6 +62,7 @@ fn read_image_pfm_core(input: &[u8]) -> IResult<&[u8], (Vec<RGBSpectrum>, Point2
     let mut data = vec![0.0; n_floats];
     {
         let mut input = input;
+        // Flip in Y, as P*M has the origin at the lower left.
         for y in 0..height {
             let yy = height - y - 1;
             for x in 0..width {
@@ -82,6 +79,7 @@ fn read_image_pfm_core(input: &[u8]) -> IResult<&[u8], (Vec<RGBSpectrum>, Point2
             }
         }
     }
+
     let scale = scale.abs();
     if scale != 1.0 {
         for f in &mut data {
@@ -89,21 +87,22 @@ fn read_image_pfm_core(input: &[u8]) -> IResult<&[u8], (Vec<RGBSpectrum>, Point2
         }
     }
 
-    let mut spcs = Vec::with_capacity(width as usize * height as usize);
+    // create RGBs...
+    let mut rgb = Vec::with_capacity(width as usize * height as usize);
     if n_channels == 1 {
         for f in data {
-            spcs.push(RGBSpectrum::rgb_from_rgb(&[f, f, f]));
+            rgb.push(RGBSpectrum::rgb_from_rgb(&[f, f, f]));
         }
     } else {
         for i in 0..(width * height) as usize {
             let r = data[i * 3];
             let g = data[i * 3 + 1];
             let b = data[i * 3 + 2];
-            spcs.push(RGBSpectrum::rgb_from_rgb(&[r, g, b]));
+            rgb.push(RGBSpectrum::rgb_from_rgb(&[r, g, b]));
         }
     }
-    assert!(spcs.len() == (width * height) as usize);
-    return Ok((input, (spcs, Point2i::from((width as i32, height as i32)))));
+    assert!(rgb.len() == (width * height) as usize);
+    return Ok((input, (rgb, Point2i::from((width as i32, height as i32)))));
 }
 
 pub fn read_image_pfm(name: &str) -> Result<(Vec<RGBSpectrum>, Point2i), PbrtError> {
@@ -114,10 +113,15 @@ pub fn read_image_pfm(name: &str) -> Result<(Vec<RGBSpectrum>, Point2i), PbrtErr
 
     match read_image_pfm_core(&bytes) {
         Ok((_, v)) => {
+            let resolution = v.1;
+            info!(
+                "Read PFM image {} ({}x{}) resolution",
+                name, resolution.x, resolution.y
+            );
             return Ok(v);
         }
-        Err(e) => {
-            let msg = format!("Error reading PFM file \"{}\": {}", path.display(), e);
+        Err(_) => {
+            let msg = format!("Error reading PFM file \"{}\"", path.display());
             return Err(PbrtError::error(&msg));
         }
     }

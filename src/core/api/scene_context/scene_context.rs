@@ -856,23 +856,39 @@ impl ParseContext for SceneContext {
     fn pbrt_concat_transform(&mut self, t: &[Float]) {
         self.verify_initialized("ConcatTransform");
 
-        let t = Transform::from([
-            t[0], t[4], t[8], t[12], t[1], t[5], t[9], t[13], t[2], t[6], t[10], t[14], t[3], t[7],
-            t[11], t[15],
+        #[rustfmt::skip]
+        let m = Matrix4x4::from([
+            t[0], t[4], t[8], t[12],
+            t[1], t[5], t[9], t[13],
+            t[2], t[6], t[10], t[14],
+            t[3], t[7], t[11], t[15],
         ]);
-        let mut trns = self.transforms[self.transforms.len() - 1].borrow_mut();
-        trns.mul_transform(&t, self.transform_bits[self.transform_bits.len() - 1]);
+        if let Some(im) = m.inverse() {
+            let t = Transform::from((m, im));
+            let mut trns = self.transforms[self.transforms.len() - 1].borrow_mut();
+            trns.mul_transform(&t, self.transform_bits[self.transform_bits.len() - 1]);
+        } else {
+            error!("Singular matrix in MatrixInvert");
+        }
     }
 
     fn pbrt_transform(&mut self, t: &[Float]) {
         self.verify_initialized("Transform");
 
-        let t = Transform::from([
-            t[0], t[4], t[8], t[12], t[1], t[5], t[9], t[13], t[2], t[6], t[10], t[14], t[3], t[7],
-            t[11], t[15],
+        #[rustfmt::skip]
+        let m = Matrix4x4::from([
+            t[0], t[4], t[8], t[12],
+            t[1], t[5], t[9], t[13],
+            t[2], t[6], t[10], t[14],
+            t[3], t[7], t[11], t[15],
         ]);
-        let mut trns = self.transforms[self.transforms.len() - 1].borrow_mut();
-        trns.set_transform(&t, self.transform_bits[self.transform_bits.len() - 1]);
+        if let Some(im) = m.inverse() {
+            let t = Transform::from((m, im));
+            let mut trns = self.transforms[self.transforms.len() - 1].borrow_mut();
+            trns.set_transform(&t, self.transform_bits[self.transform_bits.len() - 1]);
+        } else {
+            error!("Singular matrix in MatrixInvert");
+        }
     }
 
     fn pbrt_coordinate_system(&mut self, name: &str) {
@@ -1046,6 +1062,17 @@ impl ParseContext for SceneContext {
         self.verify_world("Texture");
 
         let params = self.make_absolute_path(params);
+
+        // Check for filename errors
+        if let Some(maps) = params.get_strings_ref("filename") {
+            if maps.len() == 1 {
+                let path = Path::new(&maps[0]);
+                if !path.exists() {
+                    warn!("Texture file \"{}\" does not exist.", path.display());
+                    return;
+                }
+            }
+        }
 
         let attr = self.graphics_states[self.graphics_states.len() - 1].borrow_mut();
 

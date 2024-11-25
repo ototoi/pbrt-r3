@@ -1,5 +1,8 @@
+use super::read_image_pfm::*;
 use crate::core::pbrt::*;
+
 use image::*;
+use std::path::Path;
 
 fn convert_from_luma8(img: &image::GrayImage, gamma: bool) -> (Vec<RGBSpectrum>, Point2i) {
     let (width, height) = img.dimensions();
@@ -118,11 +121,12 @@ fn convert_from_rgba32f(img: &image::Rgba32FImage) -> (Vec<RGBSpectrum>, Point2i
     return (spcs, Point2i::from((width as i32, height as i32)));
 }
 
-pub fn read_image_gamma_correct(
-    name: &str,
+// use crate::image::*;
+pub fn read_image_gamma_correct_core(
+    path: &Path,
     gamma: bool,
 ) -> Result<(Vec<RGBSpectrum>, Point2i), PbrtError> {
-    let r: Result<DynamicImage, ImageError> = image::open(name);
+    let r: Result<DynamicImage, ImageError> = image::open(path);
     match r {
         Ok(dimg) => match dimg {
             DynamicImage::ImageLuma8(img) => {
@@ -151,6 +155,25 @@ pub fn read_image_gamma_correct(
             return Err(PbrtError::from(e.to_string()));
         }
     };
+}
+
+fn has_extension(path: &Path, ext: &str) -> bool {
+    return path.extension().unwrap_or_default() == ext;
+}
+
+pub fn read_image_gamma_correct(
+    name: &str,
+    gamma: bool,
+) -> Result<(Vec<RGBSpectrum>, Point2i), PbrtError> {
+    let path = Path::new(name);
+    if !path.exists() {
+        return Err(PbrtError::from(format!("File not found: {}", name)));
+    }
+    if has_extension(path, "pfm") {
+        return read_image_pfm(name);
+    } else {
+        return read_image_gamma_correct_core(path, gamma);
+    }
 }
 
 pub fn read_image(name: &str) -> Result<(Vec<RGBSpectrum>, Point2i), PbrtError> {

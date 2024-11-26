@@ -46,7 +46,8 @@ impl Sampler for RandomSampler {
         }
         for i in 0..self.base.sample_array2d.len() {
             for j in 0..self.base.sample_array2d[i].len() {
-                self.base.sample_array2d[i][j] = Vector2f::new(self.rng.uniform_float(), self.rng.uniform_float());
+                self.base.sample_array2d[i][j] =
+                    Vector2f::new(self.rng.uniform_float(), self.rng.uniform_float());
             }
         }
         self.base.start_pixel(p);

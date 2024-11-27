@@ -17,20 +17,14 @@ impl MediumInterface {
     }
 
     pub fn is_medium_transition(&self) -> bool {
-        if let Some(inside) = self.inside.as_ref() {
-            if let Some(outside) = self.outside.as_ref() {
-                //print!("inside: {:p}\n", inside);
-                let inside = inside.as_ref();
-                let inside_ptr = inside as *const dyn Medium;
-                let outside = outside.as_ref();
-                let outside_ptr = outside as *const dyn Medium;
-                return !std::ptr::eq(inside_ptr, outside_ptr);
-                //return inside.as_ptr() != outside.as_ptr();
-            } else {
-                return true;
+        match (self.inside.as_ref(), self.outside.as_ref()) {
+            (Some(inside), Some(outside)) => {
+                return !std::ptr::eq(inside, outside);
             }
+            (Some(_), None) => true,
+            (None, Some(_)) => true,
+            (None, None) => false,
         }
-        return false;
     }
 }
 

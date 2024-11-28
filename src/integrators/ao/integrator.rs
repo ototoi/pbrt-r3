@@ -1,3 +1,4 @@
+use crate::core::options::PbrtOptions;
 use crate::core::pbrt::*;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -122,7 +123,13 @@ pub fn create_ao_integrator(
 ) -> Result<Arc<RwLock<dyn Integrator>>, PbrtError> {
     let pixel_bounds = camera.get_film().read().unwrap().get_sample_bounds();
     let cos_sample = params.find_one_bool("cossample", true);
-    let n_samples = params.find_one_int("nsamples", 64);
+    let mut n_samples = params.find_one_int("nsamples", 64);
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            n_samples = 1;
+        }
+    }
     Ok(Arc::new(RwLock::new(AOIntegrator::new(
         cos_sample,
         n_samples as u32,

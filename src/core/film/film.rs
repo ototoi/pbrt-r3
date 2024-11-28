@@ -502,8 +502,16 @@ pub fn create_film(
     let filename = params.find_one_string("filename", "pbrt.exr");
     let filepath = get_full_path(&filename);
     //let filepath = params.find_one_string("filepath", &filename);
-    let xres = params.find_one_int("xresolution", 1280);
-    let yres = params.find_one_int("yresolution", 720);
+    let mut xres = params.find_one_int("xresolution", 1280);
+    let mut yres = params.find_one_int("yresolution", 720);
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            xres = i32::max(1, xres / 4);
+            yres = i32::max(1, yres / 4);
+        }
+    }
+
     let crop = get_crop_window(params)?;
     let scale = params.find_one_float("scale", 1.0);
     let diagonal = params.find_one_float("diagonal", 35.0);

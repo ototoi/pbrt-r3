@@ -18,6 +18,7 @@ pub mod material;
 pub mod medium;
 pub mod memory;
 pub mod misc;
+pub mod options;
 pub mod param_set;
 pub mod parser;
 pub mod pbrt;

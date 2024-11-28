@@ -253,6 +253,11 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
 
 pub fn main() {
     let opts = CommandOptions::parse();
+    {
+        let mut po = PbrtOptions::get();
+        po.quick_render = opts.quick;
+        PbrtOptions::set(po);
+    }
     init_logger(&opts);
     let input = if let Some(infiles) = opts.pbrtfile.as_ref() {
         Some(infiles[0].clone())

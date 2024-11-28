@@ -1,6 +1,7 @@
 use vector3::Vector3f;
 
 use crate::core::imageio::*;
+use crate::core::options;
 use crate::core::pbrt::*;
 
 use std::sync::Arc;
@@ -282,9 +283,15 @@ pub fn create_infinite_light(
     let l = params.find_one_spectrum("L", &Spectrum::one());
     let sc = params.find_one_spectrum("scale", &Spectrum::one());
     let texmap = params.find_one_filename("mapname", "");
-    let n_samples = params.find_one_int("samples", params.find_one_int("nsamples", 1)) as u32;
+    let mut n_samples = params.find_one_int("samples", params.find_one_int("nsamples", 1)) as u32;
     let lmap = make_mipmap(&texmap, &(l * sc))?;
     let distribution = make_distribution(&lmap)?;
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            n_samples = (n_samples / 4).max(1);
+        }
+    }
     return Ok(Arc::new(InfiniteAreaLight::new(
         light2world,
         n_samples,

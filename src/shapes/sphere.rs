@@ -76,6 +76,11 @@ impl Shape for Sphere {
         let t_max = ray.t_max.get();
 
         let (t0, t1) = EFloat::quadratic(a, b, c)?;
+        // pbrt-r3:
+        if t0.v.is_infinite() || t1.v.is_infinite() {
+            return None;
+        }
+
         assert!(t0.v <= t1.v);
         // Check quadric shape _t0_ and _t1_ for nearest intersection
         if t0.upper_bound() > t_max || t1.lower_bound() <= 0.0 {
@@ -208,6 +213,11 @@ impl Shape for Sphere {
         let t_max = ray.t_max.get();
 
         if let Some((t0, t1)) = EFloat::quadratic(a, b, c) {
+            // pbrt-r3:
+            if t0.v.is_infinite() || t1.v.is_infinite() {
+                return false;
+            }
+
             if t0.upper_bound() > t_max || t1.lower_bound() <= 0.0 {
                 return false;
             }

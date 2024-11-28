@@ -18,6 +18,7 @@ pub use super::material::*;
 pub use super::medium::*;
 pub use super::memory::*;
 pub use super::misc::*;
+pub use super::options::*;
 pub use super::param_set::*;
 pub use super::primitive::*;
 pub use super::quaternion::*;

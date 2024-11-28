@@ -737,11 +737,18 @@ pub fn create_sppm_integrator(
     params: &ParamSet,
     camera: &Arc<dyn Camera>,
 ) -> Result<Arc<RwLock<dyn Integrator>>, PbrtError> {
-    let n_iterations = params.find_one_int("iterations", params.find_one_int("numiterations", 64));
+    let mut n_iterations =
+        params.find_one_int("iterations", params.find_one_int("numiterations", 64));
     let max_depth = params.find_one_int("maxdepth", 5);
     let photons_per_iteration = params.find_one_int("photonsperiteration", -1);
     let write_frequency = params.find_one_int("imagewritefrequency", 1 << 31);
     let initial_search_radius = params.find_one_float("radius", 1.0);
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            n_iterations = (n_iterations / 16).max(1);
+        }
+    }
     //if (PbrtOptions.quickRender) nIterations = std::max(1, nIterations / 16);
     return Ok(Arc::new(RwLock::new(SPPMIntegrator::new(
         Arc::clone(camera),

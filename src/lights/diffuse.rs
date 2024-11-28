@@ -178,8 +178,14 @@ pub fn create_diffuse_area_light(
     let l = params.find_one_spectrum("L", &Spectrum::one());
     let sc = params.find_one_spectrum("scale", &Spectrum::one());
     let mi = MediumInterface::from(medium);
-    let n_samples = params.find_one_int("nsamples", 1) as u32;
+    let mut n_samples = params.find_one_int("nsamples", 1) as u32;
     let two_sided = params.find_one_bool("twosided", false);
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            n_samples = (n_samples / 4).max(1);
+        }
+    }
     return Ok(Arc::new(DiffuseAreaLight::new(
         light2world,
         &mi,

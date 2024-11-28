@@ -387,12 +387,18 @@ pub fn create_mlt_integrator(
     camera: &Arc<dyn Camera>,
 ) -> Result<Arc<RwLock<dyn Integrator>>, PbrtError> {
     let max_depth = params.find_one_int("maxdepth", 5);
-    let n_bootstrap = params.find_one_int("bootstrapsamples", 100000);
+    let mut n_bootstrap = params.find_one_int("bootstrapsamples", 100000);
     let n_chains = params.find_one_int("chains", 1000);
-    let mutations_per_pixel = params.find_one_int("mutationsperpixel", 100);
+    let mut mutations_per_pixel = params.find_one_int("mutationsperpixel", 100);
     let large_step_probability = params.find_one_float("largestepprobability", 0.3);
     let sigma = params.find_one_float("sigma", 0.01);
-    // todo: quick_render
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            mutations_per_pixel = (mutations_per_pixel / 16).max(1);
+            n_bootstrap = (n_bootstrap / 16).max(1);
+        }
+    }
 
     return Ok(Arc::new(RwLock::new(MLTIntegrator::new(
         &camera,

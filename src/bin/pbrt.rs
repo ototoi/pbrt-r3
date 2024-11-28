@@ -1,7 +1,6 @@
 use clap::*;
 
 use pbrt_r3::core::api::*;
-use pbrt_r3::core::options::PbrtOptions;
 use pbrt_r3::core::parser::*;
 use pbrt_r3::core::pbrt::*;
 use pbrt_r3::core::stats;

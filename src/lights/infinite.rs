@@ -1,7 +1,6 @@
 use vector3::Vector3f;
 
 use crate::core::imageio::*;
-use crate::core::options;
 use crate::core::pbrt::*;
 
 use std::sync::Arc;

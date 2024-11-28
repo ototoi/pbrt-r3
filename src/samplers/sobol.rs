@@ -190,7 +190,13 @@ pub fn create_sobol_sampler(
     params: &ParamSet,
     sample_bounds: &Bounds2i,
 ) -> Result<Arc<RwLock<dyn Sampler>>, PbrtError> {
-    let nsamp = params.find_one_int("pixelsamples", 16) as u64;
+    let mut nsamp = params.find_one_int("pixelsamples", 16) as u64;
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            nsamp = 1;
+        }
+    }
     return Ok(Arc::new(RwLock::new(SobolSampler::new(
         nsamp,
         sample_bounds,

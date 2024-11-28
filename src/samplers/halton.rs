@@ -270,15 +270,22 @@ pub fn create_halton_sampler(
     params: &ParamSet,
     sample_bounds: &Bounds2i,
 ) -> Result<Arc<RwLock<dyn Sampler>>, PbrtError> {
-    let ns = params.find_one_int("pixelsamples", 16) as u32;
+    let mut nsamp = params.find_one_int("pixelsamples", 16) as u32;
     let sample_at_center = params.find_one_bool("samplepixelcenter", false);
 
     // pbrt-r3
     let _ = get_radical_inverse_permutations();
     // pbrt-r3
 
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            nsamp = 1;
+        }
+    }
+
     return Ok(Arc::new(RwLock::new(HaltonSampler::new(
-        ns,
+        nsamp,
         sample_bounds,
         sample_at_center,
     ))));

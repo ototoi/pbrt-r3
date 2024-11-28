@@ -108,8 +108,14 @@ impl PixelSampler for ZeroTwoSequenceSampler {}
 pub fn create_zerotwosequence_sampler(
     params: &ParamSet,
 ) -> Result<Arc<RwLock<dyn Sampler>>, PbrtError> {
-    let nsamp = params.find_one_int("pixelsamples", 16) as u32;
+    let mut nsamp = params.find_one_int("pixelsamples", 16) as u32;
     let sd = params.find_one_int("dimensions", 4) as u32;
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            nsamp = 1;
+        }
+    }
     return Ok(Arc::new(RwLock::new(ZeroTwoSequenceSampler::new(
         nsamp, sd,
     ))));

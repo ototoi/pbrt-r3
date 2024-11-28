@@ -254,9 +254,9 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
 pub fn main() {
     let opts = CommandOptions::parse();
     {
-        let mut po = PbrtOptions::get();
-        po.quick_render = opts.quick;
-        PbrtOptions::set(po);
+        let mut options = PbrtOptions::get();
+        options.quick_render = opts.quick;
+        PbrtOptions::set(options);
     }
     init_logger(&opts);
     let input = if let Some(infiles) = opts.pbrtfile.as_ref() {

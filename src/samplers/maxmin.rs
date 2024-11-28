@@ -149,7 +149,13 @@ impl Sampler for MaxMinDistSampler {
 impl PixelSampler for MaxMinDistSampler {}
 
 pub fn create_maxmindist_sampler(params: &ParamSet) -> Result<Arc<RwLock<dyn Sampler>>, PbrtError> {
-    let nsamp = params.find_one_int("pixelsamples", 16) as u32;
+    let mut nsamp = params.find_one_int("pixelsamples", 16) as u32;
     let sd = params.find_one_int("dimensions", 4) as u32;
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            nsamp = 1;
+        }
+    }
     return Ok(Arc::new(RwLock::new(MaxMinDistSampler::new(nsamp, sd))));
 }

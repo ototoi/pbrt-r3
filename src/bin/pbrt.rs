@@ -109,6 +109,11 @@ struct CommandOptions {
     #[arg(short = 's', long = "pixelsamples", value_name = "num")]
     pub pixelsamples: Option<i32>,
 
+    // Add with pbrt-r3
+    /// Quick full resolution. 
+    #[arg(long, default_value = "false")]
+    pub quick_full_resolution: bool,
+
     #[arg(value_name = "filename.pbrt")]
     pub pbrtfile: Option<Vec<PathBuf>>,
 }
@@ -252,10 +257,14 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
 }
 
 pub fn main() {
-    let opts = CommandOptions::parse();
+    let mut opts = CommandOptions::parse();
+    if opts.quick_full_resolution {
+        opts.quick = true;
+    }
     {
         let mut options = PbrtOptions::get();
         options.quick_render = opts.quick;
+        options.quick_render_full_resolution = opts.quick_full_resolution;
         PbrtOptions::set(options);
     }
     init_logger(&opts);

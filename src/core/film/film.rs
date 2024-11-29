@@ -506,7 +506,7 @@ pub fn create_film(
     let mut yres = params.find_one_int("yresolution", 720);
     {
         let options = PbrtOptions::get();
-        if options.quick_render {
+        if options.quick_render && !options.quick_render_full_resolution {
             xres = i32::max(1, xres / 4);
             yres = i32::max(1, yres / 4);
         }

@@ -175,7 +175,6 @@ impl Camera for PerspectiveCamera {
         let w2c = c2w.inverse();
         let cos_theta = ray
             .d
-            .normalize()
             .dot(&c2w.transform_vector(&Vector3f::new(0.0, 0.0, 1.0)));
         if cos_theta <= 0.0 {
             return (Spectrum::zero(), Point2f::default());
@@ -231,7 +230,6 @@ impl Camera for PerspectiveCamera {
         let w2c = c2w.inverse();
         let cos_theta = ray
             .d
-            .normalize()
             .dot(&c2w.transform_vector(&Vector3f::new(0.0, 0.0, 1.0)));
         if cos_theta <= 0.0 {
             return (0.0, 0.0);
@@ -280,15 +278,16 @@ impl Camera for PerspectiveCamera {
         inter: &Interaction,
         u: &Point2f,
     ) -> Option<(Spectrum, Vector3f, Float, Point2f, VisibilityTester)> {
-        // Uniformly sample a lens interaction _lensIntr_
         let lens_radius = self.base.lens_radius;
         let time = inter.get_time();
-        let camera_to_world = self.base.base.camera_to_world.interpolate(time);
+        let c2w = self.base.base.camera_to_world.interpolate(time);
+
+        // Uniformly sample a lens interaction _lensIntr_
         let p_lens = lens_radius * concentric_sample_disk(&u);
-        let p_lens_world = camera_to_world.transform_point(&Point3f::new(p_lens.x, p_lens.y, 0.0));
+        let p_lens_world = c2w.transform_point(&Point3f::new(p_lens.x, p_lens.y, 0.0));
         let medium = self.base.base.medium.clone();
         let mi = MediumInterface::from(&medium);
-        let n = Normal3f::from(camera_to_world.transform_normal(&Normal3f::new(0.0, 0.0, 1.0)));
+        let n = Normal3f::from(c2w.transform_vector(&Vector3f::new(0.0, 0.0, 1.0)));
         let lens_intr = Interaction::Base(BaseInteraction {
             p: p_lens_world,
             time: time,
@@ -314,7 +313,11 @@ impl Camera for PerspectiveCamera {
         let pdf = (dist * dist) / (n.abs_dot(&wi) * lens_area);
         let ray = lens_intr.spawn_ray(&-wi);
         let (spec, p_raster) = self.we(&ray);
-        return Some((spec, wi, pdf, p_raster, vis));
+        if spec.is_black() {
+            return None;
+        } else {
+            return Some((spec, wi, pdf, p_raster, vis));
+        }
     }
 
     fn get_film(&self) -> Arc<RwLock<Film>> {

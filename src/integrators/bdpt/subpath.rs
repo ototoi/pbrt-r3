@@ -606,13 +606,13 @@ pub fn connect_bdpt(
     camera: &Arc<dyn Camera>,
     sampler: &mut dyn Sampler,
     p_raster: &Point2f,
-) -> (Spectrum, Float, Point2f) {
+) -> Option<(Spectrum, Float, Point2f)> {
     let mut p_raster = *p_raster;
     // Ignore invalid connections related to infinite area lights
     if t > 1 && s != 0 {
         let t = camera_vertices[(t - 1) as usize].read().unwrap().get_type();
         if t == VertexType::Light {
-            return (Spectrum::zero(), 0.0, p_raster);
+            return None;
         }
     }
 
@@ -723,10 +723,10 @@ pub fn connect_bdpt(
     }
 
     // Compute MIS weight for connection strategy
-    let mis_weight = if l.is_black() {
-        0.0
+    if l.is_black() {
+        return None;
     } else {
-        mis_weight(
+        let mis_weight = mis_weight(
             scene,
             light_vertices,
             camera_vertices,
@@ -735,8 +735,8 @@ pub fn connect_bdpt(
             t,
             light_distr,
             light_to_index,
-        )
-    };
-    l *= mis_weight;
-    return (l, mis_weight, p_raster);
+        );
+        l *= mis_weight;
+        return Some((l, mis_weight, p_raster));
+    }
 }

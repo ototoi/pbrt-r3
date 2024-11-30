@@ -206,7 +206,7 @@ impl Integrator for BDPTIntegrator {
                                         }
                                         // Execute the $(s, t)$ connection strategy and
                                         // update _L_
-                                        let (l_path, mis_weight, p_film_new) = connect_bdpt(
+                                        if let Some((l_path, mis_weight, p_film_new)) = connect_bdpt(
                                             scene,
                                             &light_vertices[0..],
                                             &camera_vertices[0..],
@@ -217,27 +217,29 @@ impl Integrator for BDPTIntegrator {
                                             &camera,
                                             tile_sampler.deref_mut(),
                                             &p_film,
-                                        );
-                                        if visualize_info {
-                                            let value = if visualize_strategies {
-                                                if mis_weight <= 0.0 {
-                                                    Spectrum::zero()
+                                        ) {
+                                            assert!(!l_path.is_black());
+                                            if visualize_info {
+                                                let value = if visualize_strategies {
+                                                    if mis_weight <= 0.0 {
+                                                        Spectrum::zero()
+                                                    } else {
+                                                        l_path * (1.0 / mis_weight)
+                                                    }
                                                 } else {
-                                                    l_path * (1.0 / mis_weight)
-                                                }
-                                            } else {
-                                                l_path
-                                            };
-                                            let mut film = proxy_film.as_ref().lock().unwrap();
-                                            film.add_splat(&p_film_new, &value);
-                                        }
-                                        if t != 1 {
-                                            l += l_path;
-                                        } else {
-                                            if !l_path.is_black() && !visualize_info {
-                                                //println!("l_path: {:?}", l_path);
+                                                    l_path
+                                                };
                                                 let mut film = proxy_film.as_ref().lock().unwrap();
-                                                film.add_splat(&p_film_new, &l_path);
+                                                film.add_splat(&p_film_new, &value);
+                                            }
+                                            if t != 1 {
+                                                l += l_path;
+                                            } else {
+                                                if !visualize_info {
+                                                    //println!("l_path: {:?}", l_path);
+                                                    let mut film = proxy_film.as_ref().lock().unwrap();
+                                                    film.add_splat(&p_film_new, &l_path);
+                                                }
                                             }
                                         }
                                     }

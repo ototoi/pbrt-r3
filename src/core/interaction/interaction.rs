@@ -49,20 +49,6 @@ impl Interaction {
         }
     }
 
-    pub fn as_surface_interaction_mut(&mut self) -> Option<&mut SurfaceInteraction> {
-        match self {
-            Self::Base(_) => None,
-            Self::Surface(inter) => {
-                if inter.n.length_squared() > 0.0 {
-                    Some(inter)
-                } else {
-                    return None;
-                }
-            }
-            Self::Medium(_) => None,
-        }
-    }
-
     pub fn as_medium_interaction_mut(&mut self) -> Option<&mut MediumInteraction> {
         match self {
             Self::Base(_) => None,
@@ -103,6 +89,14 @@ impl Interaction {
         }
     }
 
+    pub fn set_medium_interface(&mut self, medium_interface: &MediumInterface) {
+        match self {
+            Self::Base(inter) => inter.medium_interface = medium_interface.clone(),
+            Self::Surface(inter) => inter.medium_interface = medium_interface.clone(),
+            Self::Medium(inter) => inter.medium_interface = medium_interface.clone(),
+        }
+    }
+
     pub fn get_base_tuple(&self) -> (Point3f, Vector3f, Normal3f, Float) {
         match self {
             Self::Base(inter) => (inter.p, inter.p_error, inter.n, inter.time),
@@ -139,11 +133,11 @@ impl Interaction {
     }
 
     pub fn from_surface_sample(p: &Point3f, p_error: &Vector3f, n: &Normal3f) -> Self {
-        let mut it = SurfaceInteraction::default();
+        let mut it = BaseInteraction::default();
         it.p = *p;
         it.p_error = *p_error;
         it.n = *n;
-        return Self::Surface(it);
+        return Self::Base(it);
     }
 
     pub fn from_light_sample(p: &Point3f, time: Float, medium_interface: &MediumInterface) -> Self {

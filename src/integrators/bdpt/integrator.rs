@@ -43,12 +43,14 @@ impl BDPTIntegrator {
     }
 }
 
+/* 
 #[inline]
 fn buffer_index(s: i32, t: i32) -> usize {
     let above = s + t - 2;
     assert!(above >= 0);
     return (s + above * (5 + above) / 2) as usize;
 }
+*/
 
 impl Integrator for BDPTIntegrator {
     fn render(&mut self, scene: &Scene) {

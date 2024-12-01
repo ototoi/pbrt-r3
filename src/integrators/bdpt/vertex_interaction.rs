@@ -71,16 +71,11 @@ impl EndpointInteraction {
 
     pub fn from_camera_ray(camera: &Arc<dyn Camera>, ray: &Ray) -> Self {
         let weak = Arc::downgrade(camera);
-        let n = -ray.d;
-        let base = BaseInteraction {
-            p: ray.o,
-            time: ray.time,
-            p_error: Vector3f::default(),
-            n,
-            wo: n,
-            medium_interface: MediumInterface::from(&ray.medium),
-        };
-        let inter = Interaction::Base(base);
+        let mut inter = BaseInteraction::default();
+        inter.p = ray.o;
+        inter.time = ray.time;
+        inter.medium_interface = MediumInterface::from(&ray.medium);
+        let inter = Interaction::Base(inter);
         return Self::Camera((inter, Some(weak)));
     }
 
@@ -91,15 +86,12 @@ impl EndpointInteraction {
 
     pub fn from_light_ray(light: &Arc<dyn Light>, ray: &Ray, n_light: &Normal3f) -> Self {
         let weak = Arc::downgrade(light);
-        let base = BaseInteraction {
-            p: ray.o,
-            time: ray.time,
-            p_error: Vector3f::default(),
-            n: *n_light,
-            wo: -ray.d,
-            medium_interface: MediumInterface::from(&ray.medium),
-        };
-        let inter = Interaction::Base(base);
+        let mut inter = BaseInteraction::default();
+        inter.p = ray.o;
+        inter.time = ray.time;
+        inter.n = *n_light;
+        inter.medium_interface = MediumInterface::from(&ray.medium);
+        let inter = Interaction::Base(inter);
         return Self::Light((inter, Some(weak)));
     }
 
@@ -111,15 +103,12 @@ impl EndpointInteraction {
     pub fn from_ray(ray: &Ray) -> Self {
         let p = ray.position(1.0);
         let n = -ray.d;
-        let base = BaseInteraction {
-            p,
-            time: ray.time,
-            p_error: Vector3f::default(),
-            n,
-            wo: n,
-            medium_interface: MediumInterface::from(&ray.medium),
-        };
-        let inter = Interaction::Base(base);
+        let mut inter = BaseInteraction::default();
+        inter.p = p;
+        inter.time = ray.time;
+        inter.n = n;
+        inter.medium_interface = MediumInterface::from(&ray.medium);
+        let inter = Interaction::Base(inter);
         return Self::Light((inter, None));
     }
 

@@ -28,28 +28,26 @@ pub fn generate_camera_subpath(
     };
     if let Some((beta, mut ray)) = camera.as_ref().generate_ray_differential(&camera_sample) {
         ray.scale_differentials(1.0 / Float::sqrt(sampler.get_samples_per_pixel() as Float));
-        let beta = Spectrum::from(beta);
-        let new_vertex = Arc::new(RwLock::new(Vertex::create_camera_from_ray(
-            &camera, &ray.ray, &beta,
-        )));
-        path.push(new_vertex);
-        let (_pdf_pos, pdf_dir) = camera.pdf_we(&ray.ray);
-        assert!(!path.is_empty());
-        return random_walk(
-            scene,
-            &ray,
-            sampler,
-            arena,
-            &beta,
-            pdf_dir,
-            max_depth - 1,
-            TransportMode::Radiance,
-            path,
-        ) + 1;
-    } else {
-        assert!(false);
-        return 0;
+        if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray.ray) {
+            let beta = Spectrum::from(beta);
+            let new_vertex = Arc::new(RwLock::new(Vertex::create_camera_from_ray(
+                &camera, &ray.ray, &beta,
+            )));
+            path.push(new_vertex);
+            return random_walk(
+                scene,
+                &ray,
+                sampler,
+                arena,
+                &beta,
+                pdf_dir,
+                max_depth - 1,
+                TransportMode::Radiance,
+                path,
+            ) + 1;
+        }
     }
+    return 0;
 }
 
 pub fn generate_light_subpath(
@@ -91,9 +89,6 @@ pub fn generate_light_subpath(
             let cur_index = path.len() - 1;
 
             let le_pdf = n_light.abs_dot(&ray.d) / (light_pdf * pdf_pos * pdf_dir);
-            // pbrt-r3
-            let le_pdf = Float::min(le_pdf, 1.0);
-            // pbrt-r3
             let beta = le * le_pdf;
 
             let ray = RayDifferential::from(&ray);
@@ -606,39 +601,41 @@ pub fn connect_bdpt(
     camera: &Arc<dyn Camera>,
     sampler: &mut dyn Sampler,
     p_raster: &Point2f,
-) -> (Spectrum, Float, Point2f) {
+) -> Option<(Spectrum, Float, Point2f)> {
     let mut p_raster = *p_raster;
     // Ignore invalid connections related to infinite area lights
     if t > 1 && s != 0 {
         let t = camera_vertices[(t - 1) as usize].read().unwrap().get_type();
         if t == VertexType::Light {
-            return (Spectrum::zero(), 0.0, p_raster);
+            return None;
         }
     }
 
     let mut l = Spectrum::zero();
     let mut sampled = Arc::new(RwLock::new(Vertex::default()));
     // Perform connection and write contribution to _L_
-    if s == 0 && t >= 1 {
+    if s == 0 {
+        assert!(t >= 1);
         // Interpret the camera subpath as a complete path
-        let pt = camera_vertices[(t - 1) as usize].clone();
-        let pt = pt.read().unwrap();
-        if pt.is_light() && t >= 2 {
+        let pt = camera_vertices[(t - 1) as usize].read().unwrap();
+        if pt.is_light() {
+            assert!(t >= 2);
             let target = camera_vertices[(t - 2) as usize].read().unwrap();
             let pt_core = pt.core.read().unwrap();
-            l = pt.le(scene, &target) * pt_core.beta;
+            let pt_beta = pt_core.beta;
+            l = pt.le(scene, &target) * pt_beta;
         }
-    } else if t == 1 && s >= 1 {
+    } else if t == 1 {
+        assert!(s >= 1);
         // Sample a point on the camera and connect it to the light subpath
-        let qs = light_vertices[(s - 1) as usize].clone();
-        let qs = qs.read().unwrap();
+        let qs = light_vertices[(s - 1) as usize].read().unwrap();
         if qs.is_connectible() {
             let intersection = &qs.get_interaction();
             if let Some((spec, wi, pdf, pr, vis)) =
                 camera.as_ref().sample_wi(intersection, &sampler.get_2d())
             {
-                p_raster = pr;
                 if pdf > 0.0 && !spec.is_black() {
+                    p_raster = pr;
                     // Initialize dynamically sampled vertex and _L_ for $t=1$ case
                     let spec_pdf = spec * (1.0 / pdf);
                     sampled = Arc::new(RwLock::new(Vertex::create_camera_from_interaction(
@@ -662,10 +659,10 @@ pub fn connect_bdpt(
                 }
             }
         }
-    } else if s == 1 && t >= 1 {
+    } else if s == 1 {
+        assert!(t >= 1);
         // Sample a point on a light and connect it to the camera subpath
-        let pt = camera_vertices[(t - 1) as usize].clone();
-        let pt = pt.read().unwrap();
+        let pt = camera_vertices[(t - 1) as usize].read().unwrap();
         if pt.is_connectible() {
             let (light_num, light_pdf, _remapped) = light_distr.sample_discrete(sampler.get_1d());
             let light = scene.lights[light_num].clone();
@@ -701,12 +698,12 @@ pub fn connect_bdpt(
                 }
             }
         }
-    } else if s > 0 && t > 0 {
+    } else {
+        assert!(s >= 1);
+        assert!(t >= 1);
         // Handle all other bidirectional connection cases
-        let qs = light_vertices[(s - 1) as usize].clone();
-        let qs = qs.read().unwrap();
-        let pt = camera_vertices[(t - 1) as usize].clone();
-        let pt = pt.read().unwrap();
+        let qs = light_vertices[(s - 1) as usize].read().unwrap();
+        let pt = camera_vertices[(t - 1) as usize].read().unwrap();
         if qs.is_connectible() && pt.is_connectible() {
             let qs_beta = qs.core.read().unwrap().beta;
             let pt_beta = pt.core.read().unwrap().beta;
@@ -721,10 +718,10 @@ pub fn connect_bdpt(
     }
 
     // Compute MIS weight for connection strategy
-    let mis_weight = if l.is_black() {
-        0.0
+    if l.is_black() {
+        return None;
     } else {
-        mis_weight(
+        let mis_weight = mis_weight(
             scene,
             light_vertices,
             camera_vertices,
@@ -733,8 +730,8 @@ pub fn connect_bdpt(
             t,
             light_distr,
             light_to_index,
-        )
-    };
-    l *= mis_weight;
-    return (l, mis_weight, p_raster);
+        );
+        l *= mis_weight;
+        return Some((l, mis_weight, p_raster));
+    }
 }

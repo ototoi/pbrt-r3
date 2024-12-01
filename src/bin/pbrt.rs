@@ -110,7 +110,7 @@ struct CommandOptions {
     pub pixelsamples: Option<i32>,
 
     // Add with pbrt-r3
-    /// Quick full resolution. 
+    /// Quick full resolution.
     #[arg(long, default_value = "false")]
     pub quick_full_resolution: bool,
 

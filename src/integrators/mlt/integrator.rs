@@ -124,7 +124,7 @@ impl MLTIntegrator {
 
         // Execute connection strategy and return the radiance estimate
         sampler.start_stream(CONNECTION_STREAM_INDEX);
-        let (spec, _, p_raster) = connect_bdpt(
+        if let Some((spec, _, p_raster_new)) = connect_bdpt(
             scene,
             &light_vertices,
             &camera_vertices,
@@ -135,10 +135,11 @@ impl MLTIntegrator {
             &camera,
             sampler,
             &p_raster,
-        );
-        //let xyz = spec.to_xyz();
-        //assert!(xyz[0] >= -0.3 && xyz[1] >= -0.3 && xyz[2] >= -0.3);
-        return (spec * n_strategies as Float, p_raster);
+        ) {
+            return (spec * n_strategies as Float, p_raster_new);
+        } else {
+            return (Spectrum::zero(), p_raster);
+        }
     }
 }
 

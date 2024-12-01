@@ -1154,6 +1154,8 @@ impl ParseContext for SceneContext {
         if let Some(mtl) = self.get_named_material(name) {
             let mut attr = self.graphics_states[self.graphics_states.len() - 1].borrow_mut();
             attr.current_material = Some(mtl);
+        } else {
+            error!("NamedMaterial \"{}\" unknown.", name);
         }
     }
 

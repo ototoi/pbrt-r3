@@ -321,7 +321,7 @@ impl Shape for Cylinder {
             .base
             .object_to_world
             .transform_point_with_abs_error(&p_obj, &p_obj_error);
-        let it = Interaction::from((p, p_error, n, 0.0));
+        let it = Interaction::from_surface_sample(&p, &p_error, &n);
         let pdf = 1.0 / self.area();
         return Some((it, pdf));
     }

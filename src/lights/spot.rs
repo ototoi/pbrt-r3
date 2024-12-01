@@ -71,12 +71,10 @@ impl Light for SpotLight {
         let pdf: Float = 1.0;
         let intensity = self.intensity
             * (self.falloff(&-wi) / Vector3f::distance_squared(&self.p_light, &inter_p));
-        let inter2 = Interaction::from((
-            self.p_light,
-            inter.get_time(),
-            self.base.medium_interface.clone(),
-        ));
-        let vis = VisibilityTester::from((inter, &inter2));
+        let p = self.p_light;
+        let inter_light =
+            Interaction::from_light_sample(&p, inter.get_time(), &self.base.medium_interface);
+        let vis = VisibilityTester::from((inter, &inter_light));
         return Some((intensity, wi, pdf, vis));
     }
 

@@ -53,7 +53,7 @@ pub fn infinite_light_density(
         if let Some(index) = light_to_index.get(&key) {
             let index = *index;
             if index < light_distr.func.len() {
-                let pdf_i = light.pdf_li(&Interaction::zero(), &-*w) * light_distr.func[index];
+                let pdf_i = light.pdf_li(&Interaction::default(), &-*w) * light_distr.func[index];
                 assert!(pdf_i >= 0.0);
                 pdf += pdf_i;
             }
@@ -103,7 +103,7 @@ impl From<Arc<RwLock<VertexCore>>> for Vertex {
 }
 
 impl Vertex {
-    pub fn new(core: Arc<RwLock<VertexCore>>, delta: bool, pdf_rev: Float) -> Self {
+    fn new(core: Arc<RwLock<VertexCore>>, delta: bool, pdf_rev: Float) -> Self {
         Vertex {
             core: core,
             delta: Arc::new(RwLock::new(delta)),
@@ -163,11 +163,14 @@ impl Vertex {
             let ei = interaction.as_camera().unwrap();
             let ray = ei.0.spawn_ray(&wn);
             let camera = ei.1.as_ref().unwrap().upgrade().unwrap();
-            let (_pdf_pos, pdf_dir) = camera.pdf_we(&ray);
-            assert!(pdf_dir >= 0.0);
-            let pdf = self.convert_density(pdf_dir, next);
-            assert!(pdf >= 0.0);
-            return pdf;
+            if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray) {
+                assert!(pdf_dir >= 0.0);
+                let pdf = self.convert_density(pdf_dir, next);
+                assert!(pdf >= 0.0);
+                return pdf;
+            } else {
+                return 0.0;
+            }
         } else {
             assert!(prev.is_some());
             let prev = prev.as_ref().unwrap();
@@ -325,6 +328,7 @@ impl Vertex {
                 if let Some(light) = core.interaction.get_light() {
                     return !light.is_delta_direction();
                 }
+                assert!(false);
                 return false;
             }
             VertexType::Camera => {
@@ -407,6 +411,7 @@ impl Vertex {
                     }
                 }
             }
+            assert!(false);
             return Spectrum::zero();
         }
     }
@@ -417,7 +422,9 @@ impl Vertex {
             interaction: VertexInteraction::from_camera_ray(camera, ray),
             pdf_fwd: 0.0,
         };
-        Vertex::from(Arc::new(RwLock::new(core)))
+        let v = Vertex::from(Arc::new(RwLock::new(core)));
+        assert!(v.get_type() == VertexType::Camera);
+        return v;
     }
 
     pub fn create_camera_from_interaction(
@@ -430,7 +437,9 @@ impl Vertex {
             interaction: VertexInteraction::from_camera_interaction(camera, it),
             pdf_fwd: 0.0,
         };
-        Vertex::from(Arc::new(RwLock::new(core)))
+        let v = Vertex::from(Arc::new(RwLock::new(core)));
+        assert!(v.get_type() == VertexType::Camera);
+        return v;
     }
 
     pub fn create_light_from_ray(
@@ -445,7 +454,9 @@ impl Vertex {
             interaction: VertexInteraction::from_light_ray(light, ray, n_light),
             pdf_fwd: pdf,
         };
-        Vertex::new(Arc::new(RwLock::new(core)), false, 0.0)
+        let v = Vertex::new(Arc::new(RwLock::new(core)), false, 0.0);
+        assert!(v.get_type() == VertexType::Light);
+        return v;
     }
 
     pub fn create_light_from_endpoint(
@@ -458,7 +469,9 @@ impl Vertex {
             interaction: VertexInteraction::EndPoint(ei.clone()),
             pdf_fwd: pdf,
         };
-        Vertex::new(Arc::new(RwLock::new(core)), false, 0.0)
+        let v = Vertex::new(Arc::new(RwLock::new(core)), false, 0.0);
+        assert!(v.get_type() == VertexType::Light);
+        return v;
     }
 
     pub fn create_surface(
@@ -474,6 +487,7 @@ impl Vertex {
         };
         let v = Vertex::from(Arc::new(RwLock::new(core)));
         v.core.as_ref().write().unwrap().pdf_fwd = prev.convert_density(pdf, &v);
+        assert!(v.get_type() == VertexType::Surface);
         return v;
     }
 
@@ -490,6 +504,7 @@ impl Vertex {
         };
         let v = Vertex::from(Arc::new(RwLock::new(core)));
         v.core.as_ref().write().unwrap().pdf_fwd = prev.convert_density(pdf, &v);
+        assert!(v.get_type() == VertexType::Medium);
         return v;
     }
 
@@ -514,8 +529,15 @@ impl Vertex {
     }
 
     pub fn get_ns(&self) -> Normal3f {
-        let core = self.core.as_ref().read().unwrap();
-        return core.interaction.get_ns();
+        let t = self.get_type();
+        if t == VertexType::Surface {
+            let core = self.core.as_ref().read().unwrap();
+            let si = core.interaction.as_surface().unwrap();
+            return si.shading.n;
+        } else {
+            let core = self.core.as_ref().read().unwrap();
+            return core.interaction.get_ns();
+        }
     }
 
     pub fn get_light(&self) -> Option<Arc<dyn Light>> {

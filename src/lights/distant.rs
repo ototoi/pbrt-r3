@@ -65,13 +65,12 @@ impl Light for DistantLight {
         let pdf = 1.0;
         let p_outside = inter.get_p() + self.w_light * (2.0 * world_radius);
 
-        let a = inter;
-        let b = Interaction::from((
-            p_outside,
+        let inter_light = Interaction::from_light_sample(
+            &p_outside,
             inter.get_time(),
-            self.base.medium_interface.clone(),
-        ));
-        let vis = VisibilityTester::from((a, &b));
+            &self.base.medium_interface,
+        );
+        let vis = VisibilityTester::from((inter, &inter_light));
         return Some((self.l, wi, pdf, vis));
     }
 

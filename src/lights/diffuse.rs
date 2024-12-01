@@ -75,18 +75,15 @@ impl Light for DiffuseAreaLight {
         let _p = ProfilePhase::new(Prof::LightSample);
 
         let shape = self.shape.as_ref();
-        if let Some((mut p_shape, pdf)) = shape.sample_from(inter, u) {
-            assert!(p_shape.is_surface_interaction());
-            if let Some(mut_p_shape) = p_shape.as_surface_interaction_mut() {
-                mut_p_shape.medium_interface = self.base.medium_interface.clone();
-            }
-            let wi = (p_shape.get_p() - inter.get_p()).normalize();
-            let vis = VisibilityTester::from((inter, &p_shape));
-            let spec = self.l(&p_shape, &-wi);
-            return Some((spec, wi, pdf, vis));
-        } else {
+        let (mut p_shape, pdf) = shape.sample_from(inter, u)?;
+        p_shape.set_medium_interface(&self.base.medium_interface);
+        if pdf <= 0.0 || (p_shape.get_p() - inter.get_p()).length_squared() <= 0.0 {
             return None;
         }
+        let wi = (p_shape.get_p() - inter.get_p()).normalize();
+        let vis = VisibilityTester::from((inter, &p_shape));
+        let spec = self.l(&p_shape, &-wi);
+        return Some((spec, wi, pdf, vis));
     }
 
     fn pdf_li(&self, inter: &Interaction, wi: &Vector3f) -> Float {
@@ -106,9 +103,7 @@ impl Light for DiffuseAreaLight {
 
         let shape = self.shape.as_ref();
         let (mut p_shape, pdf_pos) = shape.sample(u1)?;
-        if let Some(mut_p_shape) = p_shape.as_surface_interaction_mut() {
-            mut_p_shape.medium_interface = self.base.medium_interface.clone();
-        }
+        p_shape.set_medium_interface(&self.base.medium_interface);
         let n = p_shape.get_n();
 
         // Sample a cosine-weighted outgoing direction _w_ for area light
@@ -124,19 +119,20 @@ impl Light for DiffuseAreaLight {
         let _p = ProfilePhase::new(Prof::LightPdf);
 
         let shape = self.shape.as_ref();
-        let it = Interaction::from((ray.o, Vector3f::zero(), *n, ray.time));
+        let n = *n;
+        let wo = Vector3f::from(n);
+        let medium_interface = self.base.medium_interface.clone();
+        let it = Interaction::from((ray.o, n, Vector3f::zero(), wo, ray.time, medium_interface));
         let pdf_pos = shape.pdf(&it);
         let pdf_dir = if self.two_sided {
-            0.5 * cosine_hemisphere_pdf(Vector3::abs_dot(n, &ray.d))
+            0.5 * cosine_hemisphere_pdf(Vector3::abs_dot(&n, &ray.d))
         } else {
             // pbrt-r3: Clamp to 0.0 in case of numerical error.
             //cosine_hemisphere_pdf(Vector3f::dot(n, &ray.d))
-            cosine_hemisphere_pdf(Vector3f::dot(n, &ray.d)).max(0.0)
+            cosine_hemisphere_pdf(Vector3f::dot(&n, &ray.d)).max(0.0)
             // pbrt-r3:
         };
         if pdf_pos > 0.0 || pdf_dir > 0.0 {
-            assert!(pdf_pos >= 0.0);
-            assert!(pdf_dir >= 0.0);
             return Some((pdf_pos, pdf_dir));
         } else {
             return None;

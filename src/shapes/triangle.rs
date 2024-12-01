@@ -581,7 +581,7 @@ impl Shape for Triangle {
             + Vector3f::abs(&((1.0 - b[0] - b[1]) * p2));
         let p_error = GAMMA6 * Vector3f::new(p_abs_sum.x, p_abs_sum.y, p_abs_sum.z);
         let pdf = 1.0 / self.area();
-        let it = Interaction::from((p, p_error, n, 0.0));
+        let it = Interaction::from_surface_sample(&p, &p_error, &n);
         return Some((it, pdf));
     }
 

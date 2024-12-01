@@ -156,8 +156,9 @@ impl Light for InfiniteAreaLight {
         };
         let world_radius = bound.radius;
         let p = inter.get_p() + wi * (2.0 * world_radius);
-        let inter2 = Interaction::from((p, inter.get_time(), self.base.medium_interface.clone()));
-        let vis = VisibilityTester::from((inter, &inter2));
+        let inter_light =
+            Interaction::from_light_sample(&p, inter.get_time(), &self.base.medium_interface);
+        let vis = VisibilityTester::from((inter, &inter_light));
         let rgb = self.lmap.lookup(&uv, 0.0);
         let spc = Spectrum::from_rgb(&rgb.to_rgb(), SpectrumType::Illuminant);
         return Some((spc, wi, pdf, vis));

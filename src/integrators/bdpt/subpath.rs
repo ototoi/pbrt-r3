@@ -176,8 +176,8 @@ fn random_walk(
         let found_intersection = scene.intersect(&ray.ray);
         if let Some(medium) = ray.ray.medium.as_ref() {
             let (spec, m) = medium.sample(&ray.ray, sampler, arena);
-            if let Some(mut m) = m {
-                m.medium_interface = MediumInterface::from(medium);
+            if let Some(m) = m {
+                //m.medium_interface = MediumInterface::from(medium);
                 mi = m;
             }
             beta *= spec;

@@ -163,11 +163,14 @@ impl Vertex {
             let ei = interaction.as_camera().unwrap();
             let ray = ei.0.spawn_ray(&wn);
             let camera = ei.1.as_ref().unwrap().upgrade().unwrap();
-            let (_pdf_pos, pdf_dir) = camera.pdf_we(&ray);
-            assert!(pdf_dir >= 0.0);
-            let pdf = self.convert_density(pdf_dir, next);
-            assert!(pdf >= 0.0);
-            return pdf;
+            if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray) {
+                assert!(pdf_dir >= 0.0);
+                let pdf = self.convert_density(pdf_dir, next);
+                assert!(pdf >= 0.0);
+                return pdf;
+            } else {
+                return 0.0;
+            }
         } else {
             assert!(prev.is_some());
             let prev = prev.as_ref().unwrap();

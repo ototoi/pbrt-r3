@@ -28,28 +28,26 @@ pub fn generate_camera_subpath(
     };
     if let Some((beta, mut ray)) = camera.as_ref().generate_ray_differential(&camera_sample) {
         ray.scale_differentials(1.0 / Float::sqrt(sampler.get_samples_per_pixel() as Float));
-        let beta = Spectrum::from(beta);
-        let new_vertex = Arc::new(RwLock::new(Vertex::create_camera_from_ray(
-            &camera, &ray.ray, &beta,
-        )));
-        path.push(new_vertex);
-        let (_pdf_pos, pdf_dir) = camera.pdf_we(&ray.ray);
-        assert!(!path.is_empty());
-        return random_walk(
-            scene,
-            &ray,
-            sampler,
-            arena,
-            &beta,
-            pdf_dir,
-            max_depth - 1,
-            TransportMode::Radiance,
-            path,
-        ) + 1;
-    } else {
-        assert!(false);
-        return 0;
+        if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray.ray) {
+            let beta = Spectrum::from(beta);
+            let new_vertex = Arc::new(RwLock::new(Vertex::create_camera_from_ray(
+                &camera, &ray.ray, &beta,
+            )));
+            path.push(new_vertex);
+            return random_walk(
+                scene,
+                &ray,
+                sampler,
+                arena,
+                &beta,
+                pdf_dir,
+                max_depth - 1,
+                TransportMode::Radiance,
+                path,
+            ) + 1;
+        }
     }
+    return 0;
 }
 
 pub fn generate_light_subpath(
@@ -91,9 +89,6 @@ pub fn generate_light_subpath(
             let cur_index = path.len() - 1;
 
             let le_pdf = n_light.abs_dot(&ray.d) / (light_pdf * pdf_pos * pdf_dir);
-            // pbrt-r3
-            let le_pdf = Float::min(le_pdf, 1.0);
-            // pbrt-r3
             let beta = le * le_pdf;
 
             let ray = RayDifferential::from(&ray);

@@ -9,8 +9,8 @@ pub struct VisibilityTester {
 impl VisibilityTester {
     pub fn new() -> Self {
         VisibilityTester {
-            p0: Interaction::zero(),
-            p1: Interaction::zero(),
+            p0: Interaction::default(),
+            p1: Interaction::default(),
         }
     }
 

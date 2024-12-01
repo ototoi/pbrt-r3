@@ -58,12 +58,10 @@ impl Light for GonioPhotometricLight {
             * self.scale(&-wi)
             * (1.0 / Vector3f::distance_squared(&self.p_light, &inter.get_p()));
         let pdf = 1.0;
-        let inter2 = Interaction::from((
-            self.p_light,
-            inter.get_time(),
-            self.base.medium_interface.clone(),
-        ));
-        let vis = VisibilityTester::from((inter, &inter2));
+        let p = self.p_light;
+        let inter_light =
+            Interaction::from_light_sample(&p, inter.get_time(), &self.base.medium_interface);
+        let vis = VisibilityTester::from((inter, &inter_light));
         return Some((f, wi, pdf, vis));
     }
 

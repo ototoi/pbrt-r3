@@ -41,12 +41,10 @@ impl Light for PointLight {
         let f = self.intensity * (1.0 / Vector3f::distance_squared(&self.p_light, &inter.get_p()));
         let wi = (self.p_light - inter.get_p()).normalize();
         let pdf = 1.0;
-        let inter_src = Interaction::from((
-            self.p_light,
-            inter.get_time(),
-            self.base.medium_interface.clone(),
-        ));
-        let vis = VisibilityTester::from((inter, &inter_src));
+        let p = self.p_light;
+        let inter_light =
+            Interaction::from_light_sample(&p, inter.get_time(), &self.base.medium_interface);
+        let vis = VisibilityTester::from((inter, &inter_light));
         return Some((f, wi, pdf, vis));
     }
 

@@ -51,7 +51,10 @@ pub trait Shape {
     }
 
     fn solid_angle(&self, p: &Point3f, n_samples: i32) -> Float {
-        let inter = Interaction::from((*p, 0.0));
+        let mut it = BaseInteraction::default();
+        it.p = *p;
+        it.wo = Vector3f::new(0.0, 0.0, 1.0);
+        let inter = Interaction::from(it);
         let mut solid_angle = 0.0;
         for i in 0..n_samples {
             let u = Point2f::new(radical_inverse(0, i as u64), radical_inverse(1, i as u64));

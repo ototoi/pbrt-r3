@@ -290,7 +290,7 @@ impl Shape for Sphere {
             .base
             .object_to_world
             .transform_point_with_abs_error(&p_obj, &p_obj_error);
-        let it = Interaction::from((p, p_error, n, 0.0));
+        let it = Interaction::from_surface_sample(&p, &p_error, &n);
         let pdf = Float::recip(self.area());
         return Some((it, pdf));
     }
@@ -375,7 +375,7 @@ impl Shape for Sphere {
         if self.base.reverse_orientation {
             n *= -1.0;
         }
-        let it = Interaction::from((p, p_error, n, 0.0));
+        let it = Interaction::from_surface_sample(&p, &p_error, &n);
         return Some((it, pdf));
     }
 }

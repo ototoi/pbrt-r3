@@ -53,7 +53,7 @@ pub fn infinite_light_density(
         if let Some(index) = light_to_index.get(&key) {
             let index = *index;
             if index < light_distr.func.len() {
-                let pdf_i = light.pdf_li(&Interaction::zero(), &-*w) * light_distr.func[index];
+                let pdf_i = light.pdf_li(&Interaction::default(), &-*w) * light_distr.func[index];
                 assert!(pdf_i >= 0.0);
                 pdf += pdf_i;
             }

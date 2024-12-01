@@ -13,10 +13,6 @@ pub enum Interaction {
 }
 
 impl Interaction {
-    pub fn zero() -> Self {
-        Interaction::Base(BaseInteraction::default())
-    }
-
     pub fn is_surface_interaction(&self) -> bool {
         match self {
             Self::Base(inter) => {
@@ -141,11 +137,27 @@ impl Interaction {
             Self::Medium(inter) => inter.get_medium(w),
         }
     }
+
+    pub fn from_surface_sample(p: &Point3f, p_error: &Vector3f, n: &Normal3f) -> Self {
+        let mut it = SurfaceInteraction::default();
+        it.p = *p;
+        it.p_error = *p_error;
+        it.n = *n;
+        return Self::Surface(it);
+    }
+
+    pub fn from_light_sample(p: &Point3f, time: Float, medium_interface: &MediumInterface) -> Self {
+        let mut it = BaseInteraction::default();
+        it.p = *p;
+        it.time = time;
+        it.medium_interface = medium_interface.clone();
+        return Self::Base(it);
+    }
 }
 
 impl Default for Interaction {
     fn default() -> Self {
-        Interaction::zero()
+        Interaction::Base(BaseInteraction::default())
     }
 }
 
@@ -185,19 +197,7 @@ impl From<&MediumInteraction> for Interaction {
     }
 }
 
-impl From<(Point3f, Float)> for Interaction {
-    fn from(value: (Point3f, Float)) -> Self {
-        Self::Base(BaseInteraction {
-            p: value.0,
-            time: value.1,
-            p_error: Vector3f::zero(),
-            n: Vector3f::new(0.0, 0.0, 1.0),
-            wo: Vector3f::zero(),
-            medium_interface: MediumInterface::new(),
-        })
-    }
-}
-
+/*
 impl From<(Point3f, Float, MediumInterface)> for Interaction {
     fn from(value: (Point3f, Float, MediumInterface)) -> Self {
         Self::Base(BaseInteraction {
@@ -210,26 +210,13 @@ impl From<(Point3f, Float, MediumInterface)> for Interaction {
         })
     }
 }
+*/
 
-impl From<(Point3f, Vector3f, Normal3f, Float)> for Interaction {
-    fn from(value: (Point3f, Vector3f, Normal3f, Float)) -> Self {
-        Self::Base(BaseInteraction {
-            p: value.0,
-            time: value.3,
-            p_error: value.1,
-            n: value.2,
-            wo: Vector3f::zero(),
-            medium_interface: MediumInterface::new(),
-        })
-    }
-}
-
-/*
 impl
     From<(
         Point3f,
-        Vector3f,
         Normal3f,
+        Vector3f,
         Vector3f,
         Float,
         MediumInterface,
@@ -238,21 +225,20 @@ impl
     fn from(
         value: (
             Point3f,
-            Vector3f,
             Normal3f,
+            Vector3f,
             Vector3f,
             Float,
             MediumInterface,
         ),
     ) -> Self {
-        Self::Base(BaseInteraction {
-            p: value.0,
-            time: value.4,
-            p_error: value.1,
-            n: value.2,
-            wo: value.3,
-            medium_interface: value.5,
-        })
+        let mut it = BaseInteraction::default();
+        it.p = value.0;
+        it.n = value.1;
+        it.p_error = value.2;
+        it.wo = value.3;
+        it.time = value.4;
+        it.medium_interface = value.5;
+        return Self::Base(it);
     }
 }
-*/

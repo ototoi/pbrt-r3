@@ -1,9 +1,12 @@
 use super::subpath::*;
 use super::vertex::*;
 use crate::core::pbrt::*;
+use crate::filters::create_box_filter;
 use log::*;
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+use std::collections::HashMap;
 use std::ops::DerefMut;
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
@@ -38,6 +41,13 @@ impl BDPTIntegrator {
             light_sample_strategy: light_sample_sterategy.to_string(),
         }
     }
+}
+
+#[inline]
+fn buffer_index(s: i32, t: i32) -> usize {
+    let above = s + t - 2;
+    assert!(above >= 0);
+    return (s + above * (5 + above) / 2) as usize;
 }
 
 impl Integrator for BDPTIntegrator {
@@ -104,6 +114,55 @@ impl Integrator for BDPTIntegrator {
         let total_tiles = tile_indices.len();
         let reporter = Arc::new(RwLock::new(ProgressReporter::new(total_tiles, "Rendering")));
 
+        let max_depth = self.max_depth;
+        let visualize_strategies = self.visualize_strategies;
+        let visualize_weights = self.visualize_weights;
+        let visualize_info = visualize_strategies || visualize_weights;
+
+        // Allocate buffers for debug visualization
+        // let buffer_count = ((1 + max_depth) * (6 * max_depth) / 2) as usize;
+        let mut weight_films = HashMap::new();
+        if visualize_info {
+            let camera = self.camera.as_ref();
+            let film = camera.get_film();
+            let film = film.read().unwrap();
+            let filename = film.filename.clone();
+            let filename = Path::new(&filename);
+            let dir = filename.parent().unwrap();
+            let basename = filename.file_stem().unwrap();
+            let dir = dir.join(basename);
+            let full_resolution = film.full_resolution;
+            let diagonal = film.diagonal * 1000.0;
+
+            let _ = std::fs::create_dir(&dir);
+            for depth in 0..=max_depth {
+                for s in 0..=(depth + 2) {
+                    let t = depth + 2 - s;
+                    if t == 0 || (s == 1 && t == 1) {
+                        continue;
+                    }
+
+                    let filename =
+                        dir.join(format!("bdpt_d{:>02}_s{:>02}_t{:02}.exr", depth, s, t));
+                    let filename = filename.to_str().unwrap();
+                    //println!("Creating film for depth {}, s {}, t {} as {}", depth, s, t, filename);
+                    let crop_window = Bounds2f::from(((0.0, 0.0), (1.0, 1.0)));
+                    let filter = create_box_filter(&ParamSet::new()).unwrap();
+                    let new_film = Film::new(
+                        &full_resolution,
+                        &crop_window,
+                        &filter,
+                        diagonal,
+                        filename,
+                        1.0,
+                        Float::INFINITY,
+                    );
+                    weight_films.insert((s, t), Arc::new(RwLock::new(new_film)));
+                }
+            }
+            //assert!(weight_films.len() == buffer_count);
+        }
+
         let max_depth = self.max_depth as usize;
         // Render and write the output image to disk
         if !scene.lights.is_empty() {
@@ -113,10 +172,6 @@ impl Integrator for BDPTIntegrator {
             //let filename = proxy_film.as_ref().lock().unwrap().get_filename();
 
             //let total = tile_indices.len();
-
-            let visualize_strategies = self.visualize_strategies;
-            let visualize_weights = self.visualize_weights;
-            let visualize_info = visualize_strategies || visualize_weights;
 
             let samples_per_pixel = self.sampler.read().unwrap().get_samples_per_pixel();
             {
@@ -229,8 +284,12 @@ impl Integrator for BDPTIntegrator {
                                                 } else {
                                                     l_path
                                                 };
-                                                //let mut film = proxy_film.as_ref().lock().unwrap();
-                                                //film.add_splat(&p_film_new, &value);
+                                                let mut film = weight_films
+                                                    .get(&(s, t))
+                                                    .unwrap()
+                                                    .write()
+                                                    .unwrap();
+                                                film.add_splat(&p_film_new, &value);
                                             }
                                             if t != 1 {
                                                 l += l_path;
@@ -271,6 +330,14 @@ impl Integrator for BDPTIntegrator {
             let mut film = film.as_ref().write().unwrap();
             film.render_end();
             film.write_image();
+        }
+
+        if visualize_info {
+            for film in weight_films.values() {
+                let mut film = film.write().unwrap();
+                film.merge_splats(1.0);
+                film.write_image();
+            }
         }
 
         {

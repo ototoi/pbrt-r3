@@ -344,6 +344,8 @@ impl Film {
             return;
         }
 
+        //println!("pi: {:?}", pi);
+
         let pi = Point2i::from((
             pi.x - self.cropped_pixel_bounds.min.x,
             pi.y - self.cropped_pixel_bounds.min.y,

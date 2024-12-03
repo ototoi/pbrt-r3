@@ -43,7 +43,7 @@ impl BDPTIntegrator {
     }
 }
 
-/* 
+/*
 #[inline]
 fn buffer_index(s: i32, t: i32) -> usize {
     let above = s + t - 2;

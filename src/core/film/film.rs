@@ -38,6 +38,7 @@ pub struct Film {
 
     pixels: Mutex<Vec<Pixel>>,
 
+    splat_pixels: Mutex<Vec<[Float; 3]>>,
     splat_tiles: Vec<Arc<RwLock<SplatTile>>>, //pixels_atomic: Vec<PixelAtomic>,
     splat_size: Vector2i,
 
@@ -102,6 +103,7 @@ impl Film {
             }
         }
 
+        let splat_pixels: Vec<[Float; 3]> = vec![[0.0; 3]; cropped_pixel_bounds.area() as usize];
         let mut splat_tiles = Vec::new();
         let splat_size;
         {
@@ -135,6 +137,8 @@ impl Film {
             display: MutipleDisplay::new(),
 
             pixels: Mutex::new(pixels),
+
+            splat_pixels: Mutex::new(splat_pixels),
             splat_tiles: splat_tiles,
             splat_size: splat_size,
             filter_table: Arc::new(RwLock::new(filter_table)),
@@ -234,17 +238,16 @@ impl Film {
             let y0 = bounds.min.y as usize;
             let y1 = bounds.max.y as usize;
             {
-                let mut pixels = self.pixels.lock().unwrap();
+                let mut splat_pixels = self.splat_pixels.lock().unwrap();
                 for y in y0..y1 {
                     for x in x0..x1 {
-                        //
                         let p = Vector2i::from((x as i32, y as i32));
                         let sx = x - x0;
                         let sy = y - y0;
                         let src_index = sy * ST_W + sx;
                         let dst_index = self.get_pixel_index(&p);
                         for i in 0..3 {
-                            pixels[dst_index].xyz[i] += splat_scale * tile.pixels[src_index][i];
+                            splat_pixels[dst_index][i] += splat_scale * tile.pixels[src_index][i];
                         }
                     }
                 }
@@ -283,6 +286,7 @@ impl Film {
         let mut buffer: Vec<f32> = vec![0.0; (3 * twidth * theight) as usize];
         {
             let pixels = self.pixels.lock().unwrap();
+            let splat_pixels = self.splat_pixels.lock().unwrap();
             for y in ty0..ty1 {
                 for x in tx0..tx1 {
                     let p = Vector2i::from((x as i32, y as i32));
@@ -296,6 +300,11 @@ impl Film {
                         c[1] = f32::max(0.0, c[1] * inv_wt);
                         c[2] = f32::max(0.0, c[2] * inv_wt);
                     }
+
+                    let splat_pixel = &splat_pixels[src_index];
+                    c[0] += splat_pixel[0];
+                    c[1] += splat_pixel[1];
+                    c[2] += splat_pixel[2];
 
                     let by = y - ty0;
                     let bx = x - tx0;

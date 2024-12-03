@@ -186,17 +186,19 @@ fn generate_camera_subpath_core(
                 &camera, &ray.ray, &beta,
             )));
             path[0] = Some(new_vertex);
-            random_walk(
-                scene,
-                &ray,
-                sampler,
-                arena,
-                &beta,
-                pdf_dir,
-                TransportMode::Radiance,
-                1,
-                &mut path,
-            );
+            if max_depth > 1 {
+                random_walk(
+                    scene,
+                    &ray,
+                    sampler,
+                    arena,
+                    &beta,
+                    pdf_dir,
+                    TransportMode::Radiance,
+                    1,
+                    &mut path,
+                );
+            }
         }
     }
     return path;
@@ -234,6 +236,9 @@ fn generate_light_subpath_core(
             pdf_pos * light_pdf,
         )));
         path[0] = Some(vertex.clone());
+        if max_depth == 1 {
+            return path;
+        }
 
         let beta = le * n_light.abs_dot(&ray.d) * (1.0 / (light_pdf * pdf_pos * pdf_dir));
 
@@ -302,6 +307,9 @@ pub fn generate_camera_subpath(
     p_film: &Point2f,
     path: &mut Vec<Arc<RwLock<Vertex>>>,
 ) -> usize {
+    if max_depth == 0 {
+        return 0;
+    }
     let ipath = generate_camera_subpath_core(scene, sampler, arena, max_depth, camera, p_film);
     return peal_subpath(path, &ipath);
 }
@@ -316,6 +324,9 @@ pub fn generate_light_subpath(
     light_to_index: &LightIndexMap,
     path: &mut Vec<Arc<RwLock<Vertex>>>,
 ) -> usize {
+    if max_depth == 0 {
+        return 0;
+    }
     let ipath = generate_light_subpath_core(
         scene,
         sampler,

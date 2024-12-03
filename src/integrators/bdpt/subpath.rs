@@ -197,7 +197,7 @@ fn random_walk(
                     &mi,
                     &beta,
                     pdf_fwd,
-                    prev.deref(),
+                    &prev,
                 )));
                 vertex = Some(new_vertex.clone());
                 path.push(new_vertex);
@@ -250,7 +250,7 @@ fn random_walk(
                         &isect,
                         &beta,
                         pdf_fwd,
-                        prev.deref(),
+                        &prev,
                     )))
                 };
                 vertex = Some(new_vertex.clone());
@@ -309,6 +309,8 @@ fn random_walk(
                 let mut prev_pdf_rev = prev.pdf_rev.write().unwrap();
                 *prev_pdf_rev = pdf_rev;
             }
+        } else {
+            assert!(false);
         }
     }
     //println!("breaked!");

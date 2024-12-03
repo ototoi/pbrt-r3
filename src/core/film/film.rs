@@ -220,9 +220,6 @@ impl Film {
                 }
             }
         }
-        {
-            self.update_display(&bounds);
-        }
     }
 
     pub fn merge_splats(&mut self, splat_scale: Float) {
@@ -355,15 +352,13 @@ impl Film {
 
         //println!("pi: {:?}", pi);
 
-        let pi = Point2i::from((
+        let pi = Point2i::new(
             pi.x - self.cropped_pixel_bounds.min.x,
             pi.y - self.cropped_pixel_bounds.min.y,
-        ));
+        );
         let tx = pi.x as usize / ST_W;
         let ty = pi.y as usize / ST_W;
         let xyz = v.to_xyz();
-        let x = pi.x as usize - tx * ST_W;
-        let y = pi.y as usize - ty * ST_W;
 
         {
             let tindex = ty * self.splat_size.x as usize + tx;
@@ -384,6 +379,10 @@ impl Film {
             //if xyz[0] != 0.0 || xyz[1] != 0.0 || xyz[2] != 0.0 {
             //println!("Splatting at ({}, {})", x, y);
             //}
+
+            let x = pi.x as usize - tx * ST_W;
+            let y = pi.y as usize - ty * ST_W;
+
             splat_tile.pixels[y * ST_W + x][0] += xyz[0];
             splat_tile.pixels[y * ST_W + x][1] += xyz[1];
             splat_tile.pixels[y * ST_W + x][2] += xyz[2];
@@ -421,6 +420,7 @@ impl Film {
         // _splat_scale: Float
         let mut rgb = vec![0.0; 3 * self.cropped_pixel_bounds.area() as usize];
         let pixels = self.pixels.lock().unwrap();
+        let splat_pixels = self.splat_pixels.lock().unwrap();
         {
             for offset in 0..pixels.len() {
                 let pixel = &pixels[offset];
@@ -432,6 +432,12 @@ impl Film {
                     c[1] = f32::max(0.0, c[1] * inv_wt);
                     c[2] = f32::max(0.0, c[2] * inv_wt);
                 }
+
+                let splat_pixel = &splat_pixels[offset];
+                c[0] += splat_pixel[0];
+                c[1] += splat_pixel[1];
+                c[2] += splat_pixel[2];
+
                 rgb[3 * offset + 0] = c[0];
                 rgb[3 * offset + 1] = c[1];
                 rgb[3 * offset + 2] = c[2];

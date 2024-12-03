@@ -175,6 +175,7 @@ impl SampleIntegratorCore {
     pub fn merge_film_tile(film: &Arc<Mutex<ProxyFilm>>, tile: &FilmTile) {
         let mut film = film.lock().unwrap();
         film.merge_film_tile(tile);
+        film.update_display(&tile.get_pixel_bounds());
     }
 
     pub fn get_filename(film: &Arc<Mutex<ProxyFilm>>) -> String {

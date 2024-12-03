@@ -10,6 +10,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
+use std::time::Instant;
+
+const UPDATE_DISPLAY_INTERVAL: u128 = 1000;
 
 pub struct BDPTIntegrator {
     sampler: Arc<RwLock<dyn Sampler>>,
@@ -72,6 +75,16 @@ impl Integrator for BDPTIntegrator {
             let key = LightKeyType::from(light_ptr);
             light_to_index.insert(key, i);
         }
+
+        let cropped_pixel_bounds = {
+            let film = self.camera.get_film();
+            let film = film.read().unwrap();
+            film.cropped_pixel_bounds.clone()
+        };
+
+        let samples_per_pixel = self.sampler.read().unwrap().get_samples_per_pixel();
+
+        let prev_time = Arc::new(Mutex::new(Instant::now()));
 
         // Partition the image into tiles
         let mut tile_indices = Vec::new();
@@ -175,7 +188,6 @@ impl Integrator for BDPTIntegrator {
 
             //let total = tile_indices.len();
 
-            let samples_per_pixel = self.sampler.read().unwrap().get_samples_per_pixel();
             {
                 tile_indices.par_iter().for_each(|(tile_bounds, sampler)| {
                     //let camera = self.camera.clone();
@@ -315,8 +327,17 @@ impl Integrator for BDPTIntegrator {
 
                     {
                         let mut film = proxy_film.as_ref().lock().unwrap();
-                        film.merge_splats(1.0 / samples_per_pixel as Float);
                         film.merge_film_tile(&film_tile);
+                        film.update_display(&film_tile.pixel_bounds);
+                        {
+                            let mut prev_time = prev_time.lock().unwrap();
+                            let elapsed = prev_time.elapsed();
+                            if elapsed.as_millis() > UPDATE_DISPLAY_INTERVAL {
+                                film.merge_splats(1.0 / samples_per_pixel as Float);
+                                film.update_display(&cropped_pixel_bounds);
+                                *prev_time = Instant::now();
+                            }
+                        }
                     }
                     {
                         let mut reporter = reporter.write().unwrap();
@@ -330,6 +351,8 @@ impl Integrator for BDPTIntegrator {
             let camera = self.camera.as_ref();
             let film = camera.get_film();
             let mut film = film.as_ref().write().unwrap();
+            film.merge_splats(1.0 / samples_per_pixel as Float);
+            film.update_display(&cropped_pixel_bounds);
             film.render_end();
             film.write_image();
         }

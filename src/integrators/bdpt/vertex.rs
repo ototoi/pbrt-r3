@@ -398,21 +398,11 @@ impl Vertex {
             return le;
         } else {
             let core = self.core.as_ref().read().unwrap();
-            if let Some(si) = core.interaction.as_surface() {
-                if let Some(premitive) = si.primitive.as_ref() {
-                    let premitive = premitive.upgrade().unwrap();
-                    let premitive = premitive.as_ref();
-                    let area_light = premitive.get_area_light();
-                    if let Some(area_light) = area_light.as_ref() {
-                        if let Some(area_light) = area_light.as_area_light() {
-                            let inter = Interaction::from(si);
-                            return area_light.l(&inter, &w);
-                        }
-                    }
-                }
-            }
-            assert!(false);
-            return Spectrum::zero();
+            let si = core.interaction.as_surface().unwrap();
+            let premitive = si.primitive.as_ref().unwrap().upgrade().unwrap();
+            let area_light = premitive.get_area_light().unwrap();
+            let area_light = area_light.as_area_light().unwrap();
+            return area_light.l(&Interaction::from(si), &w);
         }
     }
 

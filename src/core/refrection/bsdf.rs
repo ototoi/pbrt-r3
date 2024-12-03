@@ -121,14 +121,12 @@ impl BSDF {
             return None;
         }
         let mut sampled_type = found_bxdf.get_type();
-        if let Some((f, wi, pdf, t)) = found_bxdf.sample_f(&wo, &remapped) {
+        if let Some((mut f, wi, mut pdf, t)) = found_bxdf.sample_f(&wo, &remapped) {
             assert!(Float::is_finite(f.y()));
             if pdf <= 0.0 {
                 //t = 0;
                 return None;
             }
-            let mut f = f;
-            let mut pdf = pdf;
 
             if t != 0 {
                 sampled_type = t;
@@ -157,6 +155,7 @@ impl BSDF {
             // Compute value of BSDF for sampled direction
             if (bxdf_type & BSDF_SPECULAR) == 0 {
                 let ng = self.ng;
+                assert!(ng.length_squared() > 0.0);
                 let reflect = (Vector3f::dot(&wi_world, &ng) * Vector3f::dot(wo_w, &ng)) > 0.0;
                 f = self
                     .bxdfs

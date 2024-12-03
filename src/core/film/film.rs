@@ -38,6 +38,7 @@ pub struct Film {
 
     pixels: Mutex<Vec<Pixel>>,
 
+    splat_pixels: Mutex<Vec<[Float; 3]>>,
     splat_tiles: Vec<Arc<RwLock<SplatTile>>>, //pixels_atomic: Vec<PixelAtomic>,
     splat_size: Vector2i,
 
@@ -102,6 +103,7 @@ impl Film {
             }
         }
 
+        let splat_pixels: Vec<[Float; 3]> = vec![[0.0; 3]; cropped_pixel_bounds.area() as usize];
         let mut splat_tiles = Vec::new();
         let splat_size;
         {
@@ -135,6 +137,8 @@ impl Film {
             display: MutipleDisplay::new(),
 
             pixels: Mutex::new(pixels),
+
+            splat_pixels: Mutex::new(splat_pixels),
             splat_tiles: splat_tiles,
             splat_size: splat_size,
             filter_table: Arc::new(RwLock::new(filter_table)),
@@ -216,9 +220,6 @@ impl Film {
                 }
             }
         }
-        {
-            self.update_display(&bounds);
-        }
     }
 
     pub fn merge_splats(&mut self, splat_scale: Float) {
@@ -234,17 +235,16 @@ impl Film {
             let y0 = bounds.min.y as usize;
             let y1 = bounds.max.y as usize;
             {
-                let mut pixels = self.pixels.lock().unwrap();
+                let mut splat_pixels = self.splat_pixels.lock().unwrap();
                 for y in y0..y1 {
                     for x in x0..x1 {
-                        //
                         let p = Vector2i::from((x as i32, y as i32));
                         let sx = x - x0;
                         let sy = y - y0;
                         let src_index = sy * ST_W + sx;
                         let dst_index = self.get_pixel_index(&p);
                         for i in 0..3 {
-                            pixels[dst_index].xyz[i] += splat_scale * tile.pixels[src_index][i];
+                            splat_pixels[dst_index][i] += splat_scale * tile.pixels[src_index][i];
                         }
                     }
                 }
@@ -283,6 +283,7 @@ impl Film {
         let mut buffer: Vec<f32> = vec![0.0; (3 * twidth * theight) as usize];
         {
             let pixels = self.pixels.lock().unwrap();
+            let splat_pixels = self.splat_pixels.lock().unwrap();
             for y in ty0..ty1 {
                 for x in tx0..tx1 {
                     let p = Vector2i::from((x as i32, y as i32));
@@ -296,6 +297,11 @@ impl Film {
                         c[1] = f32::max(0.0, c[1] * inv_wt);
                         c[2] = f32::max(0.0, c[2] * inv_wt);
                     }
+
+                    let splat_pixel = &splat_pixels[src_index];
+                    c[0] += splat_pixel[0];
+                    c[1] += splat_pixel[1];
+                    c[2] += splat_pixel[2];
 
                     let by = y - ty0;
                     let bx = x - tx0;
@@ -346,15 +352,13 @@ impl Film {
 
         //println!("pi: {:?}", pi);
 
-        let pi = Point2i::from((
+        let pi = Point2i::new(
             pi.x - self.cropped_pixel_bounds.min.x,
             pi.y - self.cropped_pixel_bounds.min.y,
-        ));
+        );
         let tx = pi.x as usize / ST_W;
         let ty = pi.y as usize / ST_W;
         let xyz = v.to_xyz();
-        let x = pi.x as usize - tx * ST_W;
-        let y = pi.y as usize - ty * ST_W;
 
         {
             let tindex = ty * self.splat_size.x as usize + tx;
@@ -375,6 +379,10 @@ impl Film {
             //if xyz[0] != 0.0 || xyz[1] != 0.0 || xyz[2] != 0.0 {
             //println!("Splatting at ({}, {})", x, y);
             //}
+
+            let x = pi.x as usize - tx * ST_W;
+            let y = pi.y as usize - ty * ST_W;
+
             splat_tile.pixels[y * ST_W + x][0] += xyz[0];
             splat_tile.pixels[y * ST_W + x][1] += xyz[1];
             splat_tile.pixels[y * ST_W + x][2] += xyz[2];
@@ -412,6 +420,7 @@ impl Film {
         // _splat_scale: Float
         let mut rgb = vec![0.0; 3 * self.cropped_pixel_bounds.area() as usize];
         let pixels = self.pixels.lock().unwrap();
+        let splat_pixels = self.splat_pixels.lock().unwrap();
         {
             for offset in 0..pixels.len() {
                 let pixel = &pixels[offset];
@@ -423,6 +432,12 @@ impl Film {
                     c[1] = f32::max(0.0, c[1] * inv_wt);
                     c[2] = f32::max(0.0, c[2] * inv_wt);
                 }
+
+                let splat_pixel = &splat_pixels[offset];
+                c[0] += splat_pixel[0];
+                c[1] += splat_pixel[1];
+                c[2] += splat_pixel[2];
+
                 rgb[3 * offset + 0] = c[0];
                 rgb[3 * offset + 1] = c[1];
                 rgb[3 * offset + 2] = c[2];

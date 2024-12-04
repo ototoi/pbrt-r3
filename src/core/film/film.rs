@@ -299,9 +299,10 @@ impl Film {
                     }
 
                     let splat_pixel = &splat_pixels[src_index];
-                    c[0] += splat_pixel[0];
-                    c[1] += splat_pixel[1];
-                    c[2] += splat_pixel[2];
+                    let sc = xyz_to_rgb(splat_pixel);
+                    c[0] += sc[0];
+                    c[1] += sc[1];
+                    c[2] += sc[2];
 
                     let by = y - ty0;
                     let bx = x - tx0;
@@ -434,9 +435,10 @@ impl Film {
                 }
 
                 let splat_pixel = &splat_pixels[offset];
-                c[0] += splat_pixel[0];
-                c[1] += splat_pixel[1];
-                c[2] += splat_pixel[2];
+                let sc = xyz_to_rgb(splat_pixel);
+                c[0] += sc[0];
+                c[1] += sc[1];
+                c[2] += sc[2];
 
                 rgb[3 * offset + 0] = c[0];
                 rgb[3 * offset + 1] = c[1];

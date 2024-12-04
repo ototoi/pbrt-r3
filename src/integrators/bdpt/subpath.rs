@@ -662,15 +662,12 @@ pub fn connect_bdpt(
                 if pdf > 0.0 && !spec.is_black() {
                     p_raster = pr;
                     // Initialize dynamically sampled vertex and _L_ for $t=1$ case
-                    let spec_pdf = spec * (1.0 / pdf);
-                    sampled = Arc::new(RwLock::new(Vertex::create_camera_from_interaction(
-                        camera, &vis.p1, &spec_pdf,
-                    )));
+                    let sampled_beta = spec * (1.0 / pdf);
+                    let sampled_v =
+                        Vertex::create_camera_from_interaction(camera, &vis.p1, &sampled_beta);
                     let qs_beta = qs.core.read().unwrap().beta;
                     {
-                        let sampled = sampled.read().unwrap();
-                        let sampled_beta = sampled.core.read().unwrap().beta;
-                        l = qs_beta * qs.f(&sampled, TransportMode::Importance) * sampled_beta;
+                        l = qs_beta * qs.f(&sampled_v, TransportMode::Importance) * sampled_beta;
                         if qs.is_on_surface() {
                             l *= Vector3f::abs_dot(&wi, &qs.get_ns());
                         }
@@ -681,6 +678,8 @@ pub fn connect_bdpt(
                     if !l.is_black() {
                         l *= vis.tr(scene, sampler);
                     }
+
+                    sampled = Arc::new(RwLock::new(sampled_v));
                 }
             }
         }
@@ -695,24 +694,18 @@ pub fn connect_bdpt(
             if let Some((light_weight, wi, pdf, vis)) = light.sample_li(&inter, &sampler.get_2d()) {
                 if pdf > 0.0 && !light_weight.is_black() {
                     let ei = EndpointInteraction::from_light_interaction(&light, &vis.p1);
-                    let light_weight = light_weight * (1.0 / (pdf * light_pdf));
-                    sampled = Arc::new(RwLock::new(Vertex::create_light_from_endpoint(
-                        &ei,
-                        &light_weight,
-                        0.0,
-                    )));
+                    let sampled_beta = light_weight * (1.0 / (pdf * light_pdf));
+                    let sampled_v = Vertex::create_light_from_endpoint(&ei, &sampled_beta, 0.0);
                     {
-                        let sampled = sampled.read().unwrap();
                         let pdf_fwd =
-                            sampled.pdf_light_origin(scene, &pt, light_distr, light_to_index);
+                            sampled_v.pdf_light_origin(scene, &pt, light_distr, light_to_index);
                         assert!(pdf_fwd >= 0.0);
                         {
-                            let mut sampled_core = sampled.core.write().unwrap();
+                            let mut sampled_core = sampled_v.core.write().unwrap();
                             sampled_core.pdf_fwd = pdf_fwd;
                         }
                         let pt_beta = pt.core.read().unwrap().beta;
-                        let sampled_beta = sampled.core.read().unwrap().beta;
-                        l = pt_beta * pt.f(&sampled, TransportMode::Radiance) * sampled_beta;
+                        l = pt_beta * pt.f(&sampled_v, TransportMode::Radiance) * sampled_beta;
                     }
                     if pt.is_on_surface() {
                         l *= Vector3f::abs_dot(&wi, &pt.get_ns());
@@ -720,6 +713,8 @@ pub fn connect_bdpt(
                     if !l.is_black() {
                         l *= vis.tr(scene, sampler);
                     }
+
+                    sampled = Arc::new(RwLock::new(sampled_v));
                 }
             }
         }

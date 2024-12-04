@@ -738,7 +738,7 @@ pub fn connect_bdpt(
     }
 
     // Compute MIS weight for connection strategy
-    if l.is_black() {
+    if l.is_black() || !l.is_valid() {
         return None;
     } else {
         let mis_weight = mis_weight(
@@ -751,7 +751,7 @@ pub fn connect_bdpt(
             light_distr,
             light_to_index,
         );
-        return if mis_weight <= 0.0 {
+        return if mis_weight <= 0.0 || !mis_weight.is_finite() {
             None
         } else {
             Some((l * mis_weight, mis_weight, p_raster))

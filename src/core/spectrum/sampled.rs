@@ -116,12 +116,12 @@ impl SampledSpectrum {
 
     pub fn is_black(&self) -> bool {
         let c = &self.c;
-        return c.iter().all(|x| -> bool { x.abs() <= 0.0 });
+        return c.iter().all(|x| -> bool { *x <= 0.0 });
     }
 
     pub fn is_valid(&self) -> bool {
         let c = &self.c;
-        return c.iter().all(|x| -> bool { x.is_finite() && !x.is_nan() });
+        return c.iter().all(|x| -> bool { x.is_finite() });
     }
 
     pub fn sampled_from_sampled(lambda: &[Float], vals: &[Float]) -> SampledSpectrum {

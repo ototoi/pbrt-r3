@@ -751,7 +751,10 @@ pub fn connect_bdpt(
             light_distr,
             light_to_index,
         );
-        l *= mis_weight;
-        return Some((l, mis_weight, p_raster));
+        return if mis_weight <= 0.0 {
+            None
+        } else {
+            Some((l * mis_weight, mis_weight, p_raster))
+        };
     }
 }

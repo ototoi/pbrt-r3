@@ -231,35 +231,39 @@ impl Integrator for MLTIntegrator {
         if scene.lights.len() > 0 {
             let camera = self.camera.clone();
             let film = camera.get_film();
-            let pixel_bounds = film.read().unwrap().cropped_pixel_bounds;
-            let n_total_mutations =
-                self.mutations_per_pixel * film.read().unwrap().get_sample_bounds().area() as u32;
+            let pixel_bounds: Bounds2<i32> = film.read().unwrap().cropped_pixel_bounds;
+            let n_total_mutations = (self.mutations_per_pixel as i64)
+                * (film.read().unwrap().get_sample_bounds().area() as i64);
             let progress_frequency = PROGRESS_FREQUENCY as usize;
-            let n_chains = self.n_chains;
+            let n_chains = self.n_chains as i64;
             let mutations_per_pixel = self.mutations_per_pixel;
             let sigma = self.sigma;
             let large_step_probability = self.large_step_probability;
             let n_sample_streams = N_SAMPLE_STREAMS;
 
             //let n_total_work = (n_total_mutations / progress_frequency) as usize;
+            let permutations_per_chain = n_total_mutations / n_chains;
+            //println!("n_total_mutations: {}", n_total_mutations);
+            //println!("n_chains: {}", n_chains);
+            //println!("permutations_per_chain: {}", permutations_per_chain);
+
             let n_chain_mutations_list: Vec<usize> = (0..n_chains)
                 .map(|i| {
-                    i64::max(
-                        1,
-                        i64::min(
-                            ((i + 1) * n_total_mutations / n_chains) as i64,
-                            n_total_mutations as i64,
-                        ) - (i * n_total_mutations / n_chains) as i64,
-                    ) as usize
+                    (i64::min((i + 1) * permutations_per_chain, n_total_mutations)
+                        - (i * permutations_per_chain)) as usize
                 })
                 .collect();
             let n_total_iterations = n_chain_mutations_list.iter().sum::<usize>();
+            //let l = n_chain_mutations_list.len();
+            //let nn = &n_chain_mutations_list[l-20..];
+            //println!("n_chain_mutations_list: {:?}", nn);
             //println!(
             //    "total mutations: {}, n_total_iterations: {}",
             //    n_total_mutations,
             //    n_total_iterations
             //);
             assert!(n_total_iterations <= n_total_mutations as usize);
+            //let n_total_mutations = n_total_iterations;
             let reporter = Arc::new(RwLock::new(ProgressReporter::new(
                 n_total_iterations,
                 "Rendering",
@@ -267,9 +271,10 @@ impl Integrator for MLTIntegrator {
             let count_iteration = AtomicUsize::new(0);
             let prev_time = Arc::new(Mutex::new(Instant::now()));
             //let count_iteration = Arc::new(RwLock::new(0 as usize));
+            let n_chains = n_chain_mutations_list.len(); //self.n_chains as usize;
             (0..n_chains).into_par_iter().for_each(|i| {
                 let reporter = reporter.clone();
-                let n_chain_mutations = n_chain_mutations_list[i as usize];
+                let n_chain_mutations = n_chain_mutations_list[i];
 
                 // Follow {i}th Markov chain for _nChainMutations_
                 let mut arena = MemoryArena::new();

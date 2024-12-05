@@ -247,7 +247,7 @@ impl Integrator for MLTIntegrator {
             //println!("n_chains: {}", n_chains);
             //println!("permutations_per_chain: {}", permutations_per_chain);
 
-            let n_chain_mutations_list: Vec<usize> = (0..n_chains)
+            let mut n_chain_mutations_list: Vec<usize> = (0..n_chains)
                 .map(|i| {
                     (i64::min((i + 1) * permutations_per_chain, n_total_mutations)
                         - (i * permutations_per_chain)) as usize
@@ -257,12 +257,18 @@ impl Integrator for MLTIntegrator {
             //let l = n_chain_mutations_list.len();
             //let nn = &n_chain_mutations_list[l-20..];
             //println!("n_chain_mutations_list: {:?}", nn);
+            assert!(n_total_iterations <= n_total_mutations as usize);
+            let last = n_chain_mutations_list.len() - 1;
+            n_chain_mutations_list[last] +=
+                usize::max(0, n_total_mutations as usize - n_total_iterations); //pbrt-r3
+            let n_total_iterations = n_chain_mutations_list.iter().sum::<usize>();
+            assert!(n_total_iterations == n_total_mutations as usize);
             //println!(
             //    "total mutations: {}, n_total_iterations: {}",
             //    n_total_mutations,
             //    n_total_iterations
             //);
-            assert!(n_total_iterations <= n_total_mutations as usize);
+
             //let n_total_mutations = n_total_iterations;
             let reporter = Arc::new(RwLock::new(ProgressReporter::new(
                 n_total_iterations,
@@ -271,7 +277,7 @@ impl Integrator for MLTIntegrator {
             let count_iteration = AtomicUsize::new(0);
             let prev_time = Arc::new(Mutex::new(Instant::now()));
             //let count_iteration = Arc::new(RwLock::new(0 as usize));
-            let n_chains = n_chain_mutations_list.len(); //self.n_chains as usize;
+            let n_chains = self.n_chains as usize;
             (0..n_chains).into_par_iter().for_each(|i| {
                 let reporter = reporter.clone();
                 let n_chain_mutations = n_chain_mutations_list[i];

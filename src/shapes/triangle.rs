@@ -40,25 +40,25 @@ impl TriangleMesh {
         //vertex_indices: Vec<usize>,
         p: Vec<Point3f>,
         s: Vec<Vector3f>,
-        n: Vec<Vector3f>,
+        n: Vec<Normal3f>,
         uv: Vec<Point2f>,
     ) -> Self {
         let p: Vec<Point3f> = p
             .iter()
-            .map(|pos| -> Point3f {
-                return object_to_world.transform_point(pos);
+            .map(|p| -> Point3f {
+                return object_to_world.transform_point(p);
             })
             .collect();
         let s: Vec<Vector3f> = s
             .iter()
-            .map(|pos| -> Vector3f {
-                return object_to_world.transform_vector(pos);
+            .map(|s| -> Vector3f {
+                return object_to_world.transform_vector(s);
             })
             .collect();
-        let n: Vec<Vector3f> = n
+        let n: Vec<Normal3f> = n
             .iter()
-            .map(|pos| -> Vector3f {
-                return object_to_world.transform_vector(pos);
+            .map(|n| -> Normal3f {
+                return object_to_world.transform_normal(n);
             })
             .collect();
         TriangleMesh {
@@ -709,9 +709,9 @@ pub fn create_triangle_mesh_shape(
 
     if let Some(ps) = params.get_points_ref("N") {
         let sz = ps.len() / 3;
-        n.resize(sz, Vector3::zero());
+        n.resize(sz, Normal3f::zero());
         for i in 0..sz {
-            n[i] = Vector3f::new(ps[3 * i + 0], ps[3 * i + 1], ps[3 * i + 2]);
+            n[i] = Normal3f::new(ps[3 * i + 0], ps[3 * i + 1], ps[3 * i + 2]);
         }
     }
 

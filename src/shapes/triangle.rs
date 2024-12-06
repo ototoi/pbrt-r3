@@ -61,13 +61,15 @@ impl TriangleMesh {
                 return object_to_world.transform_normal(n);
             })
             .collect();
+
+        let swaps_handedness = object_to_world.swaps_handedness();
         TriangleMesh {
             object_to_world: *object_to_world,
             world_to_object: object_to_world.inverse(),
             reverse_orientation,
-            swaps_handedness: false,
+            swaps_handedness,
             two_sided,
-            //transform_swaps_handedness
+
             //vertex_indices: vertex_indices,
             p,
             s,

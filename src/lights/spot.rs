@@ -140,7 +140,8 @@ pub fn create_spot_light(
     let intensity = params.find_one_spectrum("I", &Spectrum::one());
     let sc = params.find_one_spectrum("scale", &Spectrum::one());
     let coneangle = params.find_one_float("coneangle", 30.0);
-    let conedelta = params.find_one_float("conedelta", 5.0);
+    let conedelta = params.find_one_float("conedelta", 5.0); //5.0
+    let conedelta = params.find_one_float("conedeltaangle", conedelta);
     let from = params.find_one_point3f("from", &Point3f::new(0.0, 0.0, 0.0));
     let to = params.find_one_point3f("to", &Point3f::new(0.0, 0.0, 1.0));
     let dir = (to - from).normalize();

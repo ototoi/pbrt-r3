@@ -17,6 +17,10 @@ fn trowbridge_reitz_sample_11(cos_theta: Float, u1: Float, u2: Float) -> (Float,
     let tan_theta = sin_theta / cos_theta;
     //let cot_theta_i = 1.0 / tan_theta;
 
+    assert!(Float::is_finite(cos_theta));
+    assert!(Float::is_finite(sin_theta));
+    assert!(Float::is_finite(tan_theta));
+
     let a = 1.0 / tan_theta;
     let g1 = 2.0 / (1.0 + Float::sqrt(1.0 + 1.0 / (a * a)));
 
@@ -32,6 +36,10 @@ fn trowbridge_reitz_sample_11(cos_theta: Float, u1: Float, u2: Float) -> (Float,
     } else {
         slope_x_2
     };
+
+    assert!(!Float::is_nan(b));
+    assert!(!Float::is_nan(d));
+    assert!(!Float::is_nan(tmp));
 
     // sample slope_y
     let (s, u2) = if u2 > 0.5 {
@@ -186,6 +194,10 @@ impl MicrofacetDistribution for TrowbridgeReitzDistribution {
             }
             return wh;
         } else {
+            assert!(Float::is_finite(wo.x));
+            assert!(Float::is_finite(wo.y));
+            assert!(Float::is_finite(wo.z));
+
             // Sample visible area of normals for Beckmann distribution
             let flip = wo.z < 0.0;
             let wo = if flip { -*wo } else { *wo };

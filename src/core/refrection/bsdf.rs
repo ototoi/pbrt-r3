@@ -27,6 +27,11 @@ impl Debug for BSDF {
     }
 }
 
+#[inline]
+fn is_finite(v: &Vector3f) -> bool {
+    return v.x.is_finite() && v.y.is_finite() && v.z.is_finite();
+}
+
 impl BSDF {
     pub fn new(si: &SurfaceInteraction, eta: Float) -> Self {
         let ns = si.shading.n;
@@ -117,7 +122,7 @@ impl BSDF {
         ));
 
         let wo = self.world_to_local(wo_w);
-        if wo.z == 0.0 {
+        if wo.z == 0.0 || !is_finite(&wo) {
             return None;
         }
         let mut sampled_type = found_bxdf.get_type();
@@ -186,7 +191,7 @@ impl BSDF {
         let wi = self.world_to_local(wi_w);
         let wo = self.world_to_local(wo_w);
 
-        if wo.z == 0.0 {
+        if wo.z == 0.0 || !is_finite(&wo) {
             return Spectrum::zero();
         }
 
@@ -214,7 +219,7 @@ impl BSDF {
         let wi = self.world_to_local(wi_w);
         let wo = self.world_to_local(wo_w);
 
-        if wo.z == 0.0 {
+        if wo.z == 0.0 || !is_finite(&wo) {
             return 0.0;
         }
 

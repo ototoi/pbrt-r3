@@ -754,7 +754,12 @@ pub fn connect_bdpt(
         return if mis_weight <= 0.0 || !mis_weight.is_finite() {
             None
         } else {
-            Some((l * mis_weight, mis_weight, p_raster))
+            assert!(mis_weight.is_finite());
+            assert!(mis_weight > 0.0);
+            assert!(l.is_valid() && !l.is_black());
+            
+            let l = l * mis_weight;
+            Some((l, mis_weight, p_raster))
         };
     }
 }

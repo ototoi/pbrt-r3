@@ -741,6 +741,7 @@ pub fn connect_bdpt(
     if l.is_black() || !l.is_valid() {
         return None;
     } else {
+        assert!(l.is_valid() && !l.is_black());
         let mis_weight = mis_weight(
             scene,
             light_vertices,
@@ -754,12 +755,13 @@ pub fn connect_bdpt(
         return if mis_weight <= 0.0 || !mis_weight.is_finite() {
             None
         } else {
-            assert!(mis_weight.is_finite());
-            assert!(mis_weight > 0.0);
-            assert!(l.is_valid() && !l.is_black());
-            
+            assert!(mis_weight.is_finite() && mis_weight > 0.0);
             let l = l * mis_weight;
-            Some((l, mis_weight, p_raster))
+            if l.is_black() || !l.is_valid() {
+                None
+            } else {
+                Some((l, mis_weight, p_raster))
+            }
         };
     }
 }

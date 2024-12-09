@@ -51,7 +51,7 @@ fn get_aov_target(name: &str) -> Result<AOVTarget, PbrtError> {
 }
 
 fn v2c(v: &Vector3f) -> Spectrum {
-    let v = 2.0 * *v - Vector3f::from(1.0);
+    let v = 0.5 * *v + Vector3f::from(0.5);
     return Spectrum::new(v[0], v[1], v[2]);
 }
 

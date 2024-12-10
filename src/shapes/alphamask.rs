@@ -4,14 +4,20 @@ use std::sync::Arc;
 
 pub struct AlphaMaskShape {
     shape: Arc<dyn Shape>,
-    mask: Arc<dyn Texture<Float>>,
+    alpha_mask: Option<Arc<dyn Texture<Float>>>,
+    shadow_alpha_mask: Option<Arc<dyn Texture<Float>>>,
 }
 
 impl AlphaMaskShape {
-    pub fn new(shape: &Arc<dyn Shape>, mask: &Arc<dyn Texture<Float>>) -> Self {
+    pub fn new(
+        shape: &Arc<dyn Shape>,
+        alpha_mask: &Option<Arc<dyn Texture<Float>>>,
+        shadow_alpha_mask: &Option<Arc<dyn Texture<Float>>>,
+    ) -> Self {
         AlphaMaskShape {
             shape: Arc::clone(shape),
-            mask: Arc::clone(mask),
+            alpha_mask: alpha_mask.clone(),
+            shadow_alpha_mask: shadow_alpha_mask.clone(),
         }
     }
 }
@@ -29,29 +35,38 @@ impl Shape for AlphaMaskShape {
         let shape = self.shape.as_ref();
         let t_max = r.t_max.get();
         if let Some((t, si)) = shape.intersect(r) {
-            let mask = self.mask.as_ref();
-            let a = mask.evaluate(&si);
-            if a > 0.0 {
-                return Some((t, si));
-            } else {
-                r.t_max.set(t_max);
-                return None;
+            if let Some(alpha) = self.alpha_mask.as_ref() {
+                let a = alpha.evaluate(&si);
+                if a <= 0.0 {
+                    r.t_max.set(t_max);
+                    return None;
+                }
             }
+            return Some((t, si));
         }
         return None;
     }
+
     fn intersect_p(&self, r: &Ray) -> bool {
         let shape = self.shape.as_ref();
         let t_max = r.t_max.get();
         if let Some((_, si)) = shape.intersect(r) {
-            let mask = self.mask.as_ref();
-            let a = mask.evaluate(&si);
-            if a > 0.0 {
-                return true;
-            } else {
-                r.t_max.set(t_max);
-                return false;
+            if let Some(mask) = self.alpha_mask.as_ref() {
+                let a = mask.evaluate(&si);
+                if a <= 0.0 {
+                    r.t_max.set(t_max);
+                    return false;
+                }
             }
+            if let Some(mask) = self.shadow_alpha_mask.as_ref() {
+                let a = mask.evaluate(&si);
+                if a <= 0.0 {
+                    r.t_max.set(t_max);
+                    return false;
+                }
+            }
+
+            return true;
         }
         return false;
     }

@@ -382,10 +382,18 @@ impl Shape for Triangle {
                     }
                 }
 
-                let mut ts = Vector3f::cross(&ss, &ns);
+                //ss x ns -> ts
+                //ns x ts -> ss
+                //ts x ss -> ns
+                //let mut ts = Vector3f::cross(&ss, &ns);
+
+                //ns x ss -> ts
+                //ss x ts -> ns
+                //ts x ns -> ss
+                let mut ts = Vector3f::cross(&ns, &ss);//zx->y
                 if ts.length_squared() > 0.0 {
                     ts = ts.normalize();
-                    ss = Vector3f::cross(&ts, &ns);
+                    ss = Vector3f::cross(&ts, &ns);//yz->x
                 } else {
                     let (ss1, ts1) = coordinate_system(&ns);
                     ss = ss1;

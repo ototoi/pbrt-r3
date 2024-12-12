@@ -150,6 +150,8 @@ impl Triangle {
             if Vector3f::cross(&dpdu, &dpdv).length_squared() <= 0.0 {
                 return None;
             } else {
+                let dpdu = dpdu.normalize();
+                let dpdv = dpdv.normalize();
                 return Some((uv, dpdu, dpdv));
             }
         }
@@ -372,7 +374,7 @@ impl Shape for Triangle {
                     }
                 }
 
-                let mut ss = isect.dpdu;
+                let mut ss = isect.dpdu.normalize();
                 if !mesh.s.is_empty() {
                     let nns = b0 * mesh.s[i0] + b1 * mesh.s[i1] + b2 * mesh.s[i2];
                     if nns.length_squared() > 0.0 {
@@ -446,7 +448,7 @@ impl Shape for Triangle {
         */
         return Some((t, isect));
     }
-    
+
     fn intersect_p(&self, r: &Ray) -> bool {
         let mesh = self.mesh.as_ref();
         let i0 = self.v[0] as usize;

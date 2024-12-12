@@ -123,12 +123,18 @@ impl Triangle {
         }
     }
 
-    pub fn get_dpdu_dpdv(
+    fn get_dpdu_dpdv_from_uv(
         &self,
         p0: &Vector3f,
         p1: &Vector3f,
         p2: &Vector3f,
     ) -> Option<([Vector2f; 3], Vector3f, Vector3f)> {
+        // Handle the case where there are no UVs
+        // pbrt-r3
+        if self.mesh.uv.is_empty() {
+            return None;
+        }
+        // pbrt-r3
         let uv = self.get_uvs();
         // Compute deltas for triangle partial derivatives
         let duv02 = uv[0] - uv[2];
@@ -141,14 +147,32 @@ impl Triangle {
             let invdet = 1.0 / determinant;
             let dpdu = (duv12[1] * dp02 - duv02[1] * dp12) * invdet;
             let dpdv = (-duv12[0] * dp02 + duv02[0] * dp12) * invdet;
+            if Vector3f::cross(&dpdu, &dpdv).length_squared() <= 0.0 {
+                return None;
+            } else {
+                return Some((uv, dpdu, dpdv));
+            }
+        }
+        return None;
+    }
+
+    pub fn get_dpdu_dpdv(
+        &self,
+        p0: &Vector3f,
+        p1: &Vector3f,
+        p2: &Vector3f,
+    ) -> Option<([Vector2f; 3], Vector3f, Vector3f)> {
+        if let Some((uv, dpdu, dpdv)) = self.get_dpdu_dpdv_from_uv(p0, p1, p2) {
             return Some((uv, dpdu, dpdv));
         } else {
+            // Handle zero determinant for triangle partial derivative matrix
             let ng = Vector3f::cross(&(*p2 - *p0), &(*p1 - *p0));
-            if ng.length_squared() == 0.0 {
+            if ng.length_squared() <= 0.0 {
                 // The triangle is actually degenerate; the intersection is
                 // bogus.
                 return None;
             } else {
+                let uv = self.get_uvs();
                 let (dpdu, dpdv) = coordinate_system(&ng.normalize());
                 return Some((uv, dpdu, dpdv));
             }
@@ -311,122 +335,118 @@ impl Shape for Triangle {
             return None;
         }
 
-        if let Some((uv, dpdu, dpdv)) = self.get_dpdu_dpdv(&p0, &p1, &p2) {
-            // Compute error bounds for triangle intersection
-            let x_abs_sum = Float::abs(b0 * p0.x) + Float::abs(b1 * p1.x) + Float::abs(b2 * p2.x);
-            let y_abs_sum = Float::abs(b0 * p0.y) + Float::abs(b1 * p1.y) + Float::abs(b2 * p2.y);
-            let z_abs_sum = Float::abs(b0 * p0.z) + Float::abs(b1 * p1.z) + Float::abs(b2 * p2.z);
-            let p_error = GAMMA7 * Vector3f::new(x_abs_sum, y_abs_sum, z_abs_sum);
+        let (uv, dpdu, dpdv) = self.get_dpdu_dpdv(&p0, &p1, &p2)?;
+        // Compute error bounds for triangle intersection
+        let x_abs_sum = Float::abs(b0 * p0.x) + Float::abs(b1 * p1.x) + Float::abs(b2 * p2.x);
+        let y_abs_sum = Float::abs(b0 * p0.y) + Float::abs(b1 * p1.y) + Float::abs(b2 * p2.y);
+        let z_abs_sum = Float::abs(b0 * p0.z) + Float::abs(b1 * p1.z) + Float::abs(b2 * p2.z);
+        let p_error = GAMMA7 * Vector3f::new(x_abs_sum, y_abs_sum, z_abs_sum);
 
-            // Interpolate $(u,v)$ parametric coordinates and hit point
-            let p_hit = b0 * p0 + b1 * p1 + b2 * p2;
-            let uv_hit = b0 * uv[0] + b1 * uv[1] + b2 * uv[2];
+        // Interpolate $(u,v)$ parametric coordinates and hit point
+        let p_hit = b0 * p0 + b1 * p1 + b2 * p2;
+        let uv_hit = b0 * uv[0] + b1 * uv[1] + b2 * uv[2];
 
-            // Fill in _SurfaceInteraction_ from triangle hit
-            let mut isect = SurfaceInteraction::new(
-                &p_hit,
-                &p_error,
-                &uv_hit,
-                &(-r.d),
-                &n,
-                &dpdu,
-                &dpdv,
-                &Normal3f::zero(),
-                &Normal3f::zero(),
-                r.time,
-                self.face_index as u32,
-            );
-            isect.shading.n = n;
+        // Fill in _SurfaceInteraction_ from triangle hit
+        let mut isect = SurfaceInteraction::new(
+            &p_hit,
+            &p_error,
+            &uv_hit,
+            &(-r.d),
+            &n,
+            &dpdu,
+            &dpdv,
+            &Normal3f::zero(),
+            &Normal3f::zero(),
+            r.time,
+            self.face_index as u32,
+        );
+        isect.shading.n = n;
 
-            {
-                if !mesh.n.is_empty() || !mesh.s.is_empty() {
-                    let mut ns = isect.n;
-                    if !mesh.n.is_empty() {
-                        let nns = b0 * mesh.n[i0] + b1 * mesh.n[i1] + b2 * mesh.n[i2];
-                        if nns.length_squared() > 0.0 {
-                            ns = nns.normalize();
-                        }
+        {
+            if !mesh.n.is_empty() || !mesh.s.is_empty() {
+                let mut ns = isect.n;
+                if !mesh.n.is_empty() {
+                    let nns = b0 * mesh.n[i0] + b1 * mesh.n[i1] + b2 * mesh.n[i2];
+                    if nns.length_squared() > 0.0 {
+                        ns = nns.normalize();
                     }
-
-                    let mut ss = isect.dpdu;
-                    if !mesh.s.is_empty() {
-                        let nns = b0 * mesh.s[i0] + b1 * mesh.s[i1] + b2 * mesh.s[i2];
-                        if nns.length_squared() > 0.0 {
-                            ss = nns.normalize();
-                        }
-                    }
-
-                    let mut ts = Vector3f::cross(&ss, &ns);
-                    if ts.length_squared() > 0.0 {
-                        ts = ts.normalize();
-                        ss = Vector3f::cross(&ts, &ns);
-                    } else {
-                        let (ss1, ts1) = coordinate_system(&ns);
-                        ss = ss1;
-                        ts = ts1;
-                    }
-
-                    let mut dndu = Vector3f::zero();
-                    let mut dndv = Vector3f::zero();
-                    if !mesh.n.is_empty() {
-                        let duv02 = uv[0] - uv[2];
-                        let duv12 = uv[1] - uv[2];
-                        let dn1 = mesh.n[i0] - mesh.n[i2];
-                        let dn2 = mesh.n[i1] - mesh.n[i2];
-                        let determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
-                        let degenerate_uv = Float::abs(determinant) < 1e-8;
-                        if degenerate_uv {
-                            // We can still compute dndu and dndv, with respect to the
-                            // same arbitrary coordinate system we use to compute dpdu
-                            // and dpdv when this happens. It's important to do this
-                            // (rather than giving up) so that ray differentials for
-                            // rays reflected from triangles with degenerate
-                            // parameterizations are still reasonable.
-                            let dn = Vector3f::cross(
-                                &(mesh.n[i2] - mesh.n[i0]),
-                                &(mesh.n[i1] - mesh.n[i0]),
-                            );
-                            if dn.length_squared() == 0.0 {
-                                //
-                            } else {
-                                let (dnu, dnv) = coordinate_system(&dn);
-                                dndu = dnu;
-                                dndv = dnv;
-                            }
-                        } else {
-                            let inv_det = 1.0 / determinant;
-                            dndu = (duv12[1] * dn1 - duv02[1] * dn2) * inv_det;
-                            dndv = (-duv12[0] * dn1 + duv02[0] * dn2) * inv_det;
-                        }
-                    }
-
-                    if mesh.reverse_orientation {
-                        ts *= -1.0;
-                    }
-
-                    {
-                        //let ns2 = Vector3f::cross(&ss, &ts).normalize();
-                        //assert_eq!(ns.x, ns2.x);
-                        //assert_eq!(ns.y, ns2.y);
-                        //assert_eq!(ns.z, ns2.z);
-                    }
-                    isect.set_shading_geometry(&ss, &ts, &dndu, &dndv, true);
                 }
-            }
-            /*
-            if Vector3f::dot(&isect.n, &r.d) > 0.0 {
-                isect.n *= -1.0;
-            }
 
-            if Vector3f::dot(&isect.shading.n, &r.d) > 0.0 {
-                isect.shading.n *= -1.0;
+                let mut ss = isect.dpdu;
+                if !mesh.s.is_empty() {
+                    let nns = b0 * mesh.s[i0] + b1 * mesh.s[i1] + b2 * mesh.s[i2];
+                    if nns.length_squared() > 0.0 {
+                        ss = nns.normalize();
+                    }
+                }
+
+                let mut ts = Vector3f::cross(&ss, &ns);
+                if ts.length_squared() > 0.0 {
+                    ts = ts.normalize();
+                    ss = Vector3f::cross(&ts, &ns);
+                } else {
+                    let (ss1, ts1) = coordinate_system(&ns);
+                    ss = ss1;
+                    ts = ts1;
+                }
+
+                let mut dndu = Vector3f::zero();
+                let mut dndv = Vector3f::zero();
+                if !mesh.n.is_empty() {
+                    let duv02 = uv[0] - uv[2];
+                    let duv12 = uv[1] - uv[2];
+                    let dn1 = mesh.n[i0] - mesh.n[i2];
+                    let dn2 = mesh.n[i1] - mesh.n[i2];
+                    let determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
+                    let degenerate_uv = Float::abs(determinant) < 1e-8;
+                    if degenerate_uv {
+                        // We can still compute dndu and dndv, with respect to the
+                        // same arbitrary coordinate system we use to compute dpdu
+                        // and dpdv when this happens. It's important to do this
+                        // (rather than giving up) so that ray differentials for
+                        // rays reflected from triangles with degenerate
+                        // parameterizations are still reasonable.
+                        let dn =
+                            Vector3f::cross(&(mesh.n[i2] - mesh.n[i0]), &(mesh.n[i1] - mesh.n[i0]));
+                        if dn.length_squared() == 0.0 {
+                            //
+                        } else {
+                            let (dnu, dnv) = coordinate_system(&dn);
+                            dndu = dnu;
+                            dndv = dnv;
+                        }
+                    } else {
+                        let inv_det = 1.0 / determinant;
+                        dndu = (duv12[1] * dn1 - duv02[1] * dn2) * inv_det;
+                        dndv = (-duv12[0] * dn1 + duv02[0] * dn2) * inv_det;
+                    }
+                }
+
+                if mesh.reverse_orientation {
+                    ts *= -1.0;
+                }
+
+                {
+                    //let ns2 = Vector3f::cross(&ss, &ts).normalize();
+                    //assert_eq!(ns.x, ns2.x);
+                    //assert_eq!(ns.y, ns2.y);
+                    //assert_eq!(ns.z, ns2.z);
+                }
+                isect.set_shading_geometry(&ss, &ts, &dndu, &dndv, true);
             }
-            */
-            return Some((t, isect));
-        } else {
-            return None;
         }
+        /*
+        if Vector3f::dot(&isect.n, &r.d) > 0.0 {
+            isect.n *= -1.0;
+        }
+
+        if Vector3f::dot(&isect.shading.n, &r.d) > 0.0 {
+            isect.shading.n *= -1.0;
+        }
+        */
+        return Some((t, isect));
     }
+    
     fn intersect_p(&self, r: &Ray) -> bool {
         let mesh = self.mesh.as_ref();
         let i0 = self.v[0] as usize;

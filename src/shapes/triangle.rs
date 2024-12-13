@@ -393,7 +393,7 @@ impl Shape for Triangle {
                 let mut ts = Vector3f::cross(&ns, &ss);//zx->y
                 if ts.length_squared() > 0.0 {
                     ts = ts.normalize();
-                    ss = Vector3f::cross(&ts, &ns);//yz->x
+                    ss = Vector3f::cross(&ts, &ns).normalize();//yz->x
                 } else {
                     let (ss1, ts1) = coordinate_system(&ns);
                     ss = ss1;

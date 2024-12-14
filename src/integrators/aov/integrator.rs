@@ -21,6 +21,8 @@ pub enum AOVTarget {
     DPDV,
     DUVDX,
     DUVDY,
+    DPDUS,
+    DPDVS,
 }
 
 fn get_aov_target(name: &str) -> Result<AOVTarget, PbrtError> {
@@ -42,7 +44,11 @@ fn get_aov_target(name: &str) -> Result<AOVTarget, PbrtError> {
         "dstdx" => Ok(AOVTarget::DUVDX),
         "dstdy" => Ok(AOVTarget::DUVDY),
         "duvdx" => Ok(AOVTarget::DUVDX),
-        "duvdy" => Ok(AOVTarget::DUVDY),
+        "dpdus" => Ok(AOVTarget::DPDUS),
+        "dpdvs" => Ok(AOVTarget::DPDVS),
+        "shading.n" => Ok(AOVTarget::NS),
+        "shading.dpdu" => Ok(AOVTarget::DPDUS),
+        "shading.dpdv" => Ok(AOVTarget::DPDVS),
         _ => {
             let msg = format!("AOV target \"{}\" unknown.", name);
             return Err(PbrtError::error(&msg));
@@ -52,7 +58,7 @@ fn get_aov_target(name: &str) -> Result<AOVTarget, PbrtError> {
 
 fn v2c(v: &Vector3f) -> Spectrum {
     let v = 0.5 * *v + Vector3f::from(0.5);
-    return Spectrum::new(v[0], v[1], v[2]);
+    return Spectrum::new(v[0], v[1], v[2]).clamp(0.0, 1.0);
 }
 
 pub struct AOVIntegrator {
@@ -156,6 +162,14 @@ impl SamplerIntegrator for AOVIntegrator {
                 }
                 AOVTarget::DUVDY => {
                     let v = Vector3::new(Float::abs(si.dudy), Float::abs(si.dvdy), 0.0);
+                    return v2c(&v) * scale;
+                }
+                AOVTarget::DPDUS => {
+                    let v = si.shading.dpdu;
+                    return v2c(&v) * scale;
+                }
+                AOVTarget::DPDVS => {
+                    let v = si.shading.dpdv;
                     return v2c(&v) * scale;
                 }
                 _ => {}

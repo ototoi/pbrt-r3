@@ -87,6 +87,10 @@ impl TriangleMesh {
     }
 }
 
+fn near_equal(a: Float, b: Float) -> bool {
+    return Float::abs(a - b) < 1e-6;
+}
+
 pub struct Triangle {
     pub mesh: Arc<TriangleMesh>,
     pub v: [u32; 3],
@@ -131,9 +135,9 @@ impl Triangle {
     ) -> Option<([Vector2f; 3], Vector3f, Vector3f)> {
         // Handle the case where there are no UVs
         // pbrt-r3
-        //if self.mesh.uv.is_empty() {
-        //    return None;
-        //}
+        if self.mesh.uv.is_empty() {
+            return None;
+        }
         // pbrt-r3
         let uv = self.get_uvs();
         // Compute deltas for triangle partial derivatives
@@ -150,8 +154,6 @@ impl Triangle {
             if Vector3f::cross(&dpdu, &dpdv).length_squared() <= 0.0 {
                 return None;
             } else {
-                //let dpdu = dpdu.normalize();
-                //let dpdv = dpdv.normalize();
                 return Some((uv, dpdu, dpdv));
             }
         }
@@ -390,10 +392,10 @@ impl Shape for Triangle {
                 //ns x ss -> ts
                 //ss x ts -> ns
                 //ts x ns -> ss
-                let mut ts = Vector3f::cross(&ns, &ss);//zx->y
+                let mut ts = Vector3f::cross(&ns, &ss); //zx->y
                 if ts.length_squared() > 0.0 {
                     ts = ts.normalize();
-                    ss = Vector3f::cross(&ts, &ns).normalize();//yz->x
+                    ss = Vector3f::cross(&ts, &ns).normalize(); //yz->x
                 } else {
                     let (ss1, ts1) = coordinate_system(&ns);
                     ss = ss1;

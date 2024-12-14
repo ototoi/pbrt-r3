@@ -366,96 +366,76 @@ impl Shape for Triangle {
         );
         isect.shading.n = n;
 
-        {
-            if !mesh.n.is_empty() || !mesh.s.is_empty() {
-                let mut ns = isect.n;
-                if !mesh.n.is_empty() {
-                    let nns = b0 * mesh.n[i0] + b1 * mesh.n[i1] + b2 * mesh.n[i2];
-                    if nns.length_squared() > 0.0 {
-                        ns = nns.normalize();
-                    }
+        if !mesh.n.is_empty() || !mesh.s.is_empty() {
+            let mut ns = isect.n;
+            if !mesh.n.is_empty() {
+                let nns = b0 * mesh.n[i0] + b1 * mesh.n[i1] + b2 * mesh.n[i2];
+                if nns.length_squared() > 0.0 {
+                    ns = nns.normalize();
                 }
-
-                let mut ss = isect.dpdu.normalize();
-                if !mesh.s.is_empty() {
-                    let nns = b0 * mesh.s[i0] + b1 * mesh.s[i1] + b2 * mesh.s[i2];
-                    if nns.length_squared() > 0.0 {
-                        ss = nns.normalize();
-                    }
-                }
-
-                //ss x ns -> ts
-                //ns x ts -> ss
-                //ts x ss -> ns
-                //let mut ts = Vector3f::cross(&ss, &ns);
-
-                //ns x ss -> ts
-                //ss x ts -> ns
-                //ts x ns -> ss
-                let mut ts = Vector3f::cross(&ns, &ss); //zx->y
-                if ts.length_squared() > 0.0 {
-                    ts = ts.normalize();
-                    ss = Vector3f::cross(&ts, &ns).normalize(); //yz->x
-                } else {
-                    let (ss1, ts1) = coordinate_system(&ns);
-                    ss = ss1;
-                    ts = ts1;
-                }
-
-                let mut dndu = Vector3f::zero();
-                let mut dndv = Vector3f::zero();
-                if !mesh.n.is_empty() {
-                    let duv02 = uv[0] - uv[2];
-                    let duv12 = uv[1] - uv[2];
-                    let dn1 = mesh.n[i0] - mesh.n[i2];
-                    let dn2 = mesh.n[i1] - mesh.n[i2];
-                    let determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
-                    let degenerate_uv = Float::abs(determinant) < 1e-8;
-                    if degenerate_uv {
-                        // We can still compute dndu and dndv, with respect to the
-                        // same arbitrary coordinate system we use to compute dpdu
-                        // and dpdv when this happens. It's important to do this
-                        // (rather than giving up) so that ray differentials for
-                        // rays reflected from triangles with degenerate
-                        // parameterizations are still reasonable.
-                        let dn =
-                            Vector3f::cross(&(mesh.n[i2] - mesh.n[i0]), &(mesh.n[i1] - mesh.n[i0]));
-                        if dn.length_squared() == 0.0 {
-                            //
-                        } else {
-                            let (dnu, dnv) = coordinate_system(&dn);
-                            dndu = dnu;
-                            dndv = dnv;
-                        }
-                    } else {
-                        let inv_det = 1.0 / determinant;
-                        dndu = (duv12[1] * dn1 - duv02[1] * dn2) * inv_det;
-                        dndv = (-duv12[0] * dn1 + duv02[0] * dn2) * inv_det;
-                    }
-                }
-
-                if mesh.reverse_orientation {
-                    ts *= -1.0;
-                }
-
-                {
-                    //let ns2 = Vector3f::cross(&ss, &ts).normalize();
-                    //assert_eq!(ns.x, ns2.x);
-                    //assert_eq!(ns.y, ns2.y);
-                    //assert_eq!(ns.z, ns2.z);
-                }
-                isect.set_shading_geometry(&ss, &ts, &dndu, &dndv, true);
             }
-        }
-        /*
-        if Vector3f::dot(&isect.n, &r.d) > 0.0 {
-            isect.n *= -1.0;
+
+            let mut ss = isect.dpdu.normalize();
+            if !mesh.s.is_empty() {
+                let nns = b0 * mesh.s[i0] + b1 * mesh.s[i1] + b2 * mesh.s[i2];
+                if nns.length_squared() > 0.0 {
+                    ss = nns.normalize();
+                }
+            }
+
+            //ns x ss -> ts
+            //ss x ts -> ns
+            //ts x ns -> ss
+            //let mut ts = Vector3f::cross(&ss, &ns); //pbrt-v3
+            let mut ts = Vector3f::cross(&ns, &ss); //zx->y //pbrt-r3
+            if ts.length_squared() > 0.0 {
+                ts = ts.normalize();
+                ss = Vector3f::cross(&ts, &ns).normalize(); //yz->x
+            } else {
+                let (ss1, ts1) = coordinate_system(&ns);
+                ss = ss1;
+                ts = ts1;
+            }
+
+            let mut dndu = Vector3f::zero();
+            let mut dndv = Vector3f::zero();
+            if !mesh.n.is_empty() {
+                let duv02 = uv[0] - uv[2];
+                let duv12 = uv[1] - uv[2];
+                let dn1 = mesh.n[i0] - mesh.n[i2];
+                let dn2 = mesh.n[i1] - mesh.n[i2];
+                let determinant = duv02[0] * duv12[1] - duv02[1] * duv12[0];
+                let degenerate_uv = Float::abs(determinant) < 1e-8;
+                if degenerate_uv {
+                    // We can still compute dndu and dndv, with respect to the
+                    // same arbitrary coordinate system we use to compute dpdu
+                    // and dpdv when this happens. It's important to do this
+                    // (rather than giving up) so that ray differentials for
+                    // rays reflected from triangles with degenerate
+                    // parameterizations are still reasonable.
+                    let dn =
+                        Vector3f::cross(&(mesh.n[i2] - mesh.n[i0]), &(mesh.n[i1] - mesh.n[i0]));
+                    if dn.length_squared() == 0.0 {
+                        //
+                    } else {
+                        let (dnu, dnv) = coordinate_system(&dn);
+                        dndu = dnu;
+                        dndv = dnv;
+                    }
+                } else {
+                    let inv_det = 1.0 / determinant;
+                    dndu = (duv12[1] * dn1 - duv02[1] * dn2) * inv_det;
+                    dndv = (-duv12[0] * dn1 + duv02[0] * dn2) * inv_det;
+                }
+            }
+
+            if mesh.reverse_orientation {
+                ts *= -1.0;
+            }
+
+            isect.set_shading_geometry(&ss, &ts, &dndu, &dndv, true);
         }
 
-        if Vector3f::dot(&isect.shading.n, &r.d) > 0.0 {
-            isect.shading.n *= -1.0;
-        }
-        */
         return Some((t, isect));
     }
 

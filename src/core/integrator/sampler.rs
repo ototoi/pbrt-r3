@@ -227,6 +227,8 @@ impl SampleIntegratorCore {
                         let l = integrator.li(&ray, scene, sampler.deref_mut(), &mut arena, 0);
                         let l = validate_radiance_result(l, &pixel);
                         film_tile.add_sample(&camera_sample.p_film, &l, ray_weight);
+                    } else {
+                        film_tile.add_sample(&camera_sample.p_film, &Spectrum::zero(), 0.0);
                     }
                     arena.reset();
 

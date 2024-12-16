@@ -60,5 +60,6 @@ pub trait ParseContext {
     //----------------------------------------
     fn pbrt_work_dir_begin(&mut self, _path: &str) {}
     fn pbrt_work_dir_end(&mut self) {}
+    fn pbrt_include(&mut self, _filename: &str, _params: &ParamSet) {}
     //----------------------------------------
 }

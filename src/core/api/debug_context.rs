@@ -385,4 +385,12 @@ impl ParseContext for DebugContext {
             .borrow_mut()
             .push(Operation::new("WorkDirEnd", &v));
     }
+
+    fn pbrt_include(&mut self, filename: &str, _params: &ParamSet) {
+        println!("{}pbrt_include:\"{filename}\"", self.get_indent());
+        let v = vec![String::from(filename)];
+        self.operations
+            .borrow_mut()
+            .push(Operation::new("Include", &v));
+    }
 }

@@ -26,11 +26,32 @@ pub fn read_file_with_include(path: &str) -> Result<String, Error> {
     }
 }
 
+pub fn read_file_without_include(path: &str) -> Result<String, Error> {
+    let path = Path::new(path);
+    if path.exists() {
+        return read_file_without_include_core(path);
+    } else {
+        return Err(Error::new(ErrorKind::NotFound, "File is not found."));
+    }
+}
+
 fn read_file_with_include_core(path: &Path, dirs: &mut Vec<PathBuf>) -> Result<String, Error> {
     let string_result = fs::read_to_string(path);
     match string_result {
         Ok(s) => {
             return evaluate_include(&s, dirs);
+        }
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub fn read_file_without_include_core(path: &Path) -> Result<String, Error> {
+    let string_result = fs::read_to_string(path);
+    match string_result {
+        Ok(s) => {
+            return remove_comment_result(&s);
         }
         Err(e) => {
             return Err(e);

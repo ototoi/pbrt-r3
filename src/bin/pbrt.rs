@@ -139,13 +139,15 @@ fn init_logger(opts: &CommandOptions) {
 fn print_scene(input_path: &Path, _opts: &CommandOptions) -> i32 {
     let mut context = MutipleContext::new();
     context.add(Arc::new(RefCell::new(PrintContext::new_stdout(false))));
-
     let input_path = String::from(input_path.to_str().unwrap());
-    //should
-    if pbrt_parse_file(&input_path, &mut context).is_ok() {
-        0
-    } else {
-        -1
+    match pbrt_parse_file_without_include(&input_path, &mut context) {
+        Ok(_) => {
+            return 0;
+        }
+        Err(e) => {
+            error!("{}", e);
+            return -1;
+        }
     }
 }
 

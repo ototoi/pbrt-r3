@@ -481,4 +481,12 @@ impl ParseContext for PrintContext {
     fn pbrt_work_dir_end(&mut self) {
         //Do not anything!
     }
+
+    fn pbrt_include(&mut self, filename: &str, params: &ParamSet) {
+        let s_params = self.with_params(params);
+        self.print(&format!(
+            "{}Include \"{filename}\"{s_params}\n",
+            self.get_indent()
+        ));
+    }
 }

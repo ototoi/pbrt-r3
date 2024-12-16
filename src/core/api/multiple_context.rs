@@ -287,4 +287,10 @@ impl ParseContext for MutipleContext {
             r.borrow_mut().pbrt_work_dir_end();
         }
     }
+
+    fn pbrt_include(&mut self, file_name: &str, params: &ParamSet) {
+        for r in self.contexts.iter() {
+            r.borrow_mut().pbrt_include(file_name, params);
+        }
+    }
 }

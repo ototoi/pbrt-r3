@@ -136,9 +136,22 @@ fn init_logger(opts: &CommandOptions) {
         .init();
 }
 
-fn print_scene(input_path: &Path, _opts: &CommandOptions) -> i32 {
-    let mut context = MutipleContext::new();
-    context.add(Arc::new(RefCell::new(PrintContext::new_stdout(false))));
+fn cat_scene(input_path: &Path, _opts: &CommandOptions) -> i32 {
+    let mut context = PrintContext::new_stdout(false);
+    let input_path = String::from(input_path.to_str().unwrap());
+    match pbrt_parse_file_without_include(&input_path, &mut context) {
+        Ok(_) => {
+            return 0;
+        }
+        Err(e) => {
+            error!("{}", e);
+            return -1;
+        }
+    }
+}
+
+fn toply_scene(input_path: &Path, _opts: &CommandOptions) -> i32 {
+    let mut context = PrintContext::new_stdout(false);
     let input_path = String::from(input_path.to_str().unwrap());
     match pbrt_parse_file_without_include(&input_path, &mut context) {
         Ok(_) => {
@@ -290,10 +303,11 @@ pub fn main() {
     let input_path = input_path.canonicalize().unwrap();
 
     if opts.cat {
-        let ret = print_scene(&input_path, &opts);
+        let ret = cat_scene(&input_path, &opts);
         process::exit(ret);
     } else if opts.toply {
-        //todo: implement toply
+        let ret = toply_scene(&input_path, &opts);
+        process::exit(ret);
     } else {
         let ret = render_scene(&input_path, &opts);
         process::exit(ret);

@@ -5,7 +5,6 @@ use pbrt_r3::core::parser::*;
 use pbrt_r3::core::pbrt::*;
 use pbrt_r3::core::stats;
 use pbrt_r3::displays::TevDisplay;
-use ply_rs::writer;
 use std::cell::RefCell;
 use std::env;
 use std::path::Path;
@@ -177,14 +176,21 @@ fn cat_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
 }
 
 fn toply_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
+    let dir = input_path.parent().unwrap();
+    let mut dir = dir.to_str().unwrap().to_string();
     let outfile = opts.outfile.as_ref();
-    let mut context = match create_print_context(outfile) {
+    if outfile.is_some() {
+        let outfile = outfile.unwrap();
+        dir = outfile.parent().unwrap().to_str().unwrap().to_string();
+    }
+    let context = match create_print_context(outfile) {
         Ok(ctx) => ctx,
         Err(e) => {
             error!("{}", e);
             return -1;
         }
     };
+    let mut context = PlyContext::new(&dir, Arc::new(RefCell::new(context)));
     let input_path = String::from(input_path.to_str().unwrap());
     match pbrt_parse_file_without_include(&input_path, &mut context) {
         Ok(_) => {

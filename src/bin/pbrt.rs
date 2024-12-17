@@ -136,9 +136,61 @@ fn init_logger(opts: &CommandOptions) {
         .init();
 }
 
-fn print_scene(input_path: &Path, _opts: &CommandOptions) -> i32 {
-    let mut context = MutipleContext::new();
-    context.add(Arc::new(RefCell::new(PrintContext::new_stdout(false))));
+fn create_print_context(outfile: Option<&PathBuf>) -> Result<PrintContext, PbrtError> {
+    if let Some(path) = outfile {
+        match std::fs::File::create(path) {
+            Ok(writer) => {
+                return Ok(PrintContext::new_with_params(
+                    Arc::new(RefCell::new(writer)),
+                    false,
+                ));
+            }
+            Err(e) => {
+                return Err(PbrtError::from(e));
+            }
+        }
+    } else {
+        Ok(PrintContext::new_stdout(false))
+    }
+}
+
+fn cat_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
+    let outfile = opts.outfile.as_ref();
+    let mut context = match create_print_context(outfile) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            error!("{}", e);
+            return -1;
+        }
+    };
+    let input_path = String::from(input_path.to_str().unwrap());
+    match pbrt_parse_file_without_include(&input_path, &mut context) {
+        Ok(_) => {
+            return 0;
+        }
+        Err(e) => {
+            error!("{}", e);
+            return -1;
+        }
+    }
+}
+
+fn toply_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
+    let dir = input_path.parent().unwrap();
+    let mut dir = dir.to_str().unwrap().to_string();
+    let outfile = opts.outfile.as_ref();
+    if outfile.is_some() {
+        let outfile = outfile.unwrap();
+        dir = outfile.parent().unwrap().to_str().unwrap().to_string();
+    }
+    let context = match create_print_context(outfile) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            error!("{}", e);
+            return -1;
+        }
+    };
+    let mut context = PlyContext::new(&dir, Arc::new(RefCell::new(context)));
     let input_path = String::from(input_path.to_str().unwrap());
     match pbrt_parse_file_without_include(&input_path, &mut context) {
         Ok(_) => {
@@ -290,10 +342,11 @@ pub fn main() {
     let input_path = input_path.canonicalize().unwrap();
 
     if opts.cat {
-        let ret = print_scene(&input_path, &opts);
+        let ret = cat_scene(&input_path, &opts);
         process::exit(ret);
     } else if opts.toply {
-        //todo: implement toply
+        let ret = toply_scene(&input_path, &opts);
+        process::exit(ret);
     } else {
         let ret = render_scene(&input_path, &opts);
         process::exit(ret);

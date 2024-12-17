@@ -5,6 +5,7 @@ use pbrt_r3::core::parser::*;
 use pbrt_r3::core::pbrt::*;
 use pbrt_r3::core::stats;
 use pbrt_r3::displays::TevDisplay;
+use ply_rs::writer;
 use std::cell::RefCell;
 use std::env;
 use std::path::Path;
@@ -136,8 +137,33 @@ fn init_logger(opts: &CommandOptions) {
         .init();
 }
 
-fn cat_scene(input_path: &Path, _opts: &CommandOptions) -> i32 {
-    let mut context = PrintContext::new_stdout(false);
+fn create_print_context(outfile: Option<&PathBuf>) -> Result<PrintContext, PbrtError> {
+    if let Some(path) = outfile {
+        match std::fs::File::create(path) {
+            Ok(writer) => {
+                return Ok(PrintContext::new_with_params(
+                    Arc::new(RefCell::new(writer)),
+                    false,
+                ));
+            }
+            Err(e) => {
+                return Err(PbrtError::from(e));
+            }
+        }
+    } else {
+        Ok(PrintContext::new_stdout(false))
+    }
+}
+
+fn cat_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
+    let outfile = opts.outfile.as_ref();
+    let mut context = match create_print_context(outfile) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            error!("{}", e);
+            return -1;
+        }
+    };
     let input_path = String::from(input_path.to_str().unwrap());
     match pbrt_parse_file_without_include(&input_path, &mut context) {
         Ok(_) => {
@@ -150,8 +176,15 @@ fn cat_scene(input_path: &Path, _opts: &CommandOptions) -> i32 {
     }
 }
 
-fn toply_scene(input_path: &Path, _opts: &CommandOptions) -> i32 {
-    let mut context = PrintContext::new_stdout(false);
+fn toply_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
+    let outfile = opts.outfile.as_ref();
+    let mut context = match create_print_context(outfile) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            error!("{}", e);
+            return -1;
+        }
+    };
     let input_path = String::from(input_path.to_str().unwrap());
     match pbrt_parse_file_without_include(&input_path, &mut context) {
         Ok(_) => {

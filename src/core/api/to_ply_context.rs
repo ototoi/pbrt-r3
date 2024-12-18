@@ -9,19 +9,25 @@ use log::*;
 use ply_rs::ply::*;
 use ply_rs::writer::Writer;
 
-pub struct PlyContext {
+pub struct ToPlyContext {
     dir: String,
     context: Arc<RefCell<dyn ParseContext>>,
-    index: usize,
+    count: usize,
 }
 
-impl PlyContext {
+impl ToPlyContext {
     pub fn new(dir: &str, context: Arc<RefCell<dyn ParseContext>>) -> Self {
-        PlyContext {
+        ToPlyContext {
             dir: dir.to_string(),
             context,
-            index: 0,
+            count: 1,
         }
+    }
+
+    pub fn get_ply_filename(&self) -> String {
+        let ply_prefix = std::env::var("PLY_PREFIX").unwrap_or("mesh".to_string());
+        let count = self.count;
+        format!("{}_{:0>5}.ply", ply_prefix, count)
     }
 }
 
@@ -38,7 +44,7 @@ struct Mesh {
 fn convert_to_mesh(params: &ParamSet) -> Option<Mesh> {
     let mut vertex_indices = Vec::new();
     let mut p: Vec<Vector3f> = Vec::new();
-    let mut s: Vec<Vector3f> = Vec::new();
+    //let mut s: Vec<Vector3f> = Vec::new();
     let mut n: Vec<Vector3f> = Vec::new();
     let mut uv: Vec<Vector2f> = Vec::new();
     let mut face_indices = Vec::new();
@@ -72,12 +78,12 @@ fn convert_to_mesh(params: &ParamSet) -> Option<Mesh> {
         }
     }
 
-    if let Some(ps) = params.get_points_ref("S") {
-        let sz = ps.len() / 3;
-        s.resize(sz, Vector3::zero());
-        for i in 0..sz {
-            s[i] = Vector3f::new(ps[3 * i + 0], ps[3 * i + 1], ps[3 * i + 2]);
-        }
+    if let Some(_ps) = params.get_points_ref("S") {
+        //let sz = ps.len() / 3;
+        //s.resize(sz, Vector3::zero());
+        //for i in 0..sz {
+        //    s[i] = Vector3f::new(ps[3 * i + 0], ps[3 * i + 1], ps[3 * i + 2]);
+        //}
     }
 
     if let Some(ps) = params.get_points_ref("N") {
@@ -98,7 +104,6 @@ fn convert_to_mesh(params: &ParamSet) -> Option<Mesh> {
     if !p.is_empty() && !vertex_indices.is_empty() {
         let mesh = Mesh {
             p,
-            s,
             n,
             uv,
             vertex_indices,
@@ -284,7 +289,7 @@ fn create_plymesh_params(params: &ParamSet) -> ParamSet {
     return p;
 }
 
-impl ParseContext for PlyContext {
+impl ParseContext for ToPlyContext {
     fn pbrt_cleanup(&mut self) {
         self.context.borrow_mut().pbrt_cleanup();
     }
@@ -441,6 +446,12 @@ impl ParseContext for PlyContext {
 
     fn pbrt_shape(&mut self, name: &str, params: &ParamSet) {
         if name == "trianglemesh" {
+            if let Some(vi) = params.get_ints_ref("indices") {
+                if vi.len() < 500 {
+                    self.context.borrow_mut().pbrt_shape(name, params);
+                    return;
+                }
+            }
             if let Some(mesh) = convert_to_mesh(params) {
                 let dir = Path::new(&self.dir);
                 let dir = dir.join("geometry");
@@ -448,14 +459,24 @@ impl ParseContext for PlyContext {
                     error!("Error: {}", e);
                     return;
                 }
-                let file_name = dir.join(format!("mesh_{}.ply", self.index));
-                match write_mesh_to_ply(&mesh, &file_name) {
+                let filename = self.get_ply_filename();
+                let filepath = dir.join(&filename);
+                {
+                    // Check if the mesh has tangent vectors
+                    if let Some(_) = params.get_points_ref("S") {
+                        warn!(
+                            "{}: PLY mesh will be missing tangent vectors \"S\".",
+                            filename
+                        );
+                    }
+                }
+                match write_mesh_to_ply(&mesh, &filepath) {
                     Ok(_) => {
                         let mut params = create_plymesh_params(params);
-                        let filename = file_name.file_name().unwrap().to_str().unwrap();
-                        let filename = Path::new("geometry").join(filename);
-                        let filename = filename.to_str().unwrap();
-                        params.add_string("string filename", filename);
+                        let filepath = filepath.file_name().unwrap().to_str().unwrap();
+                        let filepath = Path::new("geometry").join(filepath);
+                        let filepath = filepath.to_str().unwrap();
+                        params.add_string("string filename", filepath);
                         self.context.borrow_mut().pbrt_shape("plymesh", &params);
                     }
                     Err(e) => {
@@ -463,7 +484,7 @@ impl ParseContext for PlyContext {
                     }
                 }
             }
-            self.index += 1;
+            self.count += 1;
         } else {
             self.context.borrow_mut().pbrt_shape(name, params);
         }

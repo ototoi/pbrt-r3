@@ -190,7 +190,7 @@ fn toply_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
             return -1;
         }
     };
-    let mut context = PlyContext::new(&dir, Arc::new(RefCell::new(context)));
+    let mut context = ToPlyContext::new(&dir, Arc::new(RefCell::new(context)));
     let input_path = String::from(input_path.to_str().unwrap());
     match pbrt_parse_file_without_include(&input_path, &mut context) {
         Ok(_) => {

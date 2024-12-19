@@ -9,7 +9,7 @@ use std::env;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 
-thread_local!(pub static FILM_PIXEL_MEMORY: StatMemoryCounter = StatMemoryCounter::new("Memory/Film pixels"));
+thread_local!(static FILM_PIXEL_MEMORY: StatMemoryCounter = StatMemoryCounter::new("Memory/Film pixels"));
 
 //pub const FILTER_TABLE_WIDTH: usize = 16;
 //pub const FT_W: usize = FILTER_TABLE_WIDTH;

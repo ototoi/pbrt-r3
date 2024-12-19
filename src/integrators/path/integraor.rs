@@ -3,6 +3,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::RwLock;
 
+thread_local!(static PATH_LENGTH: StatIntDistribution = StatIntDistribution::new("Integrator/Path length"));
+
 pub struct PathIntegrator {
     base: BaseSamplerIntegrator,
     light_distribution: Option<Arc<dyn LightDistribution>>,
@@ -228,6 +230,11 @@ impl SamplerIntegrator for PathIntegrator {
             }
             bounces += 1;
         }
+
+        {
+            PATH_LENGTH.with(|stat| stat.add(bounces as u64));
+        }
+
         return l;
     }
 

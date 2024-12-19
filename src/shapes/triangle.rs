@@ -4,7 +4,7 @@ use crate::core::pbrt::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-thread_local!(pub static TRI_MESH_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/Triangle meshes"));
+thread_local!(static TRI_MESH_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/Triangle meshes"));
 
 pub struct TriangleMesh {
     pub object_to_world: Transform,

@@ -7,6 +7,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::RwLock;
 
+thread_local!(static PATH_LENGTH: StatIntDistribution = StatIntDistribution::new("Integrator/Path length"));
+
 fn random_walk(
     scene: &Scene,
     ray: &RayDifferential,
@@ -735,6 +737,13 @@ pub fn connect_bdpt(
                 l *= g(scene, sampler, &qs, &pt);
             }
         }
+    }
+
+    {
+        //ReportValue
+        PATH_LENGTH.with(|stat| {
+            stat.add((s + t - 2).max(0) as u64);
+        });
     }
 
     // Compute MIS weight for connection strategy

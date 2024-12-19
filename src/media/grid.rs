@@ -1,7 +1,7 @@
 use crate::core::pbrt::*;
 use std::sync::Arc;
 
-thread_local!(pub static DENSITY_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/Volume density grid"));
+thread_local!(static DENSITY_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/Volume density grid"));
 
 #[derive(Debug, Clone)]
 pub struct GridDensityMedium {

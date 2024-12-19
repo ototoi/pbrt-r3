@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::{ops::Deref, vec};
 
-thread_local!(pub static N_EWA_LOOKUPS: StatCounter = StatCounter::new("Texture/EWA lookups"));
-thread_local!(pub static N_TRILERP_LOOKUPS: StatCounter = StatCounter::new("Texture/Trilinear lookups"));
-thread_local!(pub static MIP_MAP_MEMORY: StatMemoryCounter = StatMemoryCounter::new("Memory/Texture MIP maps"));
+thread_local!(static N_EWA_LOOKUPS: StatCounter = StatCounter::new("Texture/EWA lookups"));
+thread_local!(static N_TRILERP_LOOKUPS: StatCounter = StatCounter::new("Texture/Trilinear lookups"));
+thread_local!(static MIP_MAP_MEMORY: StatMemoryCounter = StatMemoryCounter::new("Memory/Texture MIP maps"));
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ImageWrap {

@@ -10,7 +10,7 @@ use std::sync::RwLock;
 
 use log::*;
 
-thread_local!(pub static N_CAMERA_RAYS: StatCounter = StatCounter::new("Integrator/Camera rays traced"));
+thread_local!(static N_CAMERA_RAYS: StatCounter = StatCounter::new("Integrator/Camera rays traced"));
 
 pub trait SamplerIntegrator: Integrator + Sync {
     fn preprocess(&mut self, _scene: &Scene, _sampler: &mut dyn Sampler) {}

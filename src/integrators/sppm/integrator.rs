@@ -9,9 +9,9 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
 
-thread_local!(pub static PHOTON_PATHS: StatCounter = StatCounter::new("Stochastic Progressive Photon Mapping/Photon paths followed"));
-thread_local!(pub static GRID_CELLS_PER_VISIBLE_POINT: StatIntDistribution = StatIntDistribution::new("Stochastic Progressive Photon Mapping/Grid cells per visible point"));
-thread_local!(pub static PIXEL_MEMORY_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/SPPM Pixels"));
+thread_local!(static PHOTON_PATHS: StatCounter = StatCounter::new("Stochastic Progressive Photon Mapping/Photon paths followed"));
+thread_local!(static GRID_CELLS_PER_VISIBLE_POINT: StatIntDistribution = StatIntDistribution::new("Stochastic Progressive Photon Mapping/Grid cells per visible point"));
+thread_local!(static PIXEL_MEMORY_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/SPPM Pixels"));
 
 #[derive(Clone)]
 struct SPPMVisiblePoint {

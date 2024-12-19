@@ -4,7 +4,7 @@ use crate::core::pbrt::*;
 use log::*;
 use std::sync::Arc;
 
-thread_local!(pub static TREE_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/BVH tree"));
+thread_local!(static TREE_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/BVH tree"));
 
 pub struct LinearBVHNode {
     pub bounds: [[f32; 3]; 2], //32*3*2

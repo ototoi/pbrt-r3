@@ -3,8 +3,8 @@ use crate::core::pbrt::*;
 
 use std::sync::Arc;
 
-thread_local!(pub static N_CURVES: StatCounter = StatCounter::new("Scene/Curves"));
-thread_local!(pub static N_SPLIT_CURVES: StatCounter = StatCounter::new("Scene/Split curves"));
+thread_local!(static N_CURVES: StatCounter = StatCounter::new("Scene/Curves"));
+thread_local!(static N_SPLIT_CURVES: StatCounter = StatCounter::new("Scene/Split curves"));
 
 // CurveType Declarations
 #[derive(Debug, Clone, Copy, PartialEq)]

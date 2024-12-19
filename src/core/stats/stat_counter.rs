@@ -4,14 +4,14 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 #[derive(Debug, Clone)]
-struct BaseReporter {
+struct BaseCountReporter {
     pub name: String,
     pub value: u64,
 }
 
-impl BaseReporter {
+impl BaseCountReporter {
     pub fn new(name: &str) -> Self {
-        BaseReporter {
+        BaseCountReporter {
             name: name.to_string(),
             value: 0,
         }
@@ -22,10 +22,10 @@ impl BaseReporter {
 }
 
 #[derive(Debug, Clone)]
-struct CountReporter(BaseReporter);
+struct CountReporter(BaseCountReporter);
 impl CountReporter {
     pub fn new(name: &str) -> Self {
-        CountReporter(BaseReporter::new(name))
+        CountReporter(BaseCountReporter::new(name))
     }
 }
 impl StatReporter for CountReporter {
@@ -41,10 +41,10 @@ impl StatReporter for CountReporter {
 }
 
 #[derive(Debug, Clone)]
-struct MemoryReporter(BaseReporter);
+struct MemoryReporter(BaseCountReporter);
 impl MemoryReporter {
     pub fn new(name: &str) -> Self {
-        MemoryReporter(BaseReporter::new(name))
+        MemoryReporter(BaseCountReporter::new(name))
     }
 }
 impl StatReporter for MemoryReporter {
@@ -145,6 +145,81 @@ impl StatReporter for FloatDistributionReporter {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct BaseFractionReporter {
+    pub name: String,
+    pub num: u64,
+    pub denom: u64,
+}
+
+impl BaseFractionReporter {
+    pub fn new(name: &str) -> Self {
+        BaseFractionReporter {
+            name: name.to_string(),
+            num: 0,
+            denom: 0,
+        }
+    }
+    fn clear(&mut self) {
+        self.num = 0;
+        self.denom = 0;
+    }
+    pub fn add_num(&mut self, val: u64) {
+        self.num += val;
+    }
+    pub fn add_denom(&mut self, val: u64) {
+        self.denom += val;
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PercentageReporter(BaseFractionReporter);
+
+impl PercentageReporter {
+    pub fn new(name: &str) -> Self {
+        PercentageReporter(BaseFractionReporter::new(name))
+    }
+}
+
+impl StatReporter for PercentageReporter {
+    fn report(&self, accum: &mut StatsAccumulator) {
+        accum.report_percentage(&self.0.name, self.0.num, self.0.denom);
+    }
+    fn clear(&mut self) {
+        self.0.clear();
+    }
+    fn add_num(&mut self, val: u64) {
+        self.0.add_num(val);
+    }
+    fn add_denom(&mut self, val: u64) {
+        self.0.add_denom(val);
+    }
+}
+
+#[derive(Debug, Clone)]
+struct RatioReporter(BaseFractionReporter);
+
+impl RatioReporter {
+    pub fn new(name: &str) -> Self {
+        RatioReporter(BaseFractionReporter::new(name))
+    }
+}
+
+impl StatReporter for RatioReporter {
+    fn report(&self, accum: &mut StatsAccumulator) {
+        accum.report_percentage(&self.0.name, self.0.num, self.0.denom);
+    }
+    fn clear(&mut self) {
+        self.0.clear();
+    }
+    fn add_num(&mut self, val: u64) {
+        self.0.add_num(val);
+    }
+    fn add_denom(&mut self, val: u64) {
+        self.0.add_denom(val);
+    }
+}
+
 //-----------------------------------------------------------------------
 
 pub struct StatCounter {
@@ -214,5 +289,45 @@ impl StatFloatDistribution {
     pub fn add(&self, val: f64) {
         let mut reporter = self.reporter.write().unwrap();
         reporter.add_float(val);
+    }
+}
+
+pub struct StatPercent {
+    reporter: Arc<RwLock<dyn StatReporter>>,
+}
+
+impl StatPercent {
+    pub fn new(name: &str) -> Self {
+        let reporter = Arc::new(RwLock::new(PercentageReporter::new(name)));
+        register_stat_reporter(reporter.clone());
+        StatPercent { reporter }
+    }
+    pub fn add_num(&self, val: u64) {
+        let mut reporter = self.reporter.write().unwrap();
+        reporter.add_num(val);
+    }
+    pub fn add_denom(&self, val: u64) {
+        let mut reporter = self.reporter.write().unwrap();
+        reporter.add_denom(val);
+    }
+}
+
+pub struct StatRatio {
+    reporter: Arc<RwLock<dyn StatReporter>>,
+}
+
+impl StatRatio {
+    pub fn new(name: &str) -> Self {
+        let reporter = Arc::new(RwLock::new(PercentageReporter::new(name)));
+        register_stat_reporter(reporter.clone());
+        StatRatio { reporter }
+    }
+    pub fn add_num(&self, val: u64) {
+        let mut reporter = self.reporter.write().unwrap();
+        reporter.add_num(val);
+    }
+    pub fn add_denom(&self, val: u64) {
+        let mut reporter = self.reporter.write().unwrap();
+        reporter.add_denom(val);
     }
 }

@@ -179,9 +179,9 @@ impl StatMemoryCounter {
     pub fn inc(&self) {
         self.add(1);
     }
-    pub fn add(&self, val: u64) {
+    pub fn add(&self, val: usize) {
         let mut reporter = self.reporter.write().unwrap();
-        reporter.add_int(val);
+        reporter.add_int(val as u64);
     }
 }
 

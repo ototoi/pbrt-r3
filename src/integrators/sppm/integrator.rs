@@ -142,7 +142,7 @@ impl Integrator for SPPMIntegrator {
         let initial_search_radius = self.initial_search_radius;
         let pixels = Arc::new(RwLock::new(SPPMTile::default()));
 
-        PIXEL_MEMORY_BYTES.with(|c| c.add((n_pixels * std::mem::size_of::<SPPMPixel>()) as u64));
+        PIXEL_MEMORY_BYTES.with(|c| c.add(n_pixels * std::mem::size_of::<SPPMPixel>()));
 
         {
             let mut pixels = pixels.write().unwrap();

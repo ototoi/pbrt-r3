@@ -458,10 +458,15 @@ where
         twrap_mode: ImageWrap,
     ) -> Self {
         {
-            let resolution = pyramid[0].as_data().resolution;
+            let total_consumption: usize = pyramid
+                .iter()
+                .map(|p| {
+                    let resolution = p.as_data().resolution;
+                    resolution.0 * resolution.1 * size_of::<T>()
+                })
+                .sum();
             MIP_MAP_MEMORY.with(|m| {
-                let val = (4 * resolution.0 * resolution.1 * size_of::<T>()) as u64 / 3;
-                m.add(val);
+                m.add(total_consumption);
             });
         }
 

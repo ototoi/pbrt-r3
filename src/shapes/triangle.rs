@@ -4,6 +4,8 @@ use crate::core::pbrt::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+thread_local!(pub static TRI_MESH_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/Triangle meshes"));
+
 pub struct TriangleMesh {
     pub object_to_world: Transform,
     pub world_to_object: Transform,
@@ -61,7 +63,6 @@ impl TriangleMesh {
                 return object_to_world.transform_normal(n);
             })
             .collect();
-
         let swaps_handedness = object_to_world.swaps_handedness();
         TriangleMesh {
             object_to_world: *object_to_world,
@@ -87,10 +88,6 @@ impl TriangleMesh {
     }
 }
 
-fn near_equal(a: Float, b: Float) -> bool {
-    return Float::abs(a - b) < 1e-6;
-}
-
 pub struct Triangle {
     pub mesh: Arc<TriangleMesh>,
     pub v: [u32; 3],
@@ -99,6 +96,10 @@ pub struct Triangle {
 
 impl Triangle {
     pub fn new(mesh: &Arc<TriangleMesh>, v: &[u32; 3], face_index: usize) -> Self {
+        TRI_MESH_BYTES.with(|s| {
+            s.add(std::mem::size_of::<Triangle>());
+        });
+
         Triangle {
             mesh: Arc::clone(mesh),
             v: *v,

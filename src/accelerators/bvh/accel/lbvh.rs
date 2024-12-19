@@ -96,8 +96,8 @@ impl LBVHAccel {
         // Compute representation of depth-first traversal of BVH tree
         let tree_bytes = total_nodes * std::mem::size_of::<LinearBVHNode>()
             + std::mem::size_of::<Self>()
-            + prims.len() * std::mem::size_of::<usize>();
-        TREE_BYTES.with(|c| c.add(tree_bytes as u64));
+            + prims.len() * std::mem::size_of::<Arc<dyn Primitive>>();
+        TREE_BYTES.with(|c| c.add(tree_bytes));
 
         let mut nodes = Vec::new();
         nodes.reserve(root.node_count());

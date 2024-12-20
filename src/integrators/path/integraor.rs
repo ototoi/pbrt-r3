@@ -3,6 +3,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::RwLock;
 
+thread_local!(static PATHS: StatPercent = StatPercent::new("Integrator/Zero-radiance paths"));
 thread_local!(static PATH_LENGTH: StatIntDistribution = StatIntDistribution::new("Integrator/Path length"));
 
 pub struct PathIntegrator {
@@ -117,6 +118,8 @@ impl SamplerIntegrator for PathIntegrator {
             // Sample illumination from lights to find path contribution.
             // (But skip this for perfectly specular BSDFs.)
             if bsdf.num_components(BSDF_ALL & !(BSDF_SPECULAR as u32)) > 0 {
+                PATHS.with(|stat| stat.add_denom(1)); //totalPaths
+
                 let ld = beta
                     * uniform_sample_one_light(
                         &tisect,
@@ -126,6 +129,9 @@ impl SamplerIntegrator for PathIntegrator {
                         false,
                         Some(distrib.deref()),
                     );
+                if ld.is_black() {
+                    PATHS.with(|stat| stat.add_num(1)); //zeroRadiancePaths
+                }
                 assert!(beta.y() >= 0.0);
                 //assert!(ld.y() >= -1e-5); //Should be true
                 l += ld;

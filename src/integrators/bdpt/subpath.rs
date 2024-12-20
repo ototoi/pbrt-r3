@@ -7,6 +7,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::RwLock;
 
+thread_local!(static PATHS: StatPercent = StatPercent::new("Integrator/Zero-radiance paths"));
 thread_local!(static PATH_LENGTH: StatIntDistribution = StatIntDistribution::new("Integrator/Path length"));
 
 fn random_walk(
@@ -739,12 +740,20 @@ pub fn connect_bdpt(
         }
     }
 
-    {
-        //ReportValue
-        PATH_LENGTH.with(|stat| {
-            stat.add((s + t - 2).max(0) as u64);
+    if l.is_black() {
+        PATHS.with(|stat| {
+            stat.add_num(1); //zeroRadiancePathså
+            stat.add_denom(1); //totalPaths
+        });
+    } else {
+        PATHS.with(|stat| {
+            stat.add_denom(1); //totalPaths
         });
     }
+
+    PATH_LENGTH.with(|stat| {
+        stat.add((s + t - 2).max(0) as u64);
+    });
 
     // Compute MIS weight for connection strategy
     if l.is_black() || !l.is_valid() {

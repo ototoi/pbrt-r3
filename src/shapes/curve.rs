@@ -3,6 +3,8 @@ use crate::core::pbrt::*;
 
 use std::sync::Arc;
 
+thread_local!(static TESTS: StatPercent = StatPercent::new("Intersections/Ray-curve intersection tests"));
+thread_local!(static REFINEMENT_LEVEL: StatIntDistribution = StatIntDistribution::new("Intersections/Curve refinement level"));
 thread_local!(static N_CURVES: StatCounter = StatCounter::new("Scene/Curves"));
 thread_local!(static N_SPLIT_CURVES: StatCounter = StatCounter::new("Scene/Split curves"));
 
@@ -325,6 +327,9 @@ fn recursive_intersect(
         // FIXME: this tHit isn't quite right for ribbons...
         let t_hit = pc.z / ray_length;
         //println!("{}", t_hit);
+
+        TESTS.with(|stat| stat.add_num(1));
+
         if !is_shadow {
             // Compute error bounds for curve intersection
             let p_error_coef = 2.0;
@@ -415,6 +420,8 @@ impl Curve {
         r: &Ray,
         is_shadow: bool,
     ) -> Option<(Float, Option<SurfaceInteraction>)> {
+        TESTS.with(|stat| stat.add_denom(1));
+
         let u_min = self.u_min;
         let u_max = self.u_max;
         let common = self.common.as_ref();
@@ -522,6 +529,8 @@ impl Curve {
         //let r0 = log2(1.41421356237 * 6.0 * l0 / (8.0 * eps) * 16.0) / 2;//x16
 
         let max_depth = i32::clamp(r0, 0, 10); //
+
+        REFINEMENT_LEVEL.with(|stat| stat.add(max_depth as u64));
 
         return recursive_intersect(
             &common,

@@ -4,6 +4,7 @@ use crate::core::pbrt::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+thread_local!(static TESTS: StatPercent = StatPercent::new("Intersections/Ray-triangle intersection tests"));
 thread_local!(static TRI_MESH_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/Triangle meshes"));
 
 pub struct TriangleMesh {
@@ -223,6 +224,11 @@ impl Shape for Triangle {
     }
 
     fn intersect(&self, r: &Ray) -> Option<(Float, SurfaceInteraction)> {
+        let _p = ProfilePhase::new(Prof::TriIntersect);
+        TESTS.with(|stat| {
+            stat.add_denom(1);
+        });
+
         let mesh = self.mesh.as_ref();
         let i0 = self.v[0] as usize;
         let i1 = self.v[1] as usize;
@@ -437,10 +443,18 @@ impl Shape for Triangle {
             isect.set_shading_geometry(&ss, &ts, &dndu, &dndv, true);
         }
 
+        TESTS.with(|stat| {
+            stat.add_num(1);
+        });
         return Some((t, isect));
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
+        let _p = ProfilePhase::new(Prof::TriIntersectP);
+        TESTS.with(|stat| {
+            stat.add_denom(1);
+        });
+
         let mesh = self.mesh.as_ref();
         let i0 = self.v[0] as usize;
         let i1 = self.v[1] as usize;
@@ -555,6 +569,10 @@ impl Shape for Triangle {
         if t <= delta_t {
             return false;
         }
+
+        TESTS.with(|stat| {
+            stat.add_num(1);
+        });
         return true;
     }
 

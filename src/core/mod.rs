@@ -23,6 +23,7 @@ pub mod param_set;
 pub mod parser;
 pub mod pbrt;
 pub mod primitive;
+pub mod profile;
 pub mod quaternion;
 pub mod refrection;
 pub mod rng;

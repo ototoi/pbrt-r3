@@ -1,6 +1,10 @@
 use std::cell::Cell;
-//use std::thread_local;
 use std::fmt::{Display, Formatter};
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::{Arc, RwLock};
+
+use super::stats_accumlator::*;
+use super::stat_reporter::*;
 
 thread_local!(static PROFILER_STATE: Cell<u64> = Cell::new(0));
 
@@ -149,4 +153,110 @@ impl Drop for ProfilePhase {
             });
         }
     }
+}
+
+// For a given profiler state (i.e., a set of "on" bits corresponding to
+// profiling categories that are active), ProfileSample stores a count of
+// the number of times that state has been active when the timer interrupt
+// to record a profiling sample has fired.
+struct ProfileSample {
+    pub profile_state: u64,
+    pub count: u64,
+}
+
+struct ProfleReporter {
+    pub samples: Vec<ProfileSample>,
+}
+
+impl ProfleReporter {
+    pub fn new() -> Self {
+        ProfleReporter { samples: Vec::new() }
+    }
+
+    pub fn sample(&mut self, state: u64) {
+        let mut found = false;
+        for sample in self.samples.iter_mut() {
+            if sample.profile_state == state {
+                sample.count += 1;
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            self.samples.push(ProfileSample {
+                profile_state: state,
+                count: 1,
+            });
+        }
+    }
+}
+
+impl StatReporter for ProfleReporter {
+    fn report(&self, accum: &mut StatsAccumulator) {
+        //
+    }
+
+    fn clear(&mut self) {
+        //
+    }
+}
+
+struct ProfileSampler {
+    reporter: Arc<RwLock<ProfleReporter>>,
+}
+
+impl ProfileSampler {
+    pub fn new() -> Self {
+        let reporter = Arc::new(RwLock::new(ProfleReporter::new()));
+        register_stat_reporter(reporter.clone());
+        ProfileSampler { reporter }
+    }
+
+    pub fn sample(&mut self) {
+        let mut reporter = self.reporter.write().unwrap();
+        let state = PROFILER_STATE.with(|state| state.get());
+        reporter.sample(state);
+    }
+}
+
+struct Profiler {
+    pub suspend_count: AtomicI32,
+}
+
+impl Profiler {
+    pub fn new() -> Self {
+        PROFILER_STATE.with(|state| {
+            state.set(0);
+        });
+        
+        Profiler {
+            suspend_count: AtomicI32::new(0),
+        }
+    }
+
+    pub fn suspend(&mut self) {
+        self.suspend_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn resume(&mut self) {
+        self.suspend_count.fetch_sub(1, Ordering::Relaxed);
+    }
+
+    pub fn is_suspended(&self) -> bool {
+        return self.suspend_count.load(std::sync::atomic::Ordering::Relaxed) > 0;
+    }
+
+    pub fn clear(&mut self) {
+        PROFILER_STATE.with(|state| {
+            state.set(0);
+        });
+    }
+}
+
+pub fn init_profiler() {
+    //
+}
+
+pub fn suspend_profiler() {
+    //
 }

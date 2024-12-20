@@ -2,7 +2,7 @@ use std::cell::Cell;
 //use std::thread_local;
 use std::fmt::{Display, Formatter};
 
-thread_local!(pub static PROFILER_STATE: Cell<u64> = Cell::new(0));
+thread_local!(static PROFILER_STATE: Cell<u64> = Cell::new(0));
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Prof(u32);

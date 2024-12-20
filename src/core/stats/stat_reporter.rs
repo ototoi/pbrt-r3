@@ -7,8 +7,6 @@ use std::sync::RwLock;
 pub trait StatReporter: Send + Sync {
     fn report(&self, accum: &mut StatsAccumulator);
     fn clear(&mut self);
-    fn add_int(&mut self, _v: u64) {}
-    fn add_float(&mut self, _v: f64) {}
 }
 
 pub type StatReporterRef = Arc<RwLock<dyn StatReporter>>;

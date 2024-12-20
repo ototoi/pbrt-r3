@@ -9,6 +9,8 @@ use std::env;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 
+thread_local!(static FILM_PIXEL_MEMORY: StatMemoryCounter = StatMemoryCounter::new("Memory/Film pixels"));
+
 //pub const FILTER_TABLE_WIDTH: usize = 16;
 //pub const FT_W: usize = FILTER_TABLE_WIDTH;
 //pub const FT_SZ: usize = FILTER_TABLE_WIDTH * FILTER_TABLE_WIDTH;
@@ -82,7 +84,11 @@ impl Film {
             resolution, crop_window, cropped_pixel_bounds
         );
 
+        // Allocate film image storage
         let pixels: Vec<Pixel> = vec![Pixel::zero(); cropped_pixel_bounds.area() as usize];
+        FILM_PIXEL_MEMORY
+            .with(|s| s.add(cropped_pixel_bounds.area() as usize * std::mem::size_of::<Pixel>()));
+
         let mut filter_table: [Float; FT_SZ] = [1.0; FT_SZ];
         {
             {

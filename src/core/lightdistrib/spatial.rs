@@ -3,8 +3,8 @@ use crate::core::pbrt::*;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-thread_local!(pub static N_CREATED: StatCounter = StatCounter::new("SpatialLightDistribution/Distributions created"));
-thread_local!(pub static N_PROBES_PER_LOOKUP: StatIntDistribution = StatIntDistribution::new("SpatialLightDistribution/Hash probes per lookup"));
+thread_local!(static N_CREATED: StatCounter = StatCounter::new("SpatialLightDistribution/Distributions created"));
+thread_local!(static N_PROBES_PER_LOOKUP: StatIntDistribution = StatIntDistribution::new("SpatialLightDistribution/Hash probes per lookup"));
 
 #[derive(Debug, Clone)]
 struct HashEntry {

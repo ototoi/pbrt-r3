@@ -1,6 +1,8 @@
 use crate::core::pbrt::*;
 use std::sync::Arc;
 
+thread_local!(static DENSITY_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/Volume density grid"));
+
 #[derive(Debug, Clone)]
 pub struct GridDensityMedium {
     #[allow(dead_code)]
@@ -45,6 +47,12 @@ impl GridDensityMedium {
             max_density, inv_max_density
         );
         */
+
+        DENSITY_BYTES.with(|s| {
+            s.add(
+                std::mem::size_of::<GridDensityMedium>() + std::mem::size_of::<f32>() * data.len(),
+            );
+        });
 
         GridDensityMedium {
             sigma_a,

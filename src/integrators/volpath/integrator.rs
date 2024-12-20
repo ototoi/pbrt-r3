@@ -2,9 +2,9 @@ use crate::core::pbrt::*;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-thread_local!(pub static PATH_LENGTH: StatIntDistribution = StatIntDistribution::new("Integrator/Path length"));
-thread_local!(pub static VOLUME_INTERACTIONS: StatCounter = StatCounter::new("Integrator/Volume interactions"));
-thread_local!(pub static SURFACE_INTERACTIONS: StatCounter = StatCounter::new("Integrator/Surface interactions"));
+thread_local!(static PATH_LENGTH: StatIntDistribution = StatIntDistribution::new("Integrator/Path length"));
+thread_local!(static VOLUME_INTERACTIONS: StatCounter = StatCounter::new("Integrator/Volume interactions"));
+thread_local!(static SURFACE_INTERACTIONS: StatCounter = StatCounter::new("Integrator/Surface interactions"));
 
 pub struct VolPathIntegrator {
     pub base: BaseSamplerIntegrator,

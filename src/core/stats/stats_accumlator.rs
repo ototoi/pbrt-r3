@@ -177,6 +177,36 @@ impl StatsAccumulator {
             ));
         }
 
+        for (key, (num, denom)) in &self.percentages {
+            if *denom == 0 {
+                continue;
+            }
+            let (category, title) = get_category_and_title(key);
+            let entry = to_print.entry(category).or_insert(Vec::new());
+            entry.push(format!(
+                "{} {:.3}%% ({} / {})",
+                title,
+                100.0 * (*num as f64) / (*denom as f64),
+                num,
+                denom
+            ));
+        }
+
+        for (key, (num, denom)) in &self.ratios {
+            if *denom == 0 {
+                continue;
+            }
+            let (category, title) = get_category_and_title(key);
+            let entry = to_print.entry(category).or_insert(Vec::new());
+            entry.push(format!(
+                "{} {:.3} ({} / {})",
+                title,
+                (*num as f64) / (*denom as f64),
+                num,
+                denom
+            ));
+        }
+
         to_print
     }
 

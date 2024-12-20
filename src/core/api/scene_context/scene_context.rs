@@ -24,12 +24,12 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-thread_local!(pub static N_SHAPES: StatCounter = StatCounter::new("Scene/Shapes")); //"Scene/Shapes created"
-thread_local!(pub static N_LIGHTS: StatCounter = StatCounter::new("Scene/Lights"));
-thread_local!(pub static N_AREA_LIGHTS: StatCounter = StatCounter::new("Scene/AreaLights"));
-thread_local!(pub static N_MATERIALS: StatCounter = StatCounter::new("Scene/Materials")); //"Scene/Materials created"
-thread_local!(pub static N_OBJECT_INSTANCES_CREATED: StatCounter = StatCounter::new("Scene/Object instances created")); //"Scene/Object instances created"
-thread_local!(pub static N_OBJECT_INSTANCES_USED: StatCounter = StatCounter::new("Scene/Object instances used")); //"Scene/Object instances created"
+thread_local!(static N_SHAPES: StatCounter = StatCounter::new("Scene/Shapes")); //"Scene/Shapes created"
+thread_local!(static N_LIGHTS: StatCounter = StatCounter::new("Scene/Lights"));
+thread_local!(static N_AREA_LIGHTS: StatCounter = StatCounter::new("Scene/AreaLights"));
+thread_local!(static N_MATERIALS: StatCounter = StatCounter::new("Scene/Materials")); //"Scene/Materials created"
+thread_local!(static N_OBJECT_INSTANCES_CREATED: StatCounter = StatCounter::new("Scene/Object instances created")); //"Scene/Object instances created"
+thread_local!(static N_OBJECT_INSTANCES_USED: StatCounter = StatCounter::new("Scene/Object instances used")); //"Scene/Object instances created"
 
 #[derive(Debug, PartialEq)]
 enum APIState {

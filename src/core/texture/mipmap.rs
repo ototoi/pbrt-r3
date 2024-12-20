@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::{ops::Deref, vec};
 
-thread_local!(pub static N_EWA_LOOKUPS: StatCounter = StatCounter::new("Texture/EWA lookups"));
-thread_local!(pub static N_TRILERP_LOOKUPS: StatCounter = StatCounter::new("Texture/Trilinear lookups"));
-thread_local!(pub static MIP_MAP_MEMORY: StatMemoryCounter = StatMemoryCounter::new("Memory/Texture MIP maps"));
+thread_local!(static N_EWA_LOOKUPS: StatCounter = StatCounter::new("Texture/EWA lookups"));
+thread_local!(static N_TRILERP_LOOKUPS: StatCounter = StatCounter::new("Texture/Trilinear lookups"));
+thread_local!(static MIP_MAP_MEMORY: StatMemoryCounter = StatMemoryCounter::new("Memory/Texture MIP maps"));
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ImageWrap {
@@ -458,10 +458,15 @@ where
         twrap_mode: ImageWrap,
     ) -> Self {
         {
-            let resolution = pyramid[0].as_data().resolution;
+            let total_consumption: usize = pyramid
+                .iter()
+                .map(|p| {
+                    let resolution = p.as_data().resolution;
+                    resolution.0 * resolution.1 * size_of::<T>()
+                })
+                .sum();
             MIP_MAP_MEMORY.with(|m| {
-                let val = (4 * resolution.0 * resolution.1 * size_of::<T>()) as u64 / 3;
-                m.add(val);
+                m.add(total_consumption);
             });
         }
 

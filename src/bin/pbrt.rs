@@ -115,11 +115,11 @@ struct CommandOptions {
     pub quick_full_resolution: bool,
 
     /// No statistics.
-    #[arg(long="no-stats", default_value = "false")]
+    #[arg(long = "no-stats", default_value = "false")]
     pub no_stats: bool,
 
     /// No profile.
-    #[arg(long="no-profile", default_value = "false")]
+    #[arg(long = "no-profile", default_value = "false")]
     pub no_profile: bool,
 
     #[arg(value_name = "filename.pbrt")]
@@ -310,7 +310,7 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
     }
 
     println!("\n");
-    if !opts.quiet && !opts.no_stats  {
+    if !opts.quiet && !opts.no_stats {
         stats::print_stats();
         stats::clear_stats();
     }

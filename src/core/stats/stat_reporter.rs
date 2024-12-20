@@ -1,4 +1,5 @@
 use super::stats_accumlator::*;
+use crate::core::options::PbrtOptions;
 
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -14,21 +15,25 @@ pub type StatReporterRef = Arc<RwLock<dyn StatReporter>>;
 static REGISTER_REPORTERS: Mutex<Vec<StatReporterRef>> = Mutex::new(Vec::new());
 
 pub fn register_stat_reporter(reporter: StatReporterRef) {
+    let options = PbrtOptions::get();
+    if options.no_stats {
+        return;
+    }
     let mut reporters = REGISTER_REPORTERS.lock().unwrap();
     reporters.push(reporter);
 }
 
-pub fn report_stats(accum: &mut StatsAccumulator) {
+pub fn print_stats() {
+    let options = PbrtOptions::get();
+    if options.no_stats {
+        return;
+    }
+    let mut accum = StatsAccumulator::new();
     let reporters = REGISTER_REPORTERS.lock().unwrap();
     for reporter in reporters.iter() {
         let reporter = reporter.read().unwrap();
-        reporter.report(accum);
+        reporter.report(&mut accum);
     }
-}
-
-pub fn print_stats() {
-    let mut accum = StatsAccumulator::new();
-    report_stats(&mut accum);
     println!("{}", accum);
 }
 

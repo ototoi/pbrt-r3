@@ -6,6 +6,8 @@ pub struct PbrtOptions {
     pub quick_render: bool,
     pub quick_render_full_resolution: bool,
     //pub crop_window: [f32; 4],
+    pub no_stats: bool,
+    pub no_profile: bool,
 }
 
 impl Default for PbrtOptions {
@@ -13,6 +15,8 @@ impl Default for PbrtOptions {
         PbrtOptions {
             quick_render: false,
             quick_render_full_resolution: false,
+            no_stats: false,
+            no_profile: false,
             //crop_window: [0.0, 1.0, 0.0, 1.0],
         }
     }

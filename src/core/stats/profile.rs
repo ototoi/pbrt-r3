@@ -3,8 +3,9 @@ use std::fmt::{Display, Formatter};
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Arc, RwLock};
 
-use super::stats_accumlator::*;
 use super::stat_reporter::*;
+use super::stats_accumlator::*;
+use crate::core::options::PbrtOptions;
 
 thread_local!(static PROFILER_STATE: Cell<u64> = Cell::new(0));
 
@@ -133,24 +134,35 @@ pub struct ProfilePhase {
 
 impl ProfilePhase {
     pub fn new(category: Prof) -> Self {
-        let category_bit = prof_to_bits(category);
-        let reset = (PROFILER_STATE.get() & category_bit) == 0;
-        PROFILER_STATE.with(|state| {
-            state.set(state.get() | category_bit);
-        });
-        ProfilePhase {
-            reset,
-            category_bit,
+        let options = PbrtOptions::get();
+        if options.no_profile {
+            ProfilePhase {
+                reset: false,
+                category_bit: 0,
+            }
+        } else {
+            let category_bit = prof_to_bits(category);
+            let reset = (PROFILER_STATE.get() & category_bit) == 0;
+            PROFILER_STATE.with(|state| {
+                state.set(state.get() | category_bit);
+            });
+            ProfilePhase {
+                reset,
+                category_bit,
+            }
         }
     }
 }
 
 impl Drop for ProfilePhase {
     fn drop(&mut self) {
-        if self.reset {
-            PROFILER_STATE.with(|state| {
-                state.set(state.get() & !self.category_bit);
-            });
+        let options = PbrtOptions::get();
+        if !options.no_profile {
+            if self.reset {
+                PROFILER_STATE.with(|state| {
+                    state.set(state.get() & !self.category_bit);
+                });
+            }
         }
     }
 }
@@ -170,7 +182,9 @@ struct ProfleReporter {
 
 impl ProfleReporter {
     pub fn new() -> Self {
-        ProfleReporter { samples: Vec::new() }
+        ProfleReporter {
+            samples: Vec::new(),
+        }
     }
 
     pub fn sample(&mut self, state: u64) {
@@ -228,7 +242,7 @@ impl Profiler {
         PROFILER_STATE.with(|state| {
             state.set(0);
         });
-        
+
         Profiler {
             suspend_count: AtomicI32::new(0),
         }
@@ -243,7 +257,10 @@ impl Profiler {
     }
 
     pub fn is_suspended(&self) -> bool {
-        return self.suspend_count.load(std::sync::atomic::Ordering::Relaxed) > 0;
+        return self
+            .suspend_count
+            .load(std::sync::atomic::Ordering::Relaxed)
+            > 0;
     }
 
     pub fn clear(&mut self) {

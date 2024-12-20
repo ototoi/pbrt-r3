@@ -1,5 +1,7 @@
 use super::stat_reporter::*;
 use super::stats_accumlator::StatsAccumulator;
+use crate::core::options::PbrtOptions;
+
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -218,18 +220,27 @@ impl StatReporter for RatioReporter {
 
 pub struct StatCounter {
     reporter: Arc<RwLock<CountReporter>>,
+    is_enabled: bool,
 }
 
 impl StatCounter {
     pub fn new(name: &str) -> Self {
         let reporter: Arc<RwLock<CountReporter>> = Arc::new(RwLock::new(CountReporter::new(name)));
         register_stat_reporter(reporter.clone());
-        StatCounter { reporter }
+        let options = PbrtOptions::get();
+        let is_enabled = !options.no_stats;
+        StatCounter {
+            reporter,
+            is_enabled,
+        }
     }
     pub fn inc(&self) {
         self.add(1);
     }
     pub fn add(&self, val: u64) {
+        if !self.is_enabled {
+            return;
+        }
         let mut reporter = self.reporter.write().unwrap();
         reporter.add(val);
     }
@@ -237,6 +248,7 @@ impl StatCounter {
 
 pub struct StatMemoryCounter {
     reporter: Arc<RwLock<MemoryReporter>>,
+    is_enabled: bool,
 }
 
 impl StatMemoryCounter {
@@ -244,12 +256,20 @@ impl StatMemoryCounter {
         let reporter: Arc<RwLock<MemoryReporter>> =
             Arc::new(RwLock::new(MemoryReporter::new(name)));
         register_stat_reporter(reporter.clone());
-        StatMemoryCounter { reporter }
+        let options = PbrtOptions::get();
+        let is_enabled = !options.no_stats;
+        StatMemoryCounter {
+            reporter,
+            is_enabled,
+        }
     }
     pub fn inc(&self) {
         self.add(1);
     }
     pub fn add(&self, val: usize) {
+        if !self.is_enabled {
+            return;
+        }
         let mut reporter = self.reporter.write().unwrap();
         reporter.add(val as u64);
     }
@@ -257,6 +277,7 @@ impl StatMemoryCounter {
 
 pub struct StatIntDistribution {
     reporter: Arc<RwLock<IntDistributionReporter>>,
+    is_enabled: bool,
 }
 
 impl StatIntDistribution {
@@ -264,9 +285,17 @@ impl StatIntDistribution {
         let reporter: Arc<RwLock<IntDistributionReporter>> =
             Arc::new(RwLock::new(IntDistributionReporter::new(name)));
         register_stat_reporter(reporter.clone());
-        StatIntDistribution { reporter }
+        let options = PbrtOptions::get();
+        let is_enabled = !options.no_stats;
+        StatIntDistribution {
+            reporter,
+            is_enabled,
+        }
     }
     pub fn add(&self, val: u64) {
+        if !self.is_enabled {
+            return;
+        }
         let mut reporter = self.reporter.write().unwrap();
         reporter.add(val);
     }
@@ -274,6 +303,7 @@ impl StatIntDistribution {
 
 pub struct StatFloatDistribution {
     reporter: Arc<RwLock<FloatDistributionReporter>>,
+    is_enabled: bool,
 }
 
 impl StatFloatDistribution {
@@ -281,9 +311,17 @@ impl StatFloatDistribution {
         let reporter: Arc<RwLock<FloatDistributionReporter>> =
             Arc::new(RwLock::new(FloatDistributionReporter::new(name)));
         register_stat_reporter(reporter.clone());
-        StatFloatDistribution { reporter }
+        let options = PbrtOptions::get();
+        let is_enabled = !options.no_stats;
+        StatFloatDistribution {
+            reporter,
+            is_enabled,
+        }
     }
     pub fn add(&self, val: f64) {
+        if !self.is_enabled {
+            return;
+        }
         let mut reporter = self.reporter.write().unwrap();
         reporter.add(val);
     }
@@ -291,6 +329,7 @@ impl StatFloatDistribution {
 
 pub struct StatPercent {
     reporter: Arc<RwLock<PercentageReporter>>,
+    is_enabled: bool,
 }
 
 impl StatPercent {
@@ -298,13 +337,24 @@ impl StatPercent {
         let reporter: Arc<RwLock<PercentageReporter>> =
             Arc::new(RwLock::new(PercentageReporter::new(name)));
         register_stat_reporter(reporter.clone());
-        StatPercent { reporter }
+        let options = PbrtOptions::get();
+        let is_enabled = !options.no_stats;
+        StatPercent {
+            reporter,
+            is_enabled,
+        }
     }
     pub fn add_num(&self, val: u64) {
+        if !self.is_enabled {
+            return;
+        }
         let mut reporter = self.reporter.write().unwrap();
         reporter.add_num(val);
     }
     pub fn add_denom(&self, val: u64) {
+        if !self.is_enabled {
+            return;
+        }
         let mut reporter = self.reporter.write().unwrap();
         reporter.add_denom(val);
     }
@@ -312,19 +362,31 @@ impl StatPercent {
 
 pub struct StatRatio {
     reporter: Arc<RwLock<RatioReporter>>,
+    is_enabled: bool,
 }
 
 impl StatRatio {
     pub fn new(name: &str) -> Self {
         let reporter: Arc<RwLock<RatioReporter>> = Arc::new(RwLock::new(RatioReporter::new(name)));
         register_stat_reporter(reporter.clone());
-        StatRatio { reporter }
+        let options = PbrtOptions::get();
+        let is_enabled = !options.no_stats;
+        StatRatio {
+            reporter,
+            is_enabled,
+        }
     }
     pub fn add_num(&self, val: u64) {
+        if !self.is_enabled {
+            return;
+        }
         let mut reporter = self.reporter.write().unwrap();
         reporter.add_num(val);
     }
     pub fn add_denom(&self, val: u64) {
+        if !self.is_enabled {
+            return;
+        }
         let mut reporter = self.reporter.write().unwrap();
         reporter.add_denom(val);
     }

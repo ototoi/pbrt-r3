@@ -114,6 +114,14 @@ struct CommandOptions {
     #[arg(long, default_value = "false")]
     pub quick_full_resolution: bool,
 
+    /// No statistics.
+    #[arg(long="no-stats", default_value = "false")]
+    pub no_stats: bool,
+
+    /// No profile.
+    #[arg(long="no-profile", default_value = "false")]
+    pub no_profile: bool,
+
     #[arg(value_name = "filename.pbrt")]
     pub pbrtfile: Option<Vec<PathBuf>>,
 }
@@ -284,7 +292,7 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
                 }
             }
 
-            if !opts.quiet {
+            if !opts.quiet && !opts.no_stats {
                 stats::print_stats();
             }
 
@@ -302,7 +310,7 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
     }
 
     println!("\n");
-    if !opts.quiet {
+    if !opts.quiet && !opts.no_stats  {
         stats::print_stats();
         stats::clear_stats();
     }
@@ -319,6 +327,8 @@ pub fn main() {
         let mut options = PbrtOptions::get();
         options.quick_render = opts.quick;
         options.quick_render_full_resolution = opts.quick_full_resolution;
+        options.no_stats = opts.no_stats;
+        options.no_profile = opts.no_profile || opts.no_stats;
         PbrtOptions::set(options);
     }
     init_logger(&opts);

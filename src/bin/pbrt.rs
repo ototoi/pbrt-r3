@@ -3,6 +3,7 @@ use clap::*;
 use pbrt_r3::core::api::*;
 use pbrt_r3::core::parser::*;
 use pbrt_r3::core::pbrt::*;
+use pbrt_r3::core::profile;
 use pbrt_r3::core::stats;
 use pbrt_r3::displays::TevDisplay;
 use std::cell::RefCell;
@@ -215,6 +216,8 @@ fn create_scene_and_integrator(
     input_path: &Path,
     opts: &CommandOptions,
 ) -> Result<(Arc<Scene>, Arc<RwLock<dyn Integrator>>), PbrtError> {
+    let _p = ProfilePhase::new(ProfileCategory::SceneConstruction);
+
     let mut context = MutipleContext::new();
 
     let scene_context = Arc::new(RefCell::new(SceneContext::new()));
@@ -255,6 +258,12 @@ fn create_display(hostname: &str) -> Result<Arc<RwLock<dyn Display>>, PbrtError>
 
 fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
     stats::clear_stats();
+
+    if !opts.quiet && !opts.no_profile {
+        profile::init_profiler();
+        profile::start_profiler();
+    }
+
     if !opts.quiet {
         let nthreads = available_parallelism().unwrap().get();
         let version = env!("CARGO_PKG_VERSION");
@@ -308,11 +317,19 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
             return -1;
         }
     }
-
+    if !opts.quiet && !opts.no_profile {
+        profile::stop_profiler();
+    }
     println!("\n");
+
     if !opts.quiet && !opts.no_stats {
         stats::print_stats();
         stats::clear_stats();
+    }
+    if !opts.quiet && !opts.no_profile {
+        profile::print_profiler(); //profile::report_profiler_results();
+        profile::clear_profiler();
+        profile::cleanup_profiler();
     }
 
     return 0;
@@ -328,7 +345,7 @@ pub fn main() {
         options.quick_render = opts.quick;
         options.quick_render_full_resolution = opts.quick_full_resolution;
         options.no_stats = opts.no_stats;
-        options.no_profile = opts.no_profile || opts.no_stats;
+        options.no_profile = opts.no_profile;
         PbrtOptions::set(options);
     }
     init_logger(&opts);

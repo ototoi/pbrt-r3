@@ -21,6 +21,7 @@ pub use super::misc::*;
 pub use super::options::*;
 pub use super::param_set::*;
 pub use super::primitive::*;
+pub use super::profile::*;
 pub use super::quaternion::*;
 pub use super::refrection::*;
 pub use super::rng::*;

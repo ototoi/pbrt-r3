@@ -1,7 +1,13 @@
 use std::collections::HashMap;
+use std::io::Write;
+use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::RwLock;
 use std::thread::ThreadId;
+
+use ply_rs::writer;
+
+use crate::core::pbrt::ProfileCategory;
 
 type ThreadStateMap = HashMap<ThreadId, u64>;
 static THREAD_STATE_MAP: LazyLock<RwLock<ThreadStateMap>> =
@@ -13,6 +19,14 @@ pub fn set_profiler_state(state_bit: u64) {
     map.insert(tid, state_bit);
 }
 
+#[derive(Debug, Clone, Copy)]
+enum SamplerMessage {
+    Stop,
+}
+
+type Sender = std::sync::mpsc::Sender<SamplerMessage>;
+//type Receiver = std::sync::mpsc::Receiver<SamplerMessage>;
+
 // For a given profiler state (i.e., a set of "on" bits corresponding to
 // profiling categories that are active), ProfileSample stores a count of
 // the number of times that state has been active when the timer interrupt
@@ -22,39 +36,33 @@ pub fn set_profiler_state(state_bit: u64) {
 //    pub count: u64,
 //}
 type StateCountMap = HashMap<u64, u64>;
-static STATE_COUNT_MAP: LazyLock<RwLock<StateCountMap>> =
-    LazyLock::new(|| RwLock::new(StateCountMap::new()));
-
 // SampleStateCount() increments the count of the number of times each
-fn sample_state_count() {
-    let mut count_map = STATE_COUNT_MAP.write().unwrap();
+fn sample_state_count(state_count: &mut StateCountMap) {
     let state_map = THREAD_STATE_MAP.read().unwrap();
     for (_, state) in state_map.iter() {
         let state = *state;
         if state == 0 {
             continue;
         }
-        let count = count_map.entry(state).or_insert(0);
+        let count = state_count.entry(state).or_insert(0);
         *count += 1;
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-enum SamplerMessage {
-    Stop,
+pub fn log2int_(x: u64) -> u64 {
+    return f32::floor(f32::log(x as f32, 2.0)) as u64;
 }
-
-type Sender = std::sync::mpsc::Sender<SamplerMessage>;
-//type Receiver = std::sync::mpsc::Receiver<SamplerMessage>;
 
 struct ProfileSampler {
     handles: Vec<(Sender, std::thread::JoinHandle<()>)>,
+    state_count: Arc<RwLock<StateCountMap>>,
 }
 
 impl ProfileSampler {
     pub fn new() -> Self {
         ProfileSampler {
             handles: Vec::new(),
+            state_count: Arc::new(RwLock::new(StateCountMap::new())),
         }
     }
 
@@ -62,6 +70,7 @@ impl ProfileSampler {
         if self.handles.len() > 0 {
             return;
         }
+        let state_count = self.state_count.clone();
         let (tx, rx) = std::sync::mpsc::channel::<SamplerMessage>();
         let handle = std::thread::spawn(move || loop {
             match rx.try_recv() {
@@ -70,7 +79,10 @@ impl ProfileSampler {
                 }
                 _ => {}
             }
-            sample_state_count();
+            {
+                let mut state_count = state_count.write().unwrap();
+                sample_state_count(&mut state_count);
+            }
             std::thread::sleep(interval);
         });
         self.handles.push((tx, handle));
@@ -84,6 +96,64 @@ impl ProfileSampler {
             handle.join().unwrap();
         }
         self.handles.clear();
+    }
+
+    pub fn clear(&mut self) {
+        self.stop_sample();
+        let mut state_count = self.state_count.write().unwrap();
+        state_count.clear();
+    }
+
+    pub fn report(&self, writer: &mut dyn Write) {
+        const NUM_PROF_CATEGORIES: usize = ProfileCategory::NumProfCategories.0 as usize;
+
+        let mut overall_count = 0;
+        let state_count = self.state_count.read().unwrap();
+        for (_state, count) in state_count.iter() {
+            overall_count += count;
+        }
+        let mut flat_results: HashMap<String, u64> = HashMap::new();
+        let mut hierarchical_results: HashMap<String, u64> = HashMap::new();
+        for (state, count) in state_count.iter() {
+            let state = *state;
+            let count = *count;
+            if count == 0 {
+                continue;
+            }
+            let mut s = String::new();
+            for b in 0..NUM_PROF_CATEGORIES {
+                let bit = 1u64 << b;
+                if (state & bit) != 0 {
+                    if s.len() > 0 {
+                        // contribute to the parents...
+                        let entry = hierarchical_results.entry(s.clone()).or_insert(0);
+                        *entry += count;
+                        s.push_str("/");
+                    }
+                    let category = ProfileCategory(b as u32);
+                    s += &format!("{}", category);
+                }
+            }
+            let entry = hierarchical_results.entry(s.clone()).or_insert(0);
+            *entry += count;
+            
+            let name_index = log2int_(state);
+            assert!(name_index < NUM_PROF_CATEGORIES as u64);
+            let name = format!("{}", ProfileCategory(name_index as u32));
+            let entry = flat_results.entry(name.clone()).or_insert(0);
+            *entry += count;
+        }
+        let mut dest = "".to_string();
+        dest += "  Profile\n";
+        for (name, count) in hierarchical_results.iter() {
+            let count = *count;
+            let pct = count as f32 / overall_count as f32 * 100.0;
+        }
+
+        println!("Profiling overall_count:{:?}", overall_count);
+        println!("Profiling results:{:?}", flat_results);
+        println!("Profiling results:{:?}", hierarchical_results);
+        
     }
 }
 
@@ -111,7 +181,8 @@ pub fn stop_profiler() {
 
 pub fn clear_profiler() {
     THREAD_STATE_MAP.write().unwrap().clear();
-    STATE_COUNT_MAP.write().unwrap().clear();
+    let mut sampler = PROFILE_SAMPLER.write().unwrap();
+    sampler.clear();
 }
 
 pub fn init_profiler() {
@@ -134,8 +205,6 @@ pub fn print_profiler() {
 }
 
 pub fn report_profiler_results() {
-    let count_map = STATE_COUNT_MAP.read().unwrap();
-    for (state, count) in count_map.iter() {
-        println!("Profile state {:b}: {}", state, count);
-    }
+    let sampler = PROFILE_SAMPLER.read().unwrap();
+    sampler.report(&mut std::io::stdout());
 }

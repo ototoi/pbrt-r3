@@ -136,24 +136,52 @@ impl ProfileSampler {
             }
             let entry = hierarchical_results.entry(s.clone()).or_insert(0);
             *entry += count;
-            
+
             let name_index = log2int_(state);
             assert!(name_index < NUM_PROF_CATEGORIES as u64);
             let name = format!("{}", ProfileCategory(name_index as u32));
             let entry = flat_results.entry(name.clone()).or_insert(0);
             *entry += count;
         }
-        let mut dest = "".to_string();
-        dest += "  Profile\n";
-        for (name, count) in hierarchical_results.iter() {
-            let count = *count;
-            let pct = count as f32 / overall_count as f32 * 100.0;
+        {
+            let mut dest = "".to_string();
+            dest += "  Profile\n";
+            for (name, count) in hierarchical_results.iter() {
+                let count = *count;
+                let pct = count as f32 / overall_count as f32 * 100.0;
+                let mut indent = 4;
+                let slash_index = name.rfind('/');
+                if slash_index.is_some() {
+                    indent += 2 * name.matches("/").count();
+                }
+                let offset = if let Some(index) = slash_index {
+                    index + 1
+                } else {
+                    0
+                };
+                let to_print = name[offset..].to_string();
+                dest += &format!("{:indent$}{} {:.2}%\n", "", to_print, pct, indent = indent);
+            }
+            writer.write_all(dest.as_bytes()).unwrap();
         }
 
-        println!("Profiling overall_count:{:?}", overall_count);
-        println!("Profiling results:{:?}", flat_results);
-        println!("Profiling results:{:?}", hierarchical_results);
-        
+        {
+            // Sort the flattened ones by time, longest to shortest.
+            let mut flat_vec = Vec::new();
+            for (name, count) in flat_results.iter() {
+                flat_vec.push((name.clone(), *count));
+            }
+            flat_vec.sort_by(|a, b| b.1.cmp(&a.1));
+
+            let mut dest = "".to_string();
+            dest += "  Profile (flattened)\n";
+            for (name, count) in flat_vec.iter() {
+                let count = *count;
+                let pct = count as f32 / overall_count as f32 * 100.0;
+                dest += &format!("    {} {:.2}% \n", name, pct);
+            }
+            writer.write_all(dest.as_bytes()).unwrap();
+        }
     }
 }
 

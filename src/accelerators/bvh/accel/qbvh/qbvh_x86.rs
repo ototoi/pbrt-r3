@@ -350,6 +350,8 @@ impl QBVHAccel {
         max_prims_in_node: usize,
         split_method: SplitMethod,
     ) -> Self {
+        let _p = ProfilePhase::new(Prof::AccelConstruction);
+
         let max_prims_in_node = usize::min(max_prims_in_node, 255);
         let mut orderd_prims = Vec::new();
         let root = create_bvh_node(&mut orderd_prims, prims, max_prims_in_node, split_method);

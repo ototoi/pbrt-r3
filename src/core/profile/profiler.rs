@@ -165,7 +165,13 @@ impl ProfileSampler {
 
         let mut report = Vec::new();
         {
+            // Sort the flattened ones by time, longest to shortest.
+            let mut flat_vec = Vec::new();
             for (name, count) in hierarchical_results.iter() {
+                flat_vec.push((name.clone(), *count));
+            }
+            flat_vec.sort_by(|a, b| a.0.cmp(&b.0)); //sort by name
+            for (name, count) in flat_vec.iter() {
                 let count = *count;
                 let pct = count as f32 / overall_count as f32;
                 let mut indent = 4;

@@ -324,7 +324,7 @@ fn make_pyramid<T>(
     }
 }
 
-pub fn log2int_(x: usize) -> usize {
+fn log2int_(x: usize) -> usize {
     return f32::ceil(f32::log(x as f32, 2.0)) as usize;
 }
 

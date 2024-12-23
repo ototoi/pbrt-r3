@@ -6,8 +6,6 @@ use std::sync::RwLock;
 use std::thread::ThreadId;
 use std::time::Duration;
 
-use ply_rs::writer;
-
 use crate::core::pbrt::ProfileCategory;
 
 type ThreadStateMap = HashMap<ThreadId, u64>;
@@ -50,8 +48,12 @@ fn sample_state_count(state_count: &mut StateCountMap) {
     }
 }
 
-pub fn log2int_(x: u64) -> u64 {
-    return f32::floor(f32::log(x as f32, 2.0)) as u64;
+//fn log2int_(x: u64) -> u32 {
+//    return f32::ceil(f32::log(x as f32, 2.0)) as u32;
+//}
+
+fn log2int_(x: u64) -> u32 {
+    return 63 - x.leading_zeros();
 }
 
 struct ProfileSampler {
@@ -155,7 +157,7 @@ impl ProfileSampler {
             *entry += count;
 
             let name_index = log2int_(state);
-            assert!(name_index < NUM_PROF_CATEGORIES as u64);
+            assert!(name_index < NUM_PROF_CATEGORIES as u32);
             let name = format!("{}", ProfileCategory(name_index as u32));
             let entry = flat_results.entry(name.clone()).or_insert(0);
             *entry += count;

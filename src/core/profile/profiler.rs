@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::RwLock;
 use std::thread::ThreadId;
+use std::time::Duration;
 
 use ply_rs::writer;
 
@@ -56,6 +57,8 @@ pub fn log2int_(x: u64) -> u64 {
 struct ProfileSampler {
     handles: Vec<(Sender, std::thread::JoinHandle<()>)>,
     state_count: Arc<RwLock<StateCountMap>>,
+    timer: std::time::Instant,
+    durations: Vec<std::time::Duration>,
 }
 
 impl ProfileSampler {
@@ -63,6 +66,8 @@ impl ProfileSampler {
         ProfileSampler {
             handles: Vec::new(),
             state_count: Arc::new(RwLock::new(StateCountMap::new())),
+            timer: std::time::Instant::now(),
+            durations: Vec::new(),
         }
     }
 
@@ -86,6 +91,7 @@ impl ProfileSampler {
             std::thread::sleep(interval);
         });
         self.handles.push((tx, handle));
+        self.timer = std::time::Instant::now();
     }
 
     pub fn stop_sample(&mut self) {
@@ -96,6 +102,7 @@ impl ProfileSampler {
             handle.join().unwrap();
         }
         self.handles.clear();
+        self.durations.push(self.timer.elapsed());
     }
 
     pub fn clear(&mut self) {
@@ -104,8 +111,18 @@ impl ProfileSampler {
         state_count.clear();
     }
 
-    pub fn report(&self, writer: &mut dyn Write) {
+    fn make_report(
+        &self,
+    ) -> Option<(
+        Vec<(u32, String, f32, Duration)>,
+        Vec<(u32, String, f32, Duration)>,
+    )> {
         const NUM_PROF_CATEGORIES: usize = ProfileCategory::NumProfCategories.0 as usize;
+        if self.durations.len() == 0 {
+            return None;
+        }
+
+        let elapsed = *self.durations.last().unwrap();
 
         let mut overall_count = 0;
         let state_count = self.state_count.read().unwrap();
@@ -143,12 +160,12 @@ impl ProfileSampler {
             let entry = flat_results.entry(name.clone()).or_insert(0);
             *entry += count;
         }
+
+        let mut report = Vec::new();
         {
-            let mut dest = "".to_string();
-            dest += "  Profile\n";
             for (name, count) in hierarchical_results.iter() {
                 let count = *count;
-                let pct = count as f32 / overall_count as f32 * 100.0;
+                let pct = count as f32 / overall_count as f32;
                 let mut indent = 4;
                 let slash_index = name.rfind('/');
                 if slash_index.is_some() {
@@ -160,11 +177,11 @@ impl ProfileSampler {
                     0
                 };
                 let to_print = name[offset..].to_string();
-                dest += &format!("{:indent$}{} {:.2}%\n", "", to_print, pct, indent = indent);
+                let consumed = Duration::from_secs_f32(elapsed.as_secs_f32() * pct);
+                report.push((indent as u32, to_print, pct, consumed));
             }
-            writer.write_all(dest.as_bytes()).unwrap();
         }
-
+        let mut report_flatten = Vec::new();
         {
             // Sort the flattened ones by time, longest to shortest.
             let mut flat_vec = Vec::new();
@@ -172,15 +189,52 @@ impl ProfileSampler {
                 flat_vec.push((name.clone(), *count));
             }
             flat_vec.sort_by(|a, b| b.1.cmp(&a.1));
-
-            let mut dest = "".to_string();
-            dest += "  Profile (flattened)\n";
             for (name, count) in flat_vec.iter() {
                 let count = *count;
-                let pct = count as f32 / overall_count as f32 * 100.0;
-                dest += &format!("    {} {:.2}% \n", name, pct);
+                let pct = count as f32 / overall_count as f32;
+                let indent = 4;
+                let consumed = Duration::from_secs_f32(elapsed.as_secs_f32() * pct);
+                report_flatten.push((indent, name.clone(), pct, consumed));
             }
-            writer.write_all(dest.as_bytes()).unwrap();
+        }
+        return Some((report, report_flatten));
+    }
+
+    pub fn report(&self, writer: &mut dyn Write) {
+        if let Some((report, report_flatten)) = self.make_report() {
+            {
+                let r = &report;
+                let mut dest = "".to_string();
+                dest += "  Profile\n";
+                for (indent, name, pct, consumed) in r.iter() {
+                    dest += &format!(
+                        "{:indent$}{} {:.1}% {:.6}s\n",
+                        "",
+                        name,
+                        pct * 100.0,
+                        consumed.as_secs_f32(),
+                        indent = *indent as usize
+                    );
+                }
+                writer.write_all(dest.as_bytes()).unwrap();
+            }
+            writer.write_all(b"\n").unwrap();
+            {
+                let r = &report_flatten;
+                let mut dest = "".to_string();
+                dest += "  Profile (flattened)\n";
+                for (indent, name, pct, consumed) in r.iter() {
+                    dest += &format!(
+                        "{:indent$}{} {:.1}% {:.6}s\n",
+                        "",
+                        name,
+                        pct * 100.0,
+                        consumed.as_secs_f32(),
+                        indent = *indent as usize
+                    );
+                }
+                writer.write_all(dest.as_bytes()).unwrap();
+            }
         }
     }
 }

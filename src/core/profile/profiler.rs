@@ -63,8 +63,6 @@ struct ProfileSampler {
     durations: Vec<std::time::Duration>,
 }
 
-type ProfileSampleLine = (u32, String, f32, Duration);
-
 impl ProfileSampler {
     pub fn new() -> Self {
         ProfileSampler {

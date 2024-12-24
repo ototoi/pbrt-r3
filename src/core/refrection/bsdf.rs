@@ -79,6 +79,8 @@ impl BSDF {
         u: &Point2f,
         flags: BxDFType,
     ) -> Option<(Spectrum, Vector3f, Float, BxDFType)> {
+        let _p = ProfilePhase::new(Prof::BSDFSampling);
+
         let matching_comps = self.num_components(flags);
         if matching_comps == 0 {
             return None;
@@ -188,6 +190,8 @@ impl BSDF {
     }
 
     pub fn f(&self, wo_w: &Vector3f, wi_w: &Vector3f, flags: BxDFType) -> Spectrum {
+        let _p = ProfilePhase::new(Prof::BSDFEvaluation);
+
         let wi = self.world_to_local(wi_w);
         let wo = self.world_to_local(wo_w);
 
@@ -216,6 +220,8 @@ impl BSDF {
     }
 
     pub fn pdf(&self, wo_w: &Vector3f, wi_w: &Vector3f, flags: BxDFType) -> Float {
+        let _p = ProfilePhase::new(Prof::BSDFPdf);
+
         let wi = self.world_to_local(wi_w);
         let wo = self.world_to_local(wo_w);
 

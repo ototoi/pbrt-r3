@@ -8,6 +8,8 @@ pub fn uniform_sample_all_lights(
     n_light_samples: &[u32],
     handle_media: bool,
 ) -> Spectrum {
+    let _p = ProfilePhase::new(Prof::DirectLighting);
+
     let mut l = Spectrum::zero();
     for j in 0..n_light_samples.len() {
         let light = scene.lights[j].as_ref();
@@ -62,6 +64,8 @@ pub fn uniform_sample_one_light(
     handle_media: bool,
     distrib: Option<&Distribution1D>,
 ) -> Spectrum {
+    let _p = ProfilePhase::new(Prof::DirectLighting);
+
     let n_lights = scene.lights.len();
     if n_lights == 0 {
         return Spectrum::zero();

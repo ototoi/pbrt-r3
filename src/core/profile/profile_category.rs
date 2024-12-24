@@ -99,8 +99,8 @@ impl ProfileCategory {
     pub const MergeFilmTile: Self = Self(37);
     pub const SplatFilm: Self = Self(38);
     pub const AddFilmSample: Self = Self(39);
-    pub const StartPixel: Self = Self(40);
-    pub const GetSample: Self = Self(41);
+    pub const StartPixel: Self = Self(40); //todo
+    pub const GetSample: Self = Self(41); //todo
     pub const TexFiltTrilerp: Self = Self(42);
     pub const TexFiltEWA: Self = Self(43);
     pub const TexFiltPtex: Self = Self(44);

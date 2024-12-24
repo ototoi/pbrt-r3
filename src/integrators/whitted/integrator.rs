@@ -42,6 +42,8 @@ impl SamplerIntegrator for WhittedIntegrator {
         arena: &mut MemoryArena,
         depth: i32,
     ) -> Spectrum {
+        let _p = ProfilePhase::new(Prof::SamplerIntegratorLi);
+
         if let Some(mut isect) = scene.intersect(&ray.ray) {
             assert!(isect.n.length() > 0.0);
             assert!(isect.shading.n.length() > 0.0);

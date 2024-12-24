@@ -306,6 +306,7 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
             //}
 
             {
+                let _p = ProfilePhase::new(ProfileCategory::IntegratorRender);
                 let mut integrator = integrator.as_ref().write().unwrap();
                 let scene = scene.as_ref();
                 integrator.render(scene);

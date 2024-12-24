@@ -106,6 +106,8 @@ impl SamplerIntegrator for AOVIntegrator {
         arena: &mut MemoryArena,
         _depth: i32,
     ) -> Spectrum {
+        let _p = ProfilePhase::new(Prof::SamplerIntegratorLi);
+
         let scale = self.scale;
         if let Some(mut si) = scene.intersect(&r.ray) {
             si.compute_scattering_functions(r, arena, TransportMode::Radiance, true);

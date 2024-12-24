@@ -202,11 +202,10 @@ const ORDER_TABLE: [u32; 128] = [
 #[inline]
 fn intersect_primitives(primitives: &[Arc<dyn Primitive>], r: &Ray) -> Option<SurfaceInteraction> {
     let mut isect = None;
-    for p in primitives.iter() {
-        let prim = p.as_ref();
+    for prim in primitives.iter() {
         if let Some(mut isect_n) = prim.intersect(r) {
             if prim.is_geometric() {
-                isect_n.primitive = Some(Arc::downgrade(p));
+                isect_n.primitive = Some(Arc::downgrade(prim));
             }
             isect = Some(isect_n);
         }
@@ -216,8 +215,7 @@ fn intersect_primitives(primitives: &[Arc<dyn Primitive>], r: &Ray) -> Option<Su
 
 #[inline]
 fn intersect_primitives_p(primitives: &[Arc<dyn Primitive>], r: &Ray) -> bool {
-    for p in primitives.iter() {
-        let prim = p.as_ref();
+    for prim in primitives.iter() {
         if prim.intersect_p(r) {
             return true;
         }

@@ -26,7 +26,9 @@ impl ProfilePhase {
             PROFILER_STATE.with(|state| {
                 let bit = state.get() | category_bit;
                 state.set(bit);
-                set_profiler_state(bit);
+                if reset {
+                    set_profiler_state(bit);
+                }
             });
             ProfilePhase {
                 reset,

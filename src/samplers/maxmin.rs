@@ -44,6 +44,8 @@ impl MaxMinDistSampler {
 
 impl Sampler for MaxMinDistSampler {
     fn start_pixel(&mut self, p: &Point2i) {
+        let _p = ProfilePhase::new(Prof::StartPixel);
+
         let samples_per_pixel = self.base.base.samples_per_pixel as usize;
         let inv_spp = 1.0 / samples_per_pixel as Float;
         for i in 0..samples_per_pixel {

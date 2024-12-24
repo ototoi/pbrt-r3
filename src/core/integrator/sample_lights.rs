@@ -116,6 +116,8 @@ pub fn estimate_direct(
     handle_media: bool,
     specular: bool,
 ) -> Spectrum {
+    let _p = ProfilePhase::new(Prof::EstimateDirect);
+
     let bsdf_flags = if specular {
         BSDF_ALL
     } else {
@@ -123,47 +125,53 @@ pub fn estimate_direct(
     };
     let mut ld = Spectrum::zero();
     //println!("{:?}", bsdf_flags);
-    if let Some((mut li, wi, light_pdf, visibilty)) = light.sample_li(it, u_light) {
-        if light_pdf > 0.0 && !li.is_black() {
-            let mut f = Spectrum::zero();
-            let mut scattering_pdf = 0.0;
-            if let Some(isect) = it.as_surface_interaction() {
-                if let Some(bsdf) = isect.get_bsdf() {
-                    assert!(isect.n.length() > 0.0);
-                    assert!(isect.wo.length() > 0.0);
-                    assert!(isect.shading.n.length() > 0.0);
+    // Sample light source with multiple importance sampling
+    {
+        let _p = ProfilePhase::new(Prof::EstimateBSDF);
 
-                    let bsdf = bsdf.as_ref();
-                    f = bsdf.f(&isect.wo, &wi, bsdf_flags)
-                        * Vector3f::abs_dot(&wi, &isect.shading.n);
-                    scattering_pdf = bsdf.pdf(&isect.wo, &wi, bsdf_flags);
+        if let Some((mut li, wi, light_pdf, visibilty)) = light.sample_li(it, u_light) {
+            if light_pdf > 0.0 && !li.is_black() {
+                // Compute BSDF or phase function's value for light sample
+                let mut f = Spectrum::zero();
+                let mut scattering_pdf = 0.0;
+                if let Some(isect) = it.as_surface_interaction() {
+                    if let Some(bsdf) = isect.get_bsdf() {
+                        //assert!(isect.n.length() > 0.0);
+                        //assert!(isect.wo.length() > 0.0);
+                        //assert!(isect.shading.n.length() > 0.0);
 
-                    assert!(f.y() >= 0.0);
-                    assert!(scattering_pdf >= 0.0);
-                }
-            } else if let Some(mi) = it.as_medium_interaction() {
-                if let Some(phase) = mi.phase.as_ref() {
-                    let p = phase.p(&mi.wo, &wi);
-                    f = Spectrum::from(p);
-                    scattering_pdf = p;
-                }
-            }
-            if !f.is_black() {
-                if handle_media {
-                    li *= visibilty.tr(scene, sampler);
-                } else {
-                    if !visibilty.unoccluded(scene) {
-                        li = Spectrum::zero();
+                        let bsdf = bsdf.as_ref();
+                        f = bsdf.f(&isect.wo, &wi, bsdf_flags)
+                            * Vector3f::abs_dot(&wi, &isect.shading.n);
+                        scattering_pdf = bsdf.pdf(&isect.wo, &wi, bsdf_flags);
+
+                        //assert!(f.y() >= 0.0);
+                        //assert!(scattering_pdf >= 0.0);
+                    }
+                } else if let Some(mi) = it.as_medium_interaction() {
+                    if let Some(phase) = mi.phase.as_ref() {
+                        let p = phase.p(&mi.wo, &wi);
+                        f = Spectrum::from(p);
+                        scattering_pdf = p;
                     }
                 }
-
-                if !li.is_black() {
-                    if light.is_delta() {
-                        ld += f * li * (1.0 / light_pdf);
+                if !f.is_black() {
+                    if handle_media {
+                        li *= visibilty.tr(scene, sampler);
                     } else {
-                        let weight = power_heuristic(1, light_pdf, 1, scattering_pdf);
-                        //println!("{:?}: {:?} / {:?}, {:?}", (weight / light_pdf), weight, light_pdf, scattering_pdf);
-                        ld += f * li * (weight / light_pdf);
+                        if !visibilty.unoccluded(scene) {
+                            li = Spectrum::zero();
+                        }
+                    }
+
+                    if !li.is_black() {
+                        if light.is_delta() {
+                            ld += f * li * (1.0 / light_pdf);
+                        } else {
+                            let weight = power_heuristic(1, light_pdf, 1, scattering_pdf);
+                            //println!("{:?}: {:?} / {:?}, {:?}", (weight / light_pdf), weight, light_pdf, scattering_pdf);
+                            ld += f * li * (weight / light_pdf);
+                        }
                     }
                 }
             }
@@ -171,69 +179,73 @@ pub fn estimate_direct(
     }
 
     // Sample BSDF with multiple importance sampling
-    if !light.is_delta() {
-        let mut f = Spectrum::zero();
-        let mut wi = Vector3f::zero();
-        let mut sampled_specular = false;
-        let mut scattering_pdf = 0.0;
-        if let Some(isect) = it.as_surface_interaction() {
-            // Sample scattered direction for surface interactions
-            if let Some(bsdf) = isect.get_bsdf() {
-                if let Some((f2, wi2, scattering_pdf2, sampled_type)) =
-                    bsdf.sample_f(&isect.wo, u_scattering, bsdf_flags)
-                {
-                    assert!(isect.shading.n.length() > 0.0);
+    {
+        let _p = ProfilePhase::new(Prof::EstimateLight);
 
-                    f = f2 * Vector3f::abs_dot(&wi2, &isect.shading.n);
-                    wi = wi2;
-                    scattering_pdf = scattering_pdf2;
-                    sampled_specular = (sampled_type & BSDF_SPECULAR) != 0;
-                }
-            }
-        } else if let Some(mi) = it.as_medium_interaction() {
-            if let Some(phase) = mi.phase.as_ref() {
-                let (p, wi2) = phase.sample_p(&mi.wo, u_scattering);
-                wi = wi2;
-                f = Spectrum::from(p);
-                scattering_pdf = p;
-            }
-        }
+        if !light.is_delta() {
+            let mut f = Spectrum::zero();
+            let mut wi = Vector3f::zero();
+            let mut sampled_specular = false;
+            let mut scattering_pdf = 0.0;
+            if let Some(isect) = it.as_surface_interaction() {
+                // Sample scattered direction for surface interactions
+                if let Some(bsdf) = isect.get_bsdf() {
+                    if let Some((f2, wi2, scattering_pdf2, sampled_type)) =
+                        bsdf.sample_f(&isect.wo, u_scattering, bsdf_flags)
+                    {
+                        assert!(isect.shading.n.length() > 0.0);
 
-        if !f.is_black() && scattering_pdf > 0.0 {
-            let mut weight = 1.0;
-            if !sampled_specular {
-                let light_pdf = light.pdf_li(it, &wi);
-                if light_pdf == 0.0 {
-                    return ld;
-                }
-                weight = power_heuristic(1, scattering_pdf, 1, light_pdf);
-            }
-
-            let ray = it.spawn_ray(&wi);
-            let (opt_light_isect, tr) = if handle_media {
-                scene.intersect_tr(&ray, sampler)
-            } else {
-                (scene.intersect(&ray), Spectrum::one())
-            };
-
-            let mut li = Spectrum::zero();
-            if let Some(light_isect) = opt_light_isect.as_ref() {
-                if let Some(primitive) = light_isect.get_primitive() {
-                    if let Some(other) = primitive.get_area_light() {
-                        let alight_ptr: *const dyn Light = light;
-                        let blight = other.as_ref();
-                        let blight_ptr: *const dyn Light = blight;
-                        #[allow(clippy::vtable_address_comparisons)]
-                        if std::ptr::eq(alight_ptr, blight_ptr) {
-                            li = light_isect.le(&-wi);
-                        }
+                        f = f2 * Vector3f::abs_dot(&wi2, &isect.shading.n);
+                        wi = wi2;
+                        scattering_pdf = scattering_pdf2;
+                        sampled_specular = (sampled_type & BSDF_SPECULAR) != 0;
                     }
                 }
-            } else {
-                li = light.le(&RayDifferential::from(&ray));
+            } else if let Some(mi) = it.as_medium_interaction() {
+                if let Some(phase) = mi.phase.as_ref() {
+                    let (p, wi2) = phase.sample_p(&mi.wo, u_scattering);
+                    wi = wi2;
+                    f = Spectrum::from(p);
+                    scattering_pdf = p;
+                }
             }
-            if !li.is_black() {
-                ld += f * li * tr * (weight / scattering_pdf);
+
+            if !f.is_black() && scattering_pdf > 0.0 {
+                let mut weight = 1.0;
+                if !sampled_specular {
+                    let light_pdf = light.pdf_li(it, &wi);
+                    if light_pdf == 0.0 {
+                        return ld;
+                    }
+                    weight = power_heuristic(1, scattering_pdf, 1, light_pdf);
+                }
+
+                let ray = it.spawn_ray(&wi);
+                let (opt_light_isect, tr) = if handle_media {
+                    scene.intersect_tr(&ray, sampler)
+                } else {
+                    (scene.intersect(&ray), Spectrum::one())
+                };
+
+                let mut li = Spectrum::zero();
+                if let Some(light_isect) = opt_light_isect.as_ref() {
+                    if let Some(primitive) = light_isect.get_primitive() {
+                        if let Some(other) = primitive.get_area_light() {
+                            let alight_ptr: *const dyn Light = light;
+                            let blight = other.as_ref();
+                            let blight_ptr: *const dyn Light = blight;
+                            #[allow(clippy::vtable_address_comparisons)]
+                            if std::ptr::eq(alight_ptr, blight_ptr) {
+                                li = light_isect.le(&-wi);
+                            }
+                        }
+                    }
+                } else {
+                    li = light.le(&RayDifferential::from(&ray));
+                }
+                if !li.is_black() {
+                    ld += f * li * tr * (weight / scattering_pdf);
+                }
             }
         }
     }

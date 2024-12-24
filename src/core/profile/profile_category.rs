@@ -1,113 +1,116 @@
 use std::fmt::{Display, Formatter};
 
-/*
 #[derive(Debug, Clone, Copy)]
-#[repr(u64)]
-pub enum ProfileCategory {
-    SceneConstruction = 0,
-    AccelConstruction = 1,
-    TextureLoading = 2,
-    MIPMapCreation = 3,
-    IntegratorRender = 4,
-    SamplerIntegratorLi = 5,
-    SPPMCameraPass = 6,
-    SPPMGridConstruction = 7,
-    SPPMPhotonPass = 8,
-    SPPMStatsUpdate = 9,
-    BDPTGenerateSubpath = 10,
-    BDPTConnectSubpaths = 11,
-    LightDistribLookup = 12,
-    LightDistribSpinWait = 13,
-    LightDistribCreation = 14,
-    DirectLighting = 15,
-    BSDFEvaluation = 16,
-    BSDFSampling = 17,
-    BSDFPdf = 18,
-    BSSRDFEvaluation = 19,
-    BSSRDFSampling = 20,
-    PhaseFuncEvaluation = 21,
-    PhaseFuncSampling = 22,
-    AccelIntersect = 23,
-    AccelIntersectP = 24,
-    LightSample = 25,
-    LightPdf = 26,
-    MediumSample = 27,
-    MediumTr = 28,
-    TriIntersect = 29,
-    TriIntersectP = 30,
-    CurveIntersect = 31,
-    CurveIntersectP = 32,
-    ShapeIntersect = 33,
-    ShapeIntersectP = 34,
-    ComputeScatteringFuncs = 35,
-    GenerateCameraRay = 36,
-    MergeFilmTile = 37,
-    SplatFilm = 38,
-    AddFilmSample = 39,
-    StartPixel = 40,
-    GetSample = 41,
-    TexFiltTrilerp = 42,
-    TexFiltEWA = 43,
-    TexFiltPtex = 44,
-    NumProfCategories = 45,
+#[repr(u32)]
+enum EProfileCategory {
+    SceneConstruction,
+    AccelConstruction,
+    TextureLoading,
+    MIPMapCreation,
+    IntegratorRender,
+    SamplerIntegratorLi,
+    SPPMCameraPass,
+    SPPMGridConstruction,
+    SPPMPhotonPass,
+    SPPMStatsUpdate,
+    BDPTGenerateSubpath,
+    BDPTConnectSubpaths,
+    LightDistribLookup,
+    LightDistribSpinWait,
+    LightDistribCreation,
+    DirectLighting,
+    EstimateDirect, //pbrt-r3
+    EstimateBSDF,   //pbrt-r3
+    SampleLight,    //pbrt-r3
+    BSDFEvaluation,
+    BSDFSampling,
+    BSDFPdf,
+    BSSRDFEvaluation,
+    BSSRDFSampling,
+    PhaseFuncEvaluation,
+    PhaseFuncSampling,
+    AccelIntersect,
+    AccelIntersectP,
+    LightSample,
+    LightPdf,
+    MediumSample,
+    MediumTr,
+    TriIntersect,
+    TriIntersectP,
+    CurveIntersect,
+    CurveIntersectP,
+    ShapeIntersect,
+    ShapeIntersectP,
+    ComputeScatteringFuncs,
+    GenerateCameraRay,
+    MergeFilmTile,
+    SplatFilm,
+    AddFilmSample,
+    StartPixel,
+    GetSample,
+    TexFiltTrilerp,
+    TexFiltEWA,
+    TexFiltPtex,
+    NumProfCategories,
 }
-*/
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct ProfileCategory(pub u32);
 
 #[allow(non_upper_case_globals)]
 impl ProfileCategory {
-    pub const SceneConstruction: Self = Self(0);
-    pub const AccelConstruction: Self = Self(1);
-    pub const TextureLoading: Self = Self(2);
-    pub const MIPMapCreation: Self = Self(3);
-
-    pub const IntegratorRender: Self = Self(4);
-    pub const SamplerIntegratorLi: Self = Self(5);
-    pub const SPPMCameraPass: Self = Self(6);
-    pub const SPPMGridConstruction: Self = Self(7);
-    pub const SPPMPhotonPass: Self = Self(8);
-    pub const SPPMStatsUpdate: Self = Self(9);
-    pub const BDPTGenerateSubpath: Self = Self(10);
-    pub const BDPTConnectSubpaths: Self = Self(11);
-    pub const LightDistribLookup: Self = Self(12);
-    pub const LightDistribSpinWait: Self = Self(13);
-    pub const LightDistribCreation: Self = Self(14);
-    pub const DirectLighting: Self = Self(15);
-    pub const BSDFEvaluation: Self = Self(16);
-    pub const BSDFSampling: Self = Self(17);
-    pub const BSDFPdf: Self = Self(18);
-    pub const BSSRDFEvaluation: Self = Self(19);
-    pub const BSSRDFSampling: Self = Self(20);
-    pub const PhaseFuncEvaluation: Self = Self(21);
-    pub const PhaseFuncSampling: Self = Self(22);
-    pub const AccelIntersect: Self = Self(23);
-    pub const AccelIntersectP: Self = Self(24);
-    pub const LightSample: Self = Self(25);
-    pub const LightPdf: Self = Self(26);
-    pub const MediumSample: Self = Self(27);
-    pub const MediumTr: Self = Self(28);
-    pub const TriIntersect: Self = Self(29);
-    pub const TriIntersectP: Self = Self(30);
-    pub const CurveIntersect: Self = Self(31);
-    pub const CurveIntersectP: Self = Self(32);
-    pub const ShapeIntersect: Self = Self(33);
-    pub const ShapeIntersectP: Self = Self(34);
-    pub const ComputeScatteringFuncs: Self = Self(35);
-    pub const GenerateCameraRay: Self = Self(36);
-    pub const MergeFilmTile: Self = Self(37);
-    pub const SplatFilm: Self = Self(38);
-    pub const AddFilmSample: Self = Self(39);
-    pub const StartPixel: Self = Self(40); //todo
-    pub const GetSample: Self = Self(41); //todo
-    pub const TexFiltTrilerp: Self = Self(42);
-    pub const TexFiltEWA: Self = Self(43);
-    pub const TexFiltPtex: Self = Self(44);
-    pub const NumProfCategories: Self = Self(45);
+    pub const SceneConstruction: Self = Self(EProfileCategory::SceneConstruction as u32);
+    pub const AccelConstruction: Self = Self(EProfileCategory::AccelConstruction as u32);
+    pub const TextureLoading: Self = Self(EProfileCategory::TextureLoading as u32);
+    pub const MIPMapCreation: Self = Self(EProfileCategory::MIPMapCreation as u32);
+    pub const IntegratorRender: Self = Self(EProfileCategory::IntegratorRender as u32);
+    pub const SamplerIntegratorLi: Self = Self(EProfileCategory::SamplerIntegratorLi as u32);
+    pub const SPPMCameraPass: Self = Self(EProfileCategory::SPPMCameraPass as u32);
+    pub const SPPMGridConstruction: Self = Self(EProfileCategory::SPPMGridConstruction as u32);
+    pub const SPPMPhotonPass: Self = Self(EProfileCategory::SPPMPhotonPass as u32);
+    pub const SPPMStatsUpdate: Self = Self(EProfileCategory::SPPMStatsUpdate as u32);
+    pub const BDPTGenerateSubpath: Self = Self(EProfileCategory::BDPTGenerateSubpath as u32);
+    pub const BDPTConnectSubpaths: Self = Self(EProfileCategory::BDPTConnectSubpaths as u32);
+    pub const LightDistribLookup: Self = Self(EProfileCategory::LightDistribLookup as u32);
+    pub const LightDistribSpinWait: Self = Self(EProfileCategory::LightDistribSpinWait as u32);
+    pub const LightDistribCreation: Self = Self(EProfileCategory::LightDistribCreation as u32);
+    pub const DirectLighting: Self = Self(EProfileCategory::DirectLighting as u32);
+    pub const EstimateDirect: Self = Self(EProfileCategory::EstimateDirect as u32); //pbrt-r3
+    pub const EstimateBSDF: Self = Self(EProfileCategory::EstimateBSDF as u32); //pbrt-r3
+    pub const EstimateLight: Self = Self(EProfileCategory::SampleLight as u32); //pbrt-r3
+    pub const BSDFEvaluation: Self = Self(EProfileCategory::BSDFEvaluation as u32);
+    pub const BSDFSampling: Self = Self(EProfileCategory::BSDFSampling as u32);
+    pub const BSDFPdf: Self = Self(EProfileCategory::BSDFPdf as u32);
+    pub const BSSRDFEvaluation: Self = Self(EProfileCategory::BSSRDFEvaluation as u32);
+    pub const BSSRDFSampling: Self = Self(EProfileCategory::BSSRDFSampling as u32);
+    pub const PhaseFuncEvaluation: Self = Self(EProfileCategory::PhaseFuncEvaluation as u32);
+    pub const PhaseFuncSampling: Self = Self(EProfileCategory::PhaseFuncSampling as u32);
+    pub const AccelIntersect: Self = Self(EProfileCategory::AccelIntersect as u32);
+    pub const AccelIntersectP: Self = Self(EProfileCategory::AccelIntersectP as u32);
+    pub const LightSample: Self = Self(EProfileCategory::LightSample as u32);
+    pub const LightPdf: Self = Self(EProfileCategory::LightPdf as u32);
+    pub const MediumSample: Self = Self(EProfileCategory::MediumSample as u32);
+    pub const MediumTr: Self = Self(EProfileCategory::MediumTr as u32);
+    pub const TriIntersect: Self = Self(EProfileCategory::TriIntersect as u32);
+    pub const TriIntersectP: Self = Self(EProfileCategory::TriIntersectP as u32);
+    pub const CurveIntersect: Self = Self(EProfileCategory::CurveIntersect as u32);
+    pub const CurveIntersectP: Self = Self(EProfileCategory::CurveIntersectP as u32);
+    pub const ShapeIntersect: Self = Self(EProfileCategory::ShapeIntersect as u32);
+    pub const ShapeIntersectP: Self = Self(EProfileCategory::ShapeIntersectP as u32);
+    pub const ComputeScatteringFuncs: Self = Self(EProfileCategory::ComputeScatteringFuncs as u32);
+    pub const GenerateCameraRay: Self = Self(EProfileCategory::GenerateCameraRay as u32);
+    pub const MergeFilmTile: Self = Self(EProfileCategory::MergeFilmTile as u32);
+    pub const SplatFilm: Self = Self(EProfileCategory::SplatFilm as u32);
+    pub const AddFilmSample: Self = Self(EProfileCategory::AddFilmSample as u32);
+    pub const StartPixel: Self = Self(EProfileCategory::StartPixel as u32); //todo
+    pub const GetSample: Self = Self(EProfileCategory::GetSample as u32); //todo
+    pub const TexFiltTrilerp: Self = Self(EProfileCategory::TexFiltTrilerp as u32);
+    pub const TexFiltEWA: Self = Self(EProfileCategory::TexFiltEWA as u32);
+    pub const TexFiltPtex: Self = Self(EProfileCategory::TexFiltPtex as u32);
+    pub const NumProfCategories: Self = Self(EProfileCategory::NumProfCategories as u32);
 }
 
-const PROF_NAMES: [&str; 46] = [
+const PROF_NAMES: [&str; 49] = [
     "Scene parsing and creation",
     "Acceleration structure creation",
     "Texture loading",
@@ -124,6 +127,9 @@ const PROF_NAMES: [&str; 46] = [
     "SpatialLightDistribution spin wait",
     "SpatialLightDistribution creation",
     "Direct lighting",
+    "Estimate Direct",
+    "Estimate BSDF",
+    "Estimate Light",
     "BSDF::f()",
     "BSDF::Sample_f()",
     "BSDF::PDF()",

@@ -29,6 +29,8 @@ impl StratifiedSampler {
 
 impl Sampler for StratifiedSampler {
     fn start_pixel(&mut self, p: &Point2i) {
+        let _p = ProfilePhase::new(Prof::StartPixel);
+
         // Generate single stratified samples for the pixel
         let samples_per_pixel = (self.base.base.samples_per_pixel) as usize;
         for i in 0..self.base.samples1d.len() {

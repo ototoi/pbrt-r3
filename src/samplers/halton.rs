@@ -168,6 +168,8 @@ impl GlobalSampler for HaltonSampler {
 
 impl Sampler for HaltonSampler {
     fn start_pixel(&mut self, p: &Point2i) {
+        let _p = ProfilePhase::new(Prof::StartPixel);
+
         self.base.base.start_pixel(p);
         self.base.dimension = 0;
         self.base.interval_sample_index = self.get_index_for_sample(0);
@@ -220,6 +222,8 @@ impl Sampler for HaltonSampler {
     }
 
     fn get_1d(&mut self) -> Float {
+        let _p = ProfilePhase::new(Prof::GetSample);
+
         if self.base.dimension >= BaseGlobalSampler::array_start_dim
             && self.base.dimension < self.base.array_end_dim
         {
@@ -232,6 +236,8 @@ impl Sampler for HaltonSampler {
     }
 
     fn get_2d(&mut self) -> Vector2f {
+        let _p = ProfilePhase::new(Prof::GetSample);
+
         if self.base.dimension + 1 >= BaseGlobalSampler::array_start_dim
             && self.base.dimension < self.base.array_end_dim
         {

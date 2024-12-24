@@ -58,6 +58,8 @@ impl SamplerIntegrator for AOIntegrator {
         arena: &mut MemoryArena,
         _depth: i32,
     ) -> Spectrum {
+        let _p = ProfilePhase::new(Prof::SamplerIntegratorLi);
+
         let mut l = Spectrum::zero();
         let mut ray = r.clone();
 

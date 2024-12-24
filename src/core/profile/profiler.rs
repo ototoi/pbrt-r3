@@ -113,12 +113,7 @@ impl ProfileSampler {
         state_count.clear();
     }
 
-    fn make_report(
-        &self,
-    ) -> Option<(
-        Vec<(u32, String, f32, Duration)>,
-        Vec<(u32, String, f32, Duration)>,
-    )> {
+    fn make_report(&self) -> Option<[(String, Vec<(u32, String, f32, Duration)>); 2]> {
         const NUM_PROF_CATEGORIES: usize = ProfileCategory::NumProfCategories.0 as usize;
         if self.durations.len() == 0 {
             return None;
@@ -174,10 +169,10 @@ impl ProfileSampler {
             for (name, count) in flat_vec.iter() {
                 let count = *count;
                 let pct = count as f32 / overall_count as f32;
-                let mut indent = 4;
+                let mut indent = 0;
                 let slash_index = name.rfind('/');
                 if slash_index.is_some() {
-                    indent += 2 * name.matches("/").count();
+                    indent += name.matches("/").count();
                 }
                 let offset = if let Some(index) = slash_index {
                     index + 1
@@ -200,45 +195,32 @@ impl ProfileSampler {
             for (name, count) in flat_vec.iter() {
                 let count = *count;
                 let pct = count as f32 / overall_count as f32;
-                let indent = 4;
+                let indent = 0;
                 let consumed = Duration::from_secs_f32(elapsed.as_secs_f32() * pct);
                 report_flatten.push((indent, name.clone(), pct, consumed));
             }
         }
-        return Some((report, report_flatten));
+        return Some([
+            ("Profile".to_string(), report),
+            ("Profile (flattened)".to_string(), report_flatten),
+        ]);
     }
 
     pub fn report(&self, writer: &mut dyn Write) {
-        if let Some((report, report_flatten)) = self.make_report() {
-            {
+        if let Some(reports) = self.make_report() {
+            for (title, report) in reports.iter() {
                 let r = &report;
                 let mut dest = "".to_string();
-                dest += "  Profile\n";
+                dest += &format!("  {}:\n", title);
                 for (indent, name, pct, consumed) in r.iter() {
+                    let indent = (2 * (2 + *indent)) as usize;
                     dest += &format!(
                         "{:indent$}{} {:.1}% {:.6}s\n",
                         "",
                         name,
                         pct * 100.0,
                         consumed.as_secs_f32(),
-                        indent = *indent as usize
-                    );
-                }
-                writer.write_all(dest.as_bytes()).unwrap();
-            }
-            writer.write_all(b"\n").unwrap();
-            {
-                let r = &report_flatten;
-                let mut dest = "".to_string();
-                dest += "  Profile (flattened)\n";
-                for (indent, name, pct, consumed) in r.iter() {
-                    dest += &format!(
-                        "{:indent$}{} {:.1}% {:.6}s\n",
-                        "",
-                        name,
-                        pct * 100.0,
-                        consumed.as_secs_f32(),
-                        indent = *indent as usize
+                        indent = indent
                     );
                 }
                 writer.write_all(dest.as_bytes()).unwrap();

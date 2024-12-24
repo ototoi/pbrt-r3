@@ -73,6 +73,8 @@ impl FilmTile {
     }
 
     pub fn add_sample(&mut self, p_film: &Point2f, l: &Spectrum, sample_weight: Float) {
+        let _p = ProfilePhase::new(Prof::AddFilmSample);
+
         self.add_sample_filter(p_film, l, sample_weight);
     }
 

@@ -301,11 +301,12 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
                 }
             }
 
-            if !opts.quiet && !opts.no_stats {
-                stats::print_stats();
-            }
+            //if !opts.quiet && !opts.no_stats {
+            //    stats::print_stats();
+            //}
 
             {
+                let _p = ProfilePhase::new(ProfileCategory::IntegratorRender);
                 let mut integrator = integrator.as_ref().write().unwrap();
                 let scene = scene.as_ref();
                 integrator.render(scene);

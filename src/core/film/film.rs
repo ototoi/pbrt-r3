@@ -207,6 +207,8 @@ impl Film {
     }
 
     pub fn merge_film_tile(&mut self, tile: &FilmTile) {
+        let _p = ProfilePhase::new(Prof::MergeFilmTile);
+
         let bounds = tile.get_pixel_bounds();
         {
             let mut pixels = self.pixels.lock().unwrap();
@@ -352,6 +354,8 @@ impl Film {
     }
 
     pub fn add_splat(&mut self, p: &Vector2f, v: &Spectrum) {
+        let _p = ProfilePhase::new(Prof::SplatFilm);
+
         let pi = Point2i::new(p.x.floor() as i32, p.y.floor() as i32);
         if !self.cropped_pixel_bounds.inside_exclusive(&pi) {
             return;

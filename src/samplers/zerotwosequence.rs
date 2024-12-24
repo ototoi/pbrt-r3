@@ -26,6 +26,8 @@ impl ZeroTwoSequenceSampler {
 
 impl Sampler for ZeroTwoSequenceSampler {
     fn start_pixel(&mut self, p: &Point2i) {
+        let _p = ProfilePhase::new(Prof::StartPixel);
+
         // Generate 1D and 2D pixel sample components using $(0,2)$-sequence
         for i in 0..self.base.samples1d.len() {
             van_der_corput(

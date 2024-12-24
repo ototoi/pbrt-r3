@@ -167,6 +167,8 @@ pub fn create_image_float_texture(
         //println!("load from cache:{}", cache_path);
         return Ok(Arc::new(FloatImageTexture::new(mapping, mipmap)));
     } else {
+        let _p = ProfilePhase::new(Prof::TextureLoading);
+
         //println!("make from scratch");
         let (data, resolution) = read_image_gamma_correct(&texinfo.filename, false)?;
         let mut data: Vec<Float> = data
@@ -204,6 +206,8 @@ pub fn create_image_spectrum_texture(
         //println!("load from cache:{}", cache_path);
         return Ok(Arc::new(SpectrumImageTexture::new(mapping, mipmap)));
     } else {
+        let _p = ProfilePhase::new(Prof::TextureLoading);
+
         //println!("make from scratch");
         let (data, resolution) = read_image_gamma_correct(&texinfo.filename, false)?;
         let mut data: Vec<RGBSpectrum> = data

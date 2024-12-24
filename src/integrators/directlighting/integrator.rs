@@ -70,6 +70,8 @@ impl SamplerIntegrator for DirectLightingIntegrator {
         arena: &mut MemoryArena,
         depth: i32,
     ) -> Spectrum {
+        let _p = ProfilePhase::new(Prof::SamplerIntegratorLi);
+
         if let Some(mut isect) = scene.intersect(&ray.ray) {
             let wo = isect.wo;
 

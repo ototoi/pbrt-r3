@@ -372,12 +372,16 @@ impl Primitive for QBVHAccel {
     }
 
     fn intersect(&self, r: &Ray) -> Option<SurfaceInteraction> {
+        let _p = ProfilePhase::new(Prof::AccelIntersect);
+
         unsafe {
             return intersect_simd(&self.primitives, &self.nodes, r);
         }
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
+        let _p = ProfilePhase::new(Prof::AccelIntersectP);
+
         unsafe {
             return intersect_simd_p(&self.primitives, &self.nodes, r);
         }

@@ -65,6 +65,8 @@ impl SamplerIntegrator for PathIntegrator {
         arena: &mut MemoryArena,
         _depth: i32,
     ) -> Spectrum {
+        let _p = ProfilePhase::new(Prof::SamplerIntegratorLi);
+
         let light_distribution = self.light_distribution.as_ref();
         if light_distribution.is_none() {
             return Spectrum::zero();

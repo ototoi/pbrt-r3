@@ -438,6 +438,8 @@ where
         swrap_mode: ImageWrap,
         twrap_mode: ImageWrap,
     ) -> Self {
+        let _p = ProfilePhase::new(Prof::MIPMapCreation);
+
         let resolution = (resolution.x as usize, resolution.y as usize);
         let pyramid = make_mipimages(data, resolution, swrap_mode, twrap_mode);
         let mip = Self::make_from_pyramid(
@@ -500,6 +502,8 @@ where
 
     pub fn lookup(&self, st: &Point2f, width: Float) -> T {
         N_TRILERP_LOOKUPS.with(|n| n.inc());
+        let _p = ProfilePhase::new(Prof::TexFiltTrilerp);
+
         let max_level = (self.levels() - 1) as Float;
         let level = max_level + Float::log2(Float::max(width, 1e-8));
         if level < 0.0 {

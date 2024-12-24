@@ -32,6 +32,8 @@ impl SobolSampler {
 
 impl Sampler for SobolSampler {
     fn start_pixel(&mut self, p: &Point2i) {
+        let _p = ProfilePhase::new(Prof::StartPixel);
+
         self.base.base.start_pixel(p);
         self.base.dimension = 0;
         //self.dimension_1d = 0;

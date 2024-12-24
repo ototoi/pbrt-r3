@@ -228,12 +228,24 @@ impl StatsAccumulator {
 
 impl Display for StatsAccumulator {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let to_print = self.get_category_map();
-        write!(f, "Statistics:\n")?;
-        for (category, items) in to_print {
-            write!(f, " {}\n", category)?;
-            for item in items {
-                write!(f, "   {}\n", item)?;
+        let category_map = self.get_category_map();
+        let mut keys = category_map.keys().map(|s| s.clone()).collect::<Vec<_>>();
+        keys.sort();
+        let mut to_print = Vec::new();
+        for category in keys.iter() {
+            let items = category_map.get(category.as_str()).unwrap();
+            let mut items = items.clone();
+            items.sort();
+            to_print.push((category.clone(), items));
+        }
+        write!(f, "  Statistics:\n")?;
+        for (_j, (category, items)) in to_print.iter().enumerate() {
+            write!(f, "    {}\n", category)?;
+            for (_i, item) in items.iter().enumerate() {
+                write!(f, "      {}", item)?;
+                if _j != to_print.len() - 1 || _i != items.len() - 1 {
+                    write!(f, "\n")?;
+                }
             }
         }
         Ok(())

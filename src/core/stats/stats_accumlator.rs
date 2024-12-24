@@ -229,11 +229,14 @@ impl StatsAccumulator {
 impl Display for StatsAccumulator {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let to_print = self.get_category_map();
-        write!(f, "Statistics:\n")?;
-        for (category, items) in to_print {
-            write!(f, " {}\n", category)?;
-            for item in items {
-                write!(f, "   {}\n", item)?;
+        write!(f, "  Statistics:\n")?;
+        for (_j, (category, items)) in to_print.iter().enumerate() {
+            write!(f, "    {}\n", category)?;
+            for (_i, item) in items.iter().enumerate() {
+                write!(f, "      {}", item)?;
+                if _j != to_print.len() - 1 || _i != items.len() - 1 {
+                    write!(f, "\n")?;
+                }
             }
         }
         Ok(())

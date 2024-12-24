@@ -56,8 +56,7 @@ impl SamplerIntegrator for WhittedIntegrator {
             let tisect = Interaction::from(isect);
             let isect = tisect.as_surface_interaction().unwrap();
 
-            if let Some(bsdf) = isect.get_bsdf() {
-                let bsdf = bsdf.as_ref();
+            if let Some(bsdf) = isect.bsdf.as_ref() {
                 //return Spectrum::one();
                 let mut l = scene
                     .lights

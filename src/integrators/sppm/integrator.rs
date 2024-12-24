@@ -553,9 +553,7 @@ impl Integrator for SPPMIntegrator {
                                                 let phi = {
                                                     let pixel = pixel.read().unwrap();
                                                     assert!(pixel.vp.bsdf.is_some());
-                                                    let bsdf =
-                                                        pixel.vp.bsdf.as_ref().unwrap().clone();
-                                                    let bsdf = bsdf.as_ref();
+                                                    let bsdf = pixel.vp.bsdf.as_ref().unwrap();
                                                     let wi = -photon_ray.ray.d;
                                                     beta * bsdf.f(&pixel.vp.wo, &wi, BSDF_ALL)
                                                 };

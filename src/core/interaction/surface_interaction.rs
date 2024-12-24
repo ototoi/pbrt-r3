@@ -172,10 +172,7 @@ impl SurfaceInteraction {
     }
 
     pub fn get_bsdf(&self) -> Option<Arc<BSDF>> {
-        if let Some(wp) = self.bsdf.as_ref() {
-            return Some(wp.clone());
-        }
-        return None;
+        return self.bsdf.clone();
     }
 
     /*

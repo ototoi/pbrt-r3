@@ -32,7 +32,7 @@ pub trait SamplerIntegrator: Integrator + Sync {
         arena: &mut MemoryArena,
         depth: i32,
     ) -> Spectrum {
-        if let Some(bsdf) = isect.get_bsdf() {
+        if let Some(bsdf) = isect.bsdf.as_ref() {
             let bsdf = bsdf.as_ref();
             let wo = isect.wo;
             let u = sampler.get_2d();
@@ -79,7 +79,7 @@ pub trait SamplerIntegrator: Integrator + Sync {
         arena: &mut MemoryArena,
         depth: i32,
     ) -> Spectrum {
-        if let Some(bsdf) = isect.get_bsdf().as_ref() {
+        if let Some(bsdf) = isect.bsdf.as_ref() {
             let bsdf = bsdf.as_ref();
             let wo = isect.wo;
             let u = sampler.get_2d();

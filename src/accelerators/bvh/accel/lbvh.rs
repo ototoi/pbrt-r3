@@ -115,6 +115,8 @@ impl Primitive for LBVHAccel {
     }
 
     fn intersect(&self, r: &Ray) -> Option<SurfaceInteraction> {
+        let _p = ProfilePhase::new(Prof::AccelIntersect);
+
         let mut isect = None;
         let mut nodes_to_visit: Vec<(usize, Float, Float)> = Vec::with_capacity(16);
         let mut t_max = r.t_max.get();
@@ -173,6 +175,8 @@ impl Primitive for LBVHAccel {
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
+        let _p = ProfilePhase::new(Prof::AccelIntersectP);
+
         let mut nodes_to_visit: Vec<(usize, Float, Float)> = Vec::with_capacity(16);
         let t_max = r.t_max.get();
         let t0: Float = 0.0;

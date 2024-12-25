@@ -19,9 +19,11 @@ enum EProfileCategory {
     LightDistribSpinWait,
     LightDistribCreation,
     DirectLighting,
-    EstimateDirect, //pbrt-r3
-    EstimateBSDF,   //pbrt-r3
-    SampleLight,    //pbrt-r3
+    EstimateDirect,         //pbrt-r3
+    SampleLightImportance,  //pbrt-r3
+    ComputeBSDF,            //pbrt-r3
+    ComputeLightImportance, //pbrt-r3
+    SampleLight,            //pbrt-r3
     BSDFEvaluation,
     BSDFSampling,
     BSDFPdf,
@@ -76,8 +78,10 @@ impl ProfileCategory {
     pub const LightDistribCreation: Self = Self(EProfileCategory::LightDistribCreation as u32);
     pub const DirectLighting: Self = Self(EProfileCategory::DirectLighting as u32);
     pub const EstimateDirect: Self = Self(EProfileCategory::EstimateDirect as u32); //pbrt-r3
-    pub const EstimateBSDF: Self = Self(EProfileCategory::EstimateBSDF as u32); //pbrt-r3
-    pub const EstimateLight: Self = Self(EProfileCategory::SampleLight as u32); //pbrt-r3
+    pub const SampleLightImportance: Self = Self(EProfileCategory::SampleLightImportance as u32); //pbrt-r3
+    pub const ComputeBSDF: Self = Self(EProfileCategory::ComputeBSDF as u32); //pbrt-r3
+    pub const ComputeLightImportance: Self = Self(EProfileCategory::ComputeLightImportance as u32); //pbrt-r3
+    pub const SampleBSDFImportance: Self = Self(EProfileCategory::SampleLight as u32); //pbrt-r3
     pub const BSDFEvaluation: Self = Self(EProfileCategory::BSDFEvaluation as u32);
     pub const BSDFSampling: Self = Self(EProfileCategory::BSDFSampling as u32);
     pub const BSDFPdf: Self = Self(EProfileCategory::BSDFPdf as u32);
@@ -110,7 +114,7 @@ impl ProfileCategory {
     pub const NumProfCategories: Self = Self(EProfileCategory::NumProfCategories as u32);
 }
 
-const PROF_NAMES: [&str; 49] = [
+const PROF_NAMES: [&str; 51] = [
     "Scene parsing and creation",
     "Acceleration structure creation",
     "Texture loading",
@@ -128,8 +132,10 @@ const PROF_NAMES: [&str; 49] = [
     "SpatialLightDistribution creation",
     "Direct lighting",
     "Estimate Direct",
-    "Estimate BSDF",
-    "Estimate Light",
+    "Sample LightImportance",
+    "Compute BSDF",
+    "Compute LightImportance",
+    "Sample BSDFImportance",
     "BSDF::f()",
     "BSDF::Sample_f()",
     "BSDF::PDF()",

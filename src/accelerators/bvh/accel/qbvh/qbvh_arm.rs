@@ -212,11 +212,10 @@ const ORDER_TABLE: [u32; 128] = [
 #[inline]
 fn intersect_primitives(primitives: &[Arc<dyn Primitive>], r: &Ray) -> Option<SurfaceInteraction> {
     let mut isect = None;
-    for p in primitives.iter() {
-        let prim = p.as_ref();
+    for prim in primitives.iter() {
         if let Some(mut isect_n) = prim.intersect(r) {
             if prim.is_geometric() {
-                isect_n.primitive = Some(Arc::downgrade(p));
+                isect_n.primitive = Some(Arc::downgrade(prim));
             }
             isect = Some(isect_n);
         }
@@ -226,8 +225,7 @@ fn intersect_primitives(primitives: &[Arc<dyn Primitive>], r: &Ray) -> Option<Su
 
 #[inline]
 fn intersect_primitives_p(primitives: &[Arc<dyn Primitive>], r: &Ray) -> bool {
-    for p in primitives.iter() {
-        let prim = p.as_ref();
+    for prim in primitives.iter() {
         if prim.intersect_p(r) {
             return true;
         }
@@ -302,6 +300,8 @@ unsafe fn intersect_simd(
     primitives: &[Arc<dyn Primitive>],
     nodes: &[SIMDBVHNode],
     r: &Ray,
+    tmin: Float,
+    tmax: Float,
 ) -> Option<SurfaceInteraction> {
     let mut isect = None;
     let mut nodes_to_visit: Vec<usize> = Vec::with_capacity(16);
@@ -320,9 +320,8 @@ unsafe fn intersect_simd(
 
     let sign = [get_sign(r.d.x), get_sign(r.d.y), get_sign(r.d.z)];
 
-    let t = r.t_max.get();
-    let tmin = vdupq_n_f32(0.0 as f32);
-    let mut tmax = vdupq_n_f32(t as f32);
+    let tmin = vdupq_n_f32(tmin as f32);
+    let mut tmax = vdupq_n_f32(tmax as f32);
 
     nodes_to_visit.push(0);
     while let Some(current_node_index) = nodes_to_visit.pop() {
@@ -372,6 +371,8 @@ unsafe fn intersect_simd_p(
     primitives: &[Arc<dyn Primitive>],
     nodes: &[SIMDBVHNode],
     r: &Ray,
+    tmin: Float,
+    tmax: Float,
 ) -> bool {
     let mut nodes_to_visit: Vec<usize> = Vec::with_capacity(16);
 
@@ -389,9 +390,8 @@ unsafe fn intersect_simd_p(
 
     let sign = [get_sign(r.d.x), get_sign(r.d.y), get_sign(r.d.z)];
 
-    let t = r.t_max.get();
-    let tmin = vdupq_n_f32(0.0 as f32);
-    let tmax = vdupq_n_f32(t as f32);
+    let tmin = vdupq_n_f32(tmin as f32);
+    let tmax = vdupq_n_f32(tmax as f32);
 
     nodes_to_visit.push(0);
     while let Some(current_node_index) = nodes_to_visit.pop() {
@@ -459,17 +459,23 @@ impl Primitive for QBVHAccel {
     fn intersect(&self, r: &Ray) -> Option<SurfaceInteraction> {
         let _p = ProfilePhase::new(Prof::AccelIntersect);
 
-        unsafe {
-            return intersect_simd(&self.primitives, &self.nodes, r);
+        if let Some((tmin, tmax)) = self.bounds.intersect_p(r) {
+            unsafe {
+                return intersect_simd(&self.primitives, &self.nodes, r, tmin, tmax);
+            }
         }
+        return None;
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
         let _p = ProfilePhase::new(Prof::AccelIntersectP);
 
-        unsafe {
-            return intersect_simd_p(&self.primitives, &self.nodes, r);
+        if let Some((tmin, tmax)) = self.bounds.intersect_p(r) {
+            unsafe {
+                return intersect_simd_p(&self.primitives, &self.nodes, r, tmin, tmax);
+            }
         }
+        return false;
     }
 }
 

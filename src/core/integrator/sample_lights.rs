@@ -127,50 +127,59 @@ pub fn estimate_direct(
     //println!("{:?}", bsdf_flags);
     // Sample light source with multiple importance sampling
     {
-        let _p = ProfilePhase::new(Prof::EstimateBSDF);
+        let _p = ProfilePhase::new(Prof::SampleLightImportance);
 
         if let Some((mut li, wi, light_pdf, visibilty)) = light.sample_li(it, u_light) {
             if light_pdf > 0.0 && !li.is_black() {
                 // Compute BSDF or phase function's value for light sample
                 let mut f = Spectrum::zero();
                 let mut scattering_pdf = 0.0;
-                if let Some(isect) = it.as_surface_interaction() {
-                    if let Some(bsdf) = isect.get_bsdf() {
-                        //assert!(isect.n.length() > 0.0);
-                        //assert!(isect.wo.length() > 0.0);
-                        //assert!(isect.shading.n.length() > 0.0);
+                {
+                    let _p = ProfilePhase::new(Prof::ComputeBSDF);
 
-                        let bsdf = bsdf.as_ref();
-                        f = bsdf.f(&isect.wo, &wi, bsdf_flags)
-                            * Vector3f::abs_dot(&wi, &isect.shading.n);
-                        scattering_pdf = bsdf.pdf(&isect.wo, &wi, bsdf_flags);
+                    if let Some(isect) = it.as_surface_interaction() {
+                        if let Some(bsdf) = isect.bsdf.as_ref() {
+                            //assert!(isect.n.length() > 0.0);
+                            //assert!(isect.wo.length() > 0.0);
+                            //assert!(isect.shading.n.length() > 0.0);
+                            f = bsdf.f(&isect.wo, &wi, bsdf_flags)
+                                * Vector3f::abs_dot(&wi, &isect.shading.n);
+                            scattering_pdf = bsdf.pdf(&isect.wo, &wi, bsdf_flags);
 
-                        //assert!(f.y() >= 0.0);
-                        //assert!(scattering_pdf >= 0.0);
-                    }
-                } else if let Some(mi) = it.as_medium_interaction() {
-                    if let Some(phase) = mi.phase.as_ref() {
-                        let p = phase.p(&mi.wo, &wi);
-                        f = Spectrum::from(p);
-                        scattering_pdf = p;
+                            //assert!(f.y() >= 0.0);
+                            //assert!(scattering_pdf >= 0.0);
+                        }
+                    } else if let Some(mi) = it.as_medium_interaction() {
+                        if let Some(phase) = mi.phase.as_ref() {
+                            let p = phase.p(&mi.wo, &wi);
+                            f = Spectrum::from(p);
+                            scattering_pdf = p;
+                        }
+                    } else {
+                        panic!("Interaction is neither SurfaceInteraction nor MediumInteraction");
                     }
                 }
-                if !f.is_black() {
-                    if handle_media {
-                        li *= visibilty.tr(scene, sampler);
-                    } else {
-                        if !visibilty.unoccluded(scene) {
-                            li = Spectrum::zero();
-                        }
-                    }
 
-                    if !li.is_black() {
-                        if light.is_delta() {
-                            ld += f * li * (1.0 / light_pdf);
+                {
+                    let _p = ProfilePhase::new(Prof::ComputeLightImportance);
+
+                    if !f.is_black() {
+                        if handle_media {
+                            li *= visibilty.tr(scene, sampler);
                         } else {
-                            let weight = power_heuristic(1, light_pdf, 1, scattering_pdf);
-                            //println!("{:?}: {:?} / {:?}, {:?}", (weight / light_pdf), weight, light_pdf, scattering_pdf);
-                            ld += f * li * (weight / light_pdf);
+                            if !visibilty.unoccluded(scene) {
+                                li = Spectrum::zero();
+                            }
+                        }
+
+                        if !li.is_black() {
+                            if light.is_delta() {
+                                ld += f * li * (1.0 / light_pdf);
+                            } else {
+                                let weight = power_heuristic(1, light_pdf, 1, scattering_pdf);
+                                //println!("{:?}: {:?} / {:?}, {:?}", (weight / light_pdf), weight, light_pdf, scattering_pdf);
+                                ld += f * li * (weight / light_pdf);
+                            }
                         }
                     }
                 }
@@ -180,7 +189,7 @@ pub fn estimate_direct(
 
     // Sample BSDF with multiple importance sampling
     {
-        let _p = ProfilePhase::new(Prof::EstimateLight);
+        let _p = ProfilePhase::new(Prof::SampleBSDFImportance);
 
         if !light.is_delta() {
             let mut f = Spectrum::zero();
@@ -189,7 +198,7 @@ pub fn estimate_direct(
             let mut scattering_pdf = 0.0;
             if let Some(isect) = it.as_surface_interaction() {
                 // Sample scattered direction for surface interactions
-                if let Some(bsdf) = isect.get_bsdf() {
+                if let Some(bsdf) = isect.bsdf.as_ref() {
                     if let Some((f2, wi2, scattering_pdf2, sampled_type)) =
                         bsdf.sample_f(&isect.wo, u_scattering, bsdf_flags)
                     {

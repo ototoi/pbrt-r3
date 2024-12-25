@@ -112,8 +112,7 @@ impl SamplerIntegrator for PathIntegrator {
                 continue;
             }
 
-            let bsdf = isect.bsdf.as_ref().unwrap().clone();
-            let bsdf = bsdf.as_ref();
+            let bsdf = isect.bsdf.as_ref().unwrap();
             let distrib = light_distribution.lookup(&isect.p);
 
             // assert!(beta.max_component_value() <= 1.0);

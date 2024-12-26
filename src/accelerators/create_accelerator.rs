@@ -11,7 +11,7 @@ pub fn create_accelerator(
     if !prims.is_empty() {
         match name {
             "bvh" => create_bvh_accelerator(prims, params),
-            "kdtree" => create_bvh_accelerator(prims, params),
+            "kdtree" => create_kdtree_accelerator(prims, params),
             "exhaustive" => create_exhaustive_accelerator(prims, params),
             _ => {
                 return Err(PbrtError::warning(&format!(

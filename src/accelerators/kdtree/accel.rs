@@ -8,14 +8,14 @@ enum KDAccelNode {
         n_primitives: usize,
     },
     Interior {
+        axis: u8,
         split: Float,
-        axis: u32,
-        above_child: u32,
+        above_child: usize,
     },
 }
 
 impl KDAccelNode {
-    fn init_leaf(prim_nums: &mut [usize], primitive_indices: &mut Vec<usize>) -> Self {
+    fn init_leaf(prim_nums: &[usize], primitive_indices: &mut Vec<usize>) -> Self {
         let primitive_indices_offset = primitive_indices.len();
         let n_primitives = prim_nums.len();
         for i in 0..prim_nums.len() {
@@ -26,12 +26,11 @@ impl KDAccelNode {
             n_primitives,
         }
     }
-    fn init_interior(axis: u32, ac: u32, s: Float) -> Self {
-        let above_child = ac << 2;
+    fn init_interior(axis: u8, split: Float, above_child: usize) -> Self {
         KDAccelNode::Interior {
             axis,
+            split,
             above_child,
-            split: s,
         }
     }
 }
@@ -51,7 +50,7 @@ impl Default for EdgeType {
 #[derive(Clone, Copy, Default)]
 struct BoundEdge {
     t: Float,
-    //prim_num: usize,
+    prim_num: usize,
     edge_type: EdgeType,
 }
 
@@ -67,7 +66,7 @@ impl KDTreeBuilder {
         &mut self,
         node_bounds: &Bounds3f,
         all_prim_bounds: &[Bounds3f],
-        prim_nums: &mut [usize],
+        prim_nums: &[usize],
         nodes: &mut Vec<KDAccelNode>,
         primitive_indices: &mut Vec<usize>,
         depth: i32,
@@ -82,20 +81,22 @@ impl KDTreeBuilder {
         }
 
         // Choose split axis position for interior node
-        if let Some((best_axis, best_offset, t_split, bad_refines)) =
+        if let Some((best_axis, t_split, primes0, primes1, bad_refines)) =
             self.choose_split_axis(node_bounds, all_prim_bounds, prim_nums, bad_refines)
         {
+            assert!(best_axis < 3);
+
             // Recursively initialize children nodes
             let mut bounds0 = node_bounds.clone();
             let mut bounds1 = node_bounds.clone();
             bounds0.max[best_axis] = t_split;
             bounds1.min[best_axis] = t_split;
-            nodes.push(KDAccelNode::init_interior(best_axis as u32, 0, t_split)); //dummy value
+            nodes.push(KDAccelNode::init_interior(best_axis as u8, t_split, 0)); //dummy value
 
-            let _ = self.build_tree(
+            let left_index = self.build_tree(
                 &bounds0,
                 all_prim_bounds,
-                &mut prim_nums[0..best_offset],
+                &primes0,
                 nodes,
                 primitive_indices,
                 depth - 1,
@@ -104,14 +105,14 @@ impl KDTreeBuilder {
             let right_index = self.build_tree(
                 &bounds1,
                 all_prim_bounds,
-                &mut prim_nums[best_offset..],
+                &primes1,
                 nodes,
                 primitive_indices,
                 depth - 1,
                 bad_refines,
             );
-            nodes[node_num] =
-                KDAccelNode::init_interior(best_axis as u32, right_index as u32, t_split);
+            assert_eq!(node_num + 1, left_index);
+            nodes[node_num] = KDAccelNode::init_interior(best_axis as u8, t_split, right_index);
         } else {
             nodes.push(KDAccelNode::init_leaf(prim_nums, primitive_indices));
         }
@@ -122,9 +123,9 @@ impl KDTreeBuilder {
         &self,
         node_bounds: &Bounds3f,
         all_prim_bounds: &[Bounds3f],
-        prim_nums: &mut [usize],
+        prim_nums: &[usize],
         bad_refines: u32,
-    ) -> Option<(usize, usize, Float, u32)> {
+    ) -> Option<(usize, Float, Vec<usize>, Vec<usize>, u32)> {
         let n_primitives = prim_nums.len();
 
         // Choose split axis position for interior node
@@ -136,6 +137,7 @@ impl KDTreeBuilder {
         let inv_total_sa = 1.0 / total_sa;
         let traversal_cost = self.traversal_cost as Float;
         let isect_cost = self.isect_cost as Float;
+        let empty_bonus = self.empty_bonus;
         let d = node_bounds.max - node_bounds.min;
 
         // Initialize interior node and continue recursion
@@ -151,12 +153,12 @@ impl KDTreeBuilder {
                 let bounds = &all_prim_bounds[pn];
                 edges[axis][2 * i + 0] = BoundEdge {
                     t: bounds.min[axis],
-                    //prim_num: pn,
+                    prim_num: pn,
                     edge_type: EdgeType::Start,
                 };
                 edges[axis][2 * i + 1] = BoundEdge {
                     t: bounds.max[axis],
-                    //prim_num: pn,
+                    prim_num: pn,
                     edge_type: EdgeType::End,
                 };
             }
@@ -189,11 +191,11 @@ impl KDTreeBuilder {
                             + (edge_t - node_bounds.min[axis]) * (d[other_axis0] + d[other_axis1]));
                     let above_sa = 2.0
                         * (d[other_axis0] * d[other_axis1]
-                            + (node_bounds.min[axis] - edge_t) * (d[other_axis0] + d[other_axis1]));
+                            + (node_bounds.max[axis] - edge_t) * (d[other_axis0] + d[other_axis1]));
                     let p_below = below_sa * inv_total_sa;
                     let p_above = above_sa * inv_total_sa;
                     let eb = if n_above == 0 || n_below == 0 {
-                        self.empty_bonus
+                        empty_bonus
                     } else {
                         0.0
                     };
@@ -216,27 +218,50 @@ impl KDTreeBuilder {
             if best_axis < 0 && retries < 2 {
                 retries += 1;
                 axis = (axis + 1) % 3;
-            } else {
-                break;
-            }
-            let mut bad_refines = bad_refines;
-            if best_cost > old_cost {
-                bad_refines += 1;
-            }
-            if (best_cost > 4.0 * old_cost && n_primitives < 16) || bad_refines == 3 {
-                return None;
-            }
+                continue;
+            } 
+            break;
+        }
+
+        let mut bad_refines = bad_refines;
+        if best_cost > old_cost {
+            bad_refines += 1;
+        }
+        if (best_cost > 4.0 * old_cost && n_primitives < 16) || bad_refines == 3 {
+            return None;
         }
 
         if best_axis >= 0 && best_offset >= 0 {
             let best_axis = best_axis as usize;
             let best_offset = best_offset as usize;
-            return Some((
-                best_axis,
-                best_offset,
-                edges[best_axis][best_offset].t,
-                bad_refines,
-            ));
+            let t_split = edges[best_axis][best_offset].t;
+
+            // Classify primitives with respect to split
+            let mut primes0 = Vec::new();
+            let mut primes1 = Vec::new();
+            for i in 0..best_offset {
+                if edges[best_axis][i].edge_type == EdgeType::Start {
+                    primes0.push(edges[best_axis][i].prim_num);
+                }
+            }
+            for i in (best_offset + 1)..(2 * n_primitives) {
+                if edges[best_axis][i].edge_type == EdgeType::End {
+                    primes1.push(edges[best_axis][i].prim_num);
+                }
+            }
+
+            let length0 = primes0.len();
+            let length1 = primes1.len();
+            if length0 == 0 || length0 == n_primitives || length1 == 0 || length1 == n_primitives {
+                println!("{}/{} -> {}/{}", primes0.len(), primes1.len(), best_offset, n_primitives);
+                return None;
+            }
+
+            assert!(primes0.len() >  0);
+            assert!(primes1.len() > 0);
+            println!("{}/{} -> {}", primes0.len(), primes1.len(), n_primitives);
+
+            return Some((best_axis, t_split, primes0, primes1, bad_refines));
         } else {
             return None;
         }
@@ -304,6 +329,7 @@ impl KDTreeAccel {
             0,
         );
 
+        println!("nodes: {}", nodes.len());
         return KDTreeAccel {
             primitives,
             primitive_indices,
@@ -314,6 +340,16 @@ impl KDTreeAccel {
 }
 
 type KDTodo = (usize, Float, Float);
+
+//pbrt-r3:
+#[inline]
+fn safe_recip(x: Float) -> Float {
+    if x != 0.0 {
+        return Float::recip(x);
+    } else {
+        return 0.0; //std::f32::INFINITY;
+    }
+}
 
 impl Primitive for KDTreeAccel {
     fn world_bound(&self) -> Bounds3f {
@@ -327,7 +363,7 @@ impl Primitive for KDTreeAccel {
 
         let mut isect_out = None;
         // Prepare to traverse kd-tree for ray
-        let inv_dir = Vector3f::new(1.0 / r.d.x, 1.0 / r.d.y, 1.0 / r.d.z); //todo: check if this is correct
+        let inv_dir = [safe_recip(r.d.x), safe_recip(r.d.y), safe_recip(r.d.z)];
         const MAX_TODO: usize = 64;
         let mut todo: [KDTodo; MAX_TODO] = [(0, 0.0, 0.0); MAX_TODO];
         let mut todo_pos: i32 = 0;
@@ -336,14 +372,20 @@ impl Primitive for KDTreeAccel {
             let (node_num, t_min, t_max) = todo[todo_pos as usize];
             todo_pos -= 1;
             let node = &self.nodes[node_num];
+            assert!(t_min <= t_max);
+            assert!(t_max >= 0.0);
+            assert!(t_min >= 0.0);
+
+            //println!("node_num: {}, t_min: {}, t_max: {}", node_num, t_min, t_max);
+
             // Bail out if we found a hit closer than the current node
             if r.t_max.get() < t_min {
                 break;
             }
             match node {
                 KDAccelNode::Interior {
-                    split,
                     axis,
+                    split,
                     above_child,
                 } => {
                     // Process kd-tree interior node
@@ -361,18 +403,18 @@ impl Primitive for KDTreeAccel {
                     };
 
                     // Advance to next child node, possibly enqueue other child
-                    if t_plane > t_max {
-                        //t_plane <= 0.0
+                    //if t_plane > t_max || t_plane <= 0.0{
+                    if t_max < t_plane {
                         todo_pos += 1;
                         todo[todo_pos as usize] = (first_index, t_min, t_max);
                     } else if t_plane < t_min && t_plane > 0.0 {
                         todo_pos += 1;
                         todo[todo_pos as usize] = (second_index, t_min, t_max);
                     } else {
-                        todo_pos += 1;
-                        todo[todo_pos as usize] = (second_index, t_plane, t_max);
-                        todo_pos += 1;
-                        todo[todo_pos as usize] = (first_index, t_min, t_plane);
+                        //todo_pos += 1;
+                        //todo[todo_pos as usize] = (second_index, t_plane, t_max);
+                        //todo_pos += 1;
+                        //todo[todo_pos as usize] = (first_index, t_min, t_plane);
                     }
                 }
                 KDAccelNode::Leaf {
@@ -381,6 +423,10 @@ impl Primitive for KDTreeAccel {
                 } => {
                     // Check for intersections inside leaf node
 
+                    //println!(
+                    //    "Leaf node: primitive_indices_offset: {}, n_primitives: {}",
+                    //    primitive_indices_offset, n_primitives
+                    //);
                     let primitive_indices_offset = *primitive_indices_offset;
                     let n_primitives = *n_primitives;
                     for i in 0..n_primitives {
@@ -394,9 +440,11 @@ impl Primitive for KDTreeAccel {
         }
         return isect_out;
     }
+
     fn intersect_p(&self, r: &Ray) -> bool {
         let _p = ProfilePhase::new(Prof::AccelIntersectP);
 
+        return false;
         // Compute initial parametric range of ray inside kd-tree extent
         let (t_min, t_max) = if let Some((t_min, t_max)) = self.bounds.intersect_p(r) {
             (t_min, t_max)
@@ -405,7 +453,7 @@ impl Primitive for KDTreeAccel {
         };
 
         // Prepare to traverse kd-tree for ray
-        let inv_dir = Vector3f::new(1.0 / r.d.x, 1.0 / r.d.y, 1.0 / r.d.z); //todo: check if this is correct
+        let inv_dir = [safe_recip(r.d.x), safe_recip(r.d.y), safe_recip(r.d.z)];
         const MAX_TODO: usize = 64;
         let mut todo: [KDTodo; MAX_TODO] = [(0, 0.0, 0.0); MAX_TODO];
         let mut todo_pos: i32 = 0;
@@ -439,8 +487,8 @@ impl Primitive for KDTreeAccel {
                     };
 
                     // Advance to next child node, possibly enqueue other child
-                    if t_plane > t_max {
-                        //t_plane <= 0.0
+                    //if t_plane > t_max || t_plane <= 0.0{
+                    if t_max < t_plane {
                         todo_pos += 1;
                         todo[todo_pos as usize] = (first_index, t_min, t_max);
                     } else if t_plane < t_min && t_plane > 0.0 {

@@ -137,9 +137,9 @@ impl Triangle {
     ) -> Option<([Vector2f; 3], Vector3f, Vector3f)> {
         // Handle the case where there are no UVs
         // pbrt-r3
-        //if self.mesh.uv.is_empty() {
-        //    return None;
-        //}
+        if self.mesh.uv.is_empty() {
+            return None;
+        }
         // pbrt-r3
         let uv = self.get_uvs();
         // Compute deltas for triangle partial derivatives
@@ -726,6 +726,27 @@ pub fn create_triangle_mesh(
     return tris;
 }
 
+fn is_fillable_uv(vertex_indices: &[u32], vertices_length: usize) -> bool {
+    let mut index_check = vec![0; vertices_length];
+    let fsz = vertex_indices.len() / 3;
+    for i in 0..fsz {
+        let f = 3 * i;
+        let vi = [
+            vertex_indices[f + 0] as usize,
+            vertex_indices[f + 1] as usize,
+            vertex_indices[f + 2] as usize,
+        ];
+        for j in 0..3 {
+            if index_check[vi[j]] == 0 || index_check[vi[j]] == j {
+                index_check[vi[j]] = j;
+            } else {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 type FloatTextureMap = HashMap<String, Arc<dyn Texture<Float>>>;
 
 pub fn create_triangle_mesh_shape(
@@ -768,6 +789,31 @@ pub fn create_triangle_mesh_shape(
         for i in 0..sz {
             uv[i] = Vector2::new(ps[2 * i + 0], ps[2 * i + 1]);
         }
+    } else if !vertex_indices.is_empty() {
+        // pbrt-r3:
+        if is_fillable_uv(&vertex_indices, p.len()) {
+            let tri_uv = [
+                Point2f::new(0.0, 0.0),
+                Point2f::new(1.0, 0.0),
+                Point2f::new(1.0, 1.0),
+            ];
+            uv.resize(p.len(), Vector2::zero());
+            let fsz = vertex_indices.len() / 3;
+            for i in 0..fsz {
+                let f = 3 * i;
+                let vi = [
+                    vertex_indices[f + 0] as usize,
+                    vertex_indices[f + 1] as usize,
+                    vertex_indices[f + 2] as usize,
+                ];
+                for j in 0..3 {
+                    if uv[vi[j]].x == 0.0 && uv[vi[j]].y == 0.0 {
+                        uv[vi[j]] = tri_uv[j];
+                    }
+                }
+            }
+        }
+        // pbrt-r3:
     }
 
     if let Some(ps) = params.get_points_ref("S") {

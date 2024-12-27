@@ -33,8 +33,8 @@ enum EProfileCategory {
     PhaseFuncSampling,
     AccelIntersect,
     AccelIntersectP,
-    GeometricPrimitiveIntersect,    //pbrt-r3
-    GeometricPrimitiveIntersectP,   //pbrt-r3
+    GeometricPrimitiveIntersect,  //pbrt-r3
+    GeometricPrimitiveIntersectP, //pbrt-r3
     LightSample,
     LightPdf,
     MediumSample,
@@ -93,8 +93,10 @@ impl ProfileCategory {
     pub const PhaseFuncSampling: Self = Self(EProfileCategory::PhaseFuncSampling as u32);
     pub const AccelIntersect: Self = Self(EProfileCategory::AccelIntersect as u32);
     pub const AccelIntersectP: Self = Self(EProfileCategory::AccelIntersectP as u32);
-    pub const GeometricPrimitiveIntersect: Self = Self(EProfileCategory::GeometricPrimitiveIntersect as u32); //pbrt-r3
-    pub const GeometricPrimitiveIntersectP: Self = Self(EProfileCategory::GeometricPrimitiveIntersectP as u32); //pbrt-r3
+    pub const GeometricPrimitiveIntersect: Self =
+        Self(EProfileCategory::GeometricPrimitiveIntersect as u32); //pbrt-r3
+    pub const GeometricPrimitiveIntersectP: Self =
+        Self(EProfileCategory::GeometricPrimitiveIntersectP as u32); //pbrt-r3
     pub const LightSample: Self = Self(EProfileCategory::LightSample as u32);
     pub const LightPdf: Self = Self(EProfileCategory::LightPdf as u32);
     pub const MediumSample: Self = Self(EProfileCategory::MediumSample as u32);

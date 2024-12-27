@@ -1,7 +1,8 @@
-use crate::core::pbrt::*;
+use crate::core::{pbrt::*, spectrum::constants::RGBREFL2SPECT_YELLOW};
 use std::sync::Arc;
 
 // KDTreeAccel Local Declarations
+#[derive(Clone, Copy, Debug)]
 enum KDAccelNode {
     Leaf {
         primitive_indices_offset: usize,
@@ -35,7 +36,7 @@ impl KDAccelNode {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 enum EdgeType {
     Start,
     End,
@@ -47,7 +48,7 @@ impl Default for EdgeType {
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 struct BoundEdge {
     t: Float,
     prim_num: usize,
@@ -219,7 +220,7 @@ impl KDTreeBuilder {
                 retries += 1;
                 axis = (axis + 1) % 3;
                 continue;
-            } 
+            }
             break;
         }
 
@@ -252,14 +253,9 @@ impl KDTreeBuilder {
 
             let length0 = primes0.len();
             let length1 = primes1.len();
-            if length0 == 0 || length0 == n_primitives || length1 == 0 || length1 == n_primitives {
-                println!("{}/{} -> {}/{}", primes0.len(), primes1.len(), best_offset, n_primitives);
+            if length0 == 0 || length1 == 0 {
                 return None;
             }
-
-            assert!(primes0.len() >  0);
-            assert!(primes1.len() > 0);
-            println!("{}/{} -> {}", primes0.len(), primes1.len(), n_primitives);
 
             return Some((best_axis, t_split, primes0, primes1, bad_refines));
         } else {
@@ -319,7 +315,7 @@ impl KDTreeAccel {
         };
         let mut nodes = Vec::new();
         let mut primitive_indices = Vec::new();
-        let _ = builder.build_tree(
+        let root_index = builder.build_tree(
             &bounds,
             &prim_bounds,
             &mut prim_nums,
@@ -328,8 +324,7 @@ impl KDTreeAccel {
             max_depth,
             0,
         );
-
-        println!("nodes: {}", nodes.len());
+        assert!(root_index == 0);
         return KDTreeAccel {
             primitives,
             primitive_indices,
@@ -361,7 +356,7 @@ impl Primitive for KDTreeAccel {
         // Compute initial parametric range of ray inside kd-tree extent
         let (t_min, t_max) = self.bounds.intersect_p(r)?;
 
-        let mut isect_out = None;
+        let mut isect = None;
         // Prepare to traverse kd-tree for ray
         let inv_dir = [safe_recip(r.d.x), safe_recip(r.d.y), safe_recip(r.d.z)];
         const MAX_TODO: usize = 64;
@@ -372,12 +367,6 @@ impl Primitive for KDTreeAccel {
             let (node_num, t_min, t_max) = todo[todo_pos as usize];
             todo_pos -= 1;
             let node = &self.nodes[node_num];
-            assert!(t_min <= t_max);
-            assert!(t_max >= 0.0);
-            assert!(t_min >= 0.0);
-
-            //println!("node_num: {}, t_min: {}, t_max: {}", node_num, t_min, t_max);
-
             // Bail out if we found a hit closer than the current node
             if r.t_max.get() < t_min {
                 break;
@@ -403,18 +392,17 @@ impl Primitive for KDTreeAccel {
                     };
 
                     // Advance to next child node, possibly enqueue other child
-                    //if t_plane > t_max || t_plane <= 0.0{
-                    if t_max < t_plane {
+                    if t_plane > t_max || t_plane < 0.0 {
                         todo_pos += 1;
                         todo[todo_pos as usize] = (first_index, t_min, t_max);
-                    } else if t_plane < t_min && t_plane > 0.0 {
+                    } else if t_plane < t_min {
                         todo_pos += 1;
                         todo[todo_pos as usize] = (second_index, t_min, t_max);
                     } else {
-                        //todo_pos += 1;
-                        //todo[todo_pos as usize] = (second_index, t_plane, t_max);
-                        //todo_pos += 1;
-                        //todo[todo_pos as usize] = (first_index, t_min, t_plane);
+                        todo_pos += 1;
+                        todo[todo_pos as usize] = (second_index, t_plane, t_max);
+                        todo_pos += 1;
+                        todo[todo_pos as usize] = (first_index, t_min, t_plane);
                     }
                 }
                 KDAccelNode::Leaf {
@@ -422,29 +410,27 @@ impl Primitive for KDTreeAccel {
                     n_primitives,
                 } => {
                     // Check for intersections inside leaf node
-
-                    //println!(
-                    //    "Leaf node: primitive_indices_offset: {}, n_primitives: {}",
-                    //    primitive_indices_offset, n_primitives
-                    //);
                     let primitive_indices_offset = *primitive_indices_offset;
                     let n_primitives = *n_primitives;
                     for i in 0..n_primitives {
                         let index = self.primitive_indices[primitive_indices_offset + i];
-                        if let Some(isect) = self.primitives[index].intersect(r) {
-                            isect_out = Some(isect);
+                        let prim = &self.primitives[index];
+                        if let Some(mut isect_n) = prim.intersect(r) {
+                            if prim.is_geometric() {
+                                isect_n.primitive = Some(Arc::downgrade(prim));
+                            }
+                            isect = Some(isect_n);
                         }
                     }
                 }
             }
         }
-        return isect_out;
+        return isect;
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
         let _p = ProfilePhase::new(Prof::AccelIntersectP);
 
-        return false;
         // Compute initial parametric range of ray inside kd-tree extent
         let (t_min, t_max) = if let Some((t_min, t_max)) = self.bounds.intersect_p(r) {
             (t_min, t_max)
@@ -487,11 +473,10 @@ impl Primitive for KDTreeAccel {
                     };
 
                     // Advance to next child node, possibly enqueue other child
-                    //if t_plane > t_max || t_plane <= 0.0{
-                    if t_max < t_plane {
+                    if t_plane > t_max || t_plane < 0.0 {
                         todo_pos += 1;
                         todo[todo_pos as usize] = (first_index, t_min, t_max);
-                    } else if t_plane < t_min && t_plane > 0.0 {
+                    } else if t_plane < t_min {
                         todo_pos += 1;
                         todo[todo_pos as usize] = (second_index, t_min, t_max);
                     } else {

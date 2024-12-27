@@ -55,7 +55,8 @@ pub struct RenderOptions {
 
 impl RenderOptions {
     pub fn new() -> Self {
-        let accelerator_name = std::env::var("PBRT_ACCELERATOR").unwrap_or_else(|_| "bvh".to_string());
+        let accelerator_name =
+            std::env::var("PBRT_ACCELERATOR").unwrap_or_else(|_| "bvh".to_string());
         RenderOptions {
             transform_start_time: 0.0,
             transform_end_time: 1.0,

@@ -1,4 +1,4 @@
-use crate::core::{pbrt::*, spectrum::constants::RGBREFL2SPECT_YELLOW};
+use crate::core::pbrt::*;
 use std::sync::Arc;
 
 // KDTreeAccel Local Declarations

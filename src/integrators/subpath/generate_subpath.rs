@@ -130,10 +130,7 @@ fn random_walk(
                     assert!(pdf_rev >= 0.0);
                     if (t & BSDF_SPECULAR) != 0 {
                         let vertex = vertex.as_ref().read().unwrap();
-                        {
-                            let mut delta = vertex.delta.write().unwrap();
-                            *delta = true;
-                        }
+                        vertex.delta.set(true);// = true;
                         pdf_rev = 0.0;
                         pdf_fwd = 0.0;
                     }
@@ -154,10 +151,7 @@ fn random_walk(
             let vertex = vertex.read().unwrap();
             let pdf_rev = vertex.convert_density(pdf_rev, &prev);
             assert!(pdf_rev >= 0.0);
-            {
-                let mut prev_pdf_rev = prev.pdf_rev.write().unwrap();
-                *prev_pdf_rev = pdf_rev;
-            }
+            prev.pdf_rev.set(pdf_rev);
         }
     }
     //println!("breaked!");

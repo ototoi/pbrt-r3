@@ -1,5 +1,4 @@
 use super::subpath::*;
-use super::vertex::*;
 use crate::core::pbrt::*;
 use crate::filters::create_box_filter;
 use log::*;

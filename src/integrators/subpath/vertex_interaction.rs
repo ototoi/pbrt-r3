@@ -155,6 +155,12 @@ pub enum VertexInteraction {
     Surface(SurfaceInteraction),
 }
 
+impl Default for VertexInteraction {
+    fn default() -> Self {
+        return Self::EndPoint(EndpointInteraction::default());
+    }
+}
+
 impl VertexInteraction {
     pub fn from_camera_ray(camera: &Arc<dyn Camera>, ray: &Ray) -> Self {
         return Self::EndPoint(EndpointInteraction::from_camera_ray(camera, ray));

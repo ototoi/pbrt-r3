@@ -92,6 +92,18 @@ pub struct Vertex {
     pub pdf_rev: VertexValue<Float>,
 }
 
+impl Default for Vertex {
+    fn default() -> Self {
+        Vertex {
+            beta: VertexValue::new(Spectrum::default()),
+            interaction: VertexValue::new(VertexInteraction::default()),
+            delta: VertexValue::new(false),
+            pdf_fwd: VertexValue::new(0.0),
+            pdf_rev: VertexValue::new(0.0),
+        }
+    }
+}
+
 impl Vertex {
     pub fn new(beta: Spectrum, interaction: VertexInteraction, delta: bool, pdf_fwd: Float, pdf_rev: Float) -> Self {
         Vertex {
@@ -101,6 +113,16 @@ impl Vertex {
             pdf_fwd: VertexValue::new(pdf_fwd),
             pdf_rev: VertexValue::new(pdf_rev),
         }
+    }
+
+    pub fn as_tuple(&self) -> (Arc<RwLock<Spectrum>>, Arc<RwLock<VertexInteraction>>, Arc<RwLock<bool>>, Arc<RwLock<Float>>, Arc<RwLock<Float>>) {
+        return (
+            self.beta.value.clone(),
+            self.interaction.value.clone(),
+            self.delta.value.clone(),
+            self.pdf_fwd.value.clone(),
+            self.pdf_rev.value.clone(),
+        );
     }
 
     pub fn get_type(&self) -> VertexType {

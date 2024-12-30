@@ -341,14 +341,14 @@ pub fn create_ply_mesh(
             );
             //let mesh =
             //    create_bound_mesh(o2w, w2o, reverse_orientation, vertex_indices, p, s, n, uv);
-            let alpha_mask = get_alpha_texture(params, float_textures);
-            let shadow_alpha_mask = get_shadow_alpha_texture(params, float_textures);
-            if alpha_mask.is_some() || shadow_alpha_mask.is_some() {
+            let alpha_mask_info = get_alpha_texture(params, float_textures);
+            let shadow_alpha_mask_info = get_shadow_alpha_texture(params, float_textures);
+            if alpha_mask_info.is_some() || shadow_alpha_mask_info.is_some() {
                 for i in 0..mesh.len() {
                     mesh[i] = Arc::new(AlphaMaskShape::new(
                         &mesh[i],
-                        &alpha_mask,
-                        &shadow_alpha_mask,
+                        &alpha_mask_info,
+                        &shadow_alpha_mask_info,
                     ));
                 }
             }

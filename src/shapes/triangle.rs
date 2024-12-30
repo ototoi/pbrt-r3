@@ -1,4 +1,4 @@
-use super::alphamask::AlphaMaskShape;
+use super::alphamask::*;
 use crate::core::pbrt::*;
 
 use std::collections::HashMap;
@@ -654,17 +654,17 @@ impl Shape for Triangle {
 pub fn get_alpha_texture(
     params: &ParamSet,
     float_textures: &FloatTextureMap,
-) -> Option<Arc<dyn Texture<Float>>> {
+) -> Option<AlphaMaskInfo> {
     if let Some(textures) = params.get_textures_ref("alpha") {
         if textures.len() >= 1 {
             let alpha_tex_name = textures[0].clone();
             if let Some(tex) = float_textures.get(&alpha_tex_name) {
-                return Some(Arc::clone(tex));
+                return Some(AlphaMaskInfo::Texture { texture: Arc::clone(tex) });
             }
         }
     } else if let Some(alpha) = params.get_floats_ref("alpha") {
-        if alpha.len() > 0 && alpha[0] <= 0.0 {
-            return Some(Arc::new(ConstantTexture::new(&alpha[0])));
+        if alpha.len() > 0 {
+            return Some(AlphaMaskInfo::Value { value: alpha[0] });
         }
     }
     return None;
@@ -673,17 +673,17 @@ pub fn get_alpha_texture(
 pub fn get_shadow_alpha_texture(
     params: &ParamSet,
     float_textures: &FloatTextureMap,
-) -> Option<Arc<dyn Texture<Float>>> {
+) -> Option<AlphaMaskInfo> {
     if let Some(textures) = params.get_textures_ref("shadowalpha") {
         if textures.len() >= 1 {
             let alpha_tex_name = textures[0].clone();
             if let Some(tex) = float_textures.get(&alpha_tex_name) {
-                return Some(Arc::clone(tex));
+                return Some(AlphaMaskInfo::Texture { texture: Arc::clone(tex) });
             }
         }
     } else if let Some(alpha) = params.get_floats_ref("shadowalpha") {
-        if alpha.len() > 0 && alpha[0] <= 0.0 {
-            return Some(Arc::new(ConstantTexture::new(&alpha[0])));
+        if alpha.len() > 0 {
+            return Some(AlphaMaskInfo::Value { value: alpha[0] });
         }
     }
     return None;
@@ -845,14 +845,14 @@ pub fn create_triangle_mesh_shape(
             params,
         );
 
-        let alpha_mask = get_alpha_texture(params, float_textures);
-        let shadow_alpha_mask = get_shadow_alpha_texture(params, float_textures);
-        if alpha_mask.is_some() || shadow_alpha_mask.is_some() {
+        let alpha_mask_info = get_alpha_texture(params, float_textures);
+        let shadow_alpha_mask_info = get_shadow_alpha_texture(params, float_textures);
+        if alpha_mask_info.is_some() || shadow_alpha_mask_info.is_some() {
             for i in 0..mesh.len() {
                 mesh[i] = Arc::new(AlphaMaskShape::new(
                     &mesh[i],
-                    &alpha_mask,
-                    &shadow_alpha_mask,
+                    &alpha_mask_info,
+                    &shadow_alpha_mask_info,
                 ));
             }
         }

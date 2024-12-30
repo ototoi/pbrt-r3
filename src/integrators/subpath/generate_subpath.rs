@@ -10,6 +10,7 @@ use std::sync::RwLock;
 thread_local!(static PATHS: StatPercent = StatPercent::new("Integrator/Zero-radiance paths"));
 thread_local!(static PATH_LENGTH: StatIntDistribution = StatIntDistribution::new("Integrator/Path length"));
 
+// RandomWalk
 fn random_walk(
     scene: &Scene,
     ray: &RayDifferential,
@@ -17,13 +18,12 @@ fn random_walk(
     arena: &mut MemoryArena,
     beta: &Spectrum,
     pdf: Float,
+    max_depth: usize,
     mode: TransportMode,
-    start_index: usize,
-    path: &mut Vec<Option<Arc<RwLock<Vertex>>>>,
+    path: &mut Vec<Arc<RwLock<Vertex>>>,
 ) -> usize {
-    let max_depth = path.len();
     assert!(!path.is_empty());
-    let path_offset = start_index - 1;
+    let path_offset = path.len() - 1;
     let mut ray = ray.clone();
 
     let mut bounces: usize = 0;
@@ -51,19 +51,19 @@ fn random_walk(
         if beta.is_black() {
             break;
         }
-        let prv_index = path_offset + bounces;
-        let cur_index = prv_index + 1;
+        let prev_index = path_offset + bounces;
+        let curr_index = prev_index + 1;
         if mi.is_valid() {
             if let Some(phase) = mi.phase.as_ref() {
                 // Record medium interaction in _path_ and compute forward density
-                let prev = path[prv_index].as_ref().unwrap().clone();
+                let prev = path[prev_index].clone();
                 let prev = prev.read().unwrap();
                 let vertex = Arc::new(RwLock::new(Vertex::create_medium(
                     &mi, &beta, pdf_fwd, &prev,
                 )));
-                path[cur_index] = Some(vertex.clone());
+                path.push(vertex);
                 bounces += 1;
-                if cur_index + 1 >= max_depth {
+                if bounces + 1 >= max_depth {
                     break;
                 }
 
@@ -85,7 +85,7 @@ fn random_walk(
                     let vertex = Arc::new(RwLock::new(Vertex::create_light_from_endpoint(
                         &ei, &beta, pdf_fwd,
                     )));
-                    path[cur_index] = Some(vertex);
+                    path.push(vertex);
                     bounces += 1;
                 }
                 break;
@@ -103,14 +103,14 @@ fn random_walk(
             }
 
             // Initialize _vertex_ with surface intersection information
-            let prev = path[prv_index].as_ref().unwrap().clone();
+            let prev = path[prev_index].clone();
             let prev = prev.read().unwrap();
             let vertex = Arc::new(RwLock::new(Vertex::create_surface(
                 &isect, &beta, pdf_fwd, &prev,
             )));
-            path[cur_index] = Some(vertex.clone());
+            path.push(vertex.clone());
             bounces += 1;
-            if cur_index + 1 >= max_depth {
+            if bounces >= max_depth {
                 break;
             }
 
@@ -130,7 +130,7 @@ fn random_walk(
                     assert!(pdf_rev >= 0.0);
                     if (t & BSDF_SPECULAR) != 0 {
                         let vertex = vertex.as_ref().read().unwrap();
-                        vertex.delta.set(true); // = true;
+                        vertex.delta.set(true);
                         pdf_rev = 0.0;
                         pdf_fwd = 0.0;
                     }
@@ -145,8 +145,8 @@ fn random_walk(
 
         // Compute reverse area density at preceding vertex
         {
-            let prev = path[prv_index].as_ref().unwrap();
-            let vertex = path[cur_index].as_ref().unwrap();
+            let prev = path[prev_index].clone();
+            let vertex = path[curr_index].clone();
             let prev = prev.read().unwrap();
             let vertex = vertex.read().unwrap();
             let pdf_rev = vertex.convert_density(pdf_rev, &prev);
@@ -158,143 +158,7 @@ fn random_walk(
     return bounces;
 }
 
-// GenerateCameraSubpath
-fn generate_camera_subpath_core(
-    scene: &Scene,
-    sampler: &mut dyn Sampler,
-    arena: &mut MemoryArena,
-    max_depth: usize,
-    camera: &Arc<dyn Camera>,
-    p_film: &Point2f,
-) -> Vec<Option<Arc<RwLock<Vertex>>>> {
-    assert!(max_depth > 0);
-    let mut path = vec![None; max_depth];
-    // Sample initial ray for camera subpath
-    let camera_sample = CameraSample {
-        p_film: *p_film,
-        time: sampler.get_1d(),
-        p_lens: sampler.get_2d(),
-    };
-    if let Some((beta, mut ray)) = camera.generate_ray_differential(&camera_sample) {
-        let beta = Spectrum::from(beta);
-        ray.scale_differentials(1.0 / Float::sqrt(sampler.get_samples_per_pixel() as Float));
-        let pdf_dir = if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray.ray) {
-            pdf_dir
-        } else {
-            0.0
-        };
-        let new_vertex = Arc::new(RwLock::new(Vertex::create_camera_from_ray(
-            &camera, &ray.ray, &beta,
-        )));
-        path[0] = Some(new_vertex);
-        if max_depth > 1 {
-            random_walk(
-                scene,
-                &ray,
-                sampler,
-                arena,
-                &beta,
-                pdf_dir,
-                TransportMode::Radiance,
-                1,
-                &mut path,
-            );
-        }
-    }
-    return path;
-}
-
 // GenerateLightSubpath
-fn generate_light_subpath_core(
-    scene: &Scene,
-    sampler: &mut dyn Sampler,
-    arena: &mut MemoryArena,
-    max_depth: usize,
-    time: Float,
-    light_distr: &Distribution1D,
-    light_to_index: &LightIndexMap,
-) -> Vec<Option<Arc<RwLock<Vertex>>>> {
-    assert!(max_depth > 0);
-    let mut path = vec![None; max_depth];
-    let (light_num, light_pdf, _remapped) = light_distr.sample_discrete(sampler.get_1d());
-    assert!(light_num < scene.lights.len());
-    assert!(light_pdf > 0.0);
-    let light = scene.lights[light_num].clone();
-
-    if let Some((le, ray, n_light, pdf_pos, pdf_dir)) =
-        light.sample_le(&sampler.get_2d(), &sampler.get_2d(), time)
-    {
-        if pdf_pos <= 0.0 || pdf_dir <= 0.0 || le.is_black() {
-            return path;
-        }
-
-        let vertex = Arc::new(RwLock::new(Vertex::create_light_from_ray(
-            &light,
-            &ray,
-            &n_light,
-            &le,
-            pdf_pos * light_pdf,
-        )));
-        path[0] = Some(vertex.clone());
-        if max_depth == 1 {
-            return path;
-        }
-
-        let beta = le * n_light.abs_dot(&ray.d) * (1.0 / (light_pdf * pdf_pos * pdf_dir));
-
-        let ray = RayDifferential::from(&ray);
-        let n_vertices = random_walk(
-            scene,
-            &ray,
-            sampler,
-            arena,
-            &beta,
-            pdf_dir,
-            TransportMode::Importance,
-            1,
-            &mut path,
-        );
-
-        let vertex = vertex.read().unwrap();
-        if vertex.is_infinite_light() {
-            // Set spatial density of _path[1]_ for infinite area light
-            if n_vertices > 0 {
-                let next = path[1].as_ref().unwrap();
-                let next = next.read().unwrap();
-                let mut pdf_fwd = pdf_pos;
-                if next.is_on_surface() {
-                    pdf_fwd *= Vector3f::abs_dot(&ray.ray.d, &next.get_ng());
-                }
-                next.pdf_fwd.set(pdf_fwd);
-            }
-            // Set spatial density of _path[0]_ for infinite area light
-            {
-                let pdf_fwd =
-                    infinite_light_density(scene, light_distr, light_to_index, &ray.ray.d);
-                vertex.pdf_fwd.set(pdf_fwd);
-            }
-        }
-    }
-
-    return path;
-}
-
-// PealSubpath
-fn peal_subpath(
-    opath: &mut Vec<Arc<RwLock<Vertex>>>,
-    ipath: &Vec<Option<Arc<RwLock<Vertex>>>>,
-) -> usize {
-    let mut actual_length = 0;
-    for i in 0..ipath.len() {
-        if let Some(vertex) = ipath[i].as_ref() {
-            opath.push(vertex.clone());
-            actual_length += 1;
-        } else {
-            break;
-        }
-    }
-    return actual_length;
-}
 
 pub fn generate_camera_subpath(
     scene: &Scene,
@@ -305,11 +169,43 @@ pub fn generate_camera_subpath(
     p_film: &Point2f,
     path: &mut Vec<Arc<RwLock<Vertex>>>,
 ) -> usize {
+    let _p = ProfilePhase::new(Prof::BDPTGenerateSubpath);
+
     if max_depth == 0 {
         return 0;
     }
-    let ipath = generate_camera_subpath_core(scene, sampler, arena, max_depth, camera, p_film);
-    return peal_subpath(path, &ipath);
+
+    // Sample initial ray for camera subpath
+    let camera_sample = CameraSample {
+        p_film: *p_film,
+        time: sampler.get_1d(),
+        p_lens: sampler.get_2d(),
+    };
+
+    if let Some((beta, mut ray)) = camera.generate_ray_differential(&camera_sample) {
+        let beta = Spectrum::from(beta);
+        ray.scale_differentials(1.0 / Float::sqrt(sampler.get_samples_per_pixel() as Float));
+        if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray.ray) {
+            let new_vertex = Arc::new(RwLock::new(Vertex::create_camera_from_ray(
+                &camera, &ray.ray, &beta,
+            )));
+            path.push(new_vertex);
+            if max_depth > 1 {
+                return random_walk(
+                    scene,
+                    &ray,
+                    sampler,
+                    arena,
+                    &beta,
+                    pdf_dir,
+                    max_depth - 1,
+                    TransportMode::Radiance,
+                    path,
+                ) + 1;
+            }
+        }
+    }
+    return 0;
 }
 
 pub fn generate_light_subpath(
@@ -322,19 +218,69 @@ pub fn generate_light_subpath(
     light_to_index: &LightIndexMap,
     path: &mut Vec<Arc<RwLock<Vertex>>>,
 ) -> usize {
+    let _p = ProfilePhase::new(Prof::BDPTGenerateSubpath);
+
     if max_depth == 0 {
         return 0;
     }
-    let ipath = generate_light_subpath_core(
-        scene,
-        sampler,
-        arena,
-        max_depth,
-        time,
-        light_distr,
-        light_to_index,
-    );
-    return peal_subpath(path, &ipath);
+
+    let (light_num, light_pdf, _remapped) = light_distr.sample_discrete(sampler.get_1d());
+    let light = scene.lights[light_num].clone();
+    if let Some((le, ray, n_light, pdf_pos, pdf_dir)) =
+        light.sample_le(&sampler.get_2d(), &sampler.get_2d(), time)
+    {
+        if pdf_pos <= 0.0 || pdf_dir <= 0.0 || le.is_black() {
+            return 0;
+        }
+
+        // Generate first vertex on light subpath and start random walk
+        let vertex = Arc::new(RwLock::new(Vertex::create_light_from_ray(
+            &light,
+            &ray,
+            &n_light,
+            &le,
+            pdf_pos * light_pdf,
+        )));
+        path.push(vertex.clone());
+        if max_depth == 1 {
+            return 1;
+        }
+
+        let beta = le * n_light.abs_dot(&ray.d) * (1.0 / (light_pdf * pdf_pos * pdf_dir));
+        let ray = RayDifferential::from(&ray);
+        assert!(max_depth > 1);
+        let n_vertices = random_walk(
+            scene,
+            &ray,
+            sampler,
+            arena,
+            &beta,
+            pdf_dir,
+            max_depth - 1,
+            TransportMode::Importance,
+            path,
+        );
+
+        // Correct subpath sampling densities for infinite area lights
+        let vertex = vertex.read().unwrap();
+        if vertex.is_infinite_light() {
+            // Set spatial density of _path[1]_ for infinite area light
+            if n_vertices > 0 {
+                let next = path[1].clone();
+                let next = next.read().unwrap();
+                let mut pdf_fwd = pdf_pos;
+                if next.is_on_surface() {
+                    pdf_fwd *= Vector3f::abs_dot(&ray.ray.d, &next.get_ng());
+                }
+                next.pdf_fwd.set(pdf_fwd);
+            }
+            // Set spatial density of _path[0]_ for infinite area light
+            let pdf_fwd = infinite_light_density(scene, light_distr, light_to_index, &ray.ray.d);
+            vertex.pdf_fwd.set(pdf_fwd);
+        }
+        return n_vertices + 1;
+    }
+    return 0;
 }
 
 #[inline]
@@ -357,17 +303,6 @@ fn g(scene: &Scene, sampler: &mut dyn Sampler, v0: &Vertex, v1: &Vertex) -> Spec
     let vis = VisibilityTester::from((v0.get_interaction(), v1.get_interaction()));
     return g * vis.tr(scene, sampler);
 }
-
-/*
-#[inline]
-fn cushion_pdf(pdf: Float) -> Float {
-    if !pdf.is_finite() {
-        return 1.0;
-    } else {
-        return Float::max(0.0, pdf);
-    }
-}
-*/
 
 fn mis_weight(
     scene: &Scene,
@@ -548,9 +483,6 @@ fn mis_weight(
             let pdf_delta = remap0(pdf_rev) / remap0(pdf_fwd);
             assert!(pdf_delta.is_finite());
             assert!(pdf_delta >= 0.0);
-            // pbrt-r3
-            // let pdf_delta = cushion_pdf(pdf_delta);
-            // pbrt-r3
             ri *= pdf_delta;
 
             let cur_delta = vert.delta.get();
@@ -690,14 +622,13 @@ pub fn connect_bdpt(
                     let ei = EndpointInteraction::from_light_interaction(&light, &vis.p1);
                     let sampled_beta = light_weight * (1.0 / (pdf * light_pdf));
                     let sampled_v = Vertex::create_light_from_endpoint(&ei, &sampled_beta, 0.0);
-                    {
-                        let pdf_fwd =
-                            sampled_v.pdf_light_origin(scene, &pt, light_distr, light_to_index);
-                        assert!(pdf_fwd >= 0.0);
-                        sampled_v.pdf_fwd.set(pdf_fwd);
-                        let pt_beta = pt.beta.get();
-                        l = pt_beta * pt.f(&sampled_v, TransportMode::Radiance) * sampled_beta;
-                    }
+                    let pdf_fwd =
+                        sampled_v.pdf_light_origin(scene, &pt, light_distr, light_to_index);
+                    assert!(pdf_fwd >= 0.0);
+                    sampled_v.pdf_fwd.set(pdf_fwd);
+                    let pt_beta = pt.beta.get();
+                    l = pt_beta * pt.f(&sampled_v, TransportMode::Radiance) * sampled_beta;
+
                     if pt.is_on_surface() {
                         l *= Vector3f::abs_dot(&wi, &pt.get_ns());
                     }

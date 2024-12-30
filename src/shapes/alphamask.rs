@@ -2,17 +2,18 @@ use crate::core::pbrt::*;
 
 use std::sync::Arc;
 
-pub struct AlphaMaskInfo {
-    pub texture: Option<Arc<dyn Texture<Float>>>,
-    pub alpha: Float,
+#[derive(Clone)]
+pub enum AlphaMaskInfo {
+    Texture { texture: Arc<dyn Texture<Float>> },
+    Value { value: Float },
 }
 
 pub struct AlphaMaskShape {
     shape: Arc<dyn Shape>,
-    do_intersect: bool,
-    do_intersect_p: bool,
-    alpha_mask: Option<Arc<dyn Texture<Float>>>,
-    shadow_alpha_mask: Option<Arc<dyn Texture<Float>>>,
+    test_intersection: bool,
+    test_intersection_p: bool,
+    alpha_mask_texture: Option<Arc<dyn Texture<Float>>>,
+    shadow_alpha_mask_texture: Option<Arc<dyn Texture<Float>>>,
 }
 
 impl AlphaMaskShape {
@@ -21,31 +22,41 @@ impl AlphaMaskShape {
         alpha_mask_info: &Option<AlphaMaskInfo>,
         shadow_alpha_mask_info: &Option<AlphaMaskInfo>,
     ) -> Self {
-        let mut do_intersect = true;
-        let mut do_intersect_p = true;
+        let mut test_intersection = true;
+        let mut test_intersection_p = true;
         let mut alpha_mask_texture = None;
         let mut shadow_alpha_mask_texture = None;
         if let Some(info) = alpha_mask_info.as_ref() {
-            if let Some(tex) = info.texture.as_ref() {
-                alpha_mask_texture = Some(Arc::clone(tex));
-            } else if info.alpha <= 0.0 {
-                do_intersect = false;
-                do_intersect_p = false;
+            match info {
+                AlphaMaskInfo::Texture { texture } => {
+                    alpha_mask_texture = Some(Arc::clone(texture));
+                }
+                AlphaMaskInfo::Value { value: alpha } => {
+                    if *alpha <= 0.0 {
+                        test_intersection = false;
+                        test_intersection_p = false;
+                    }
+                }
             }
         }
         if let Some(info) = shadow_alpha_mask_info.as_ref() {
-            if let Some(tex) = info.texture.as_ref() {
-                shadow_alpha_mask_texture = Some(Arc::clone(tex));
-            } else if info.alpha <= 0.0 {
-                do_intersect_p = false;
+            match info {
+                AlphaMaskInfo::Texture { texture } => {
+                    shadow_alpha_mask_texture = Some(Arc::clone(texture));
+                }
+                AlphaMaskInfo::Value { value: alpha } => {
+                    if *alpha <= 0.0 {
+                        test_intersection_p = false;
+                    }
+                }
             }
         }
         AlphaMaskShape {
             shape: Arc::clone(shape),
-            do_intersect,
-            do_intersect_p,
-            alpha_mask: alpha_mask_texture,
-            shadow_alpha_mask: shadow_alpha_mask_texture,
+            test_intersection,
+            test_intersection_p,
+            alpha_mask_texture,
+            shadow_alpha_mask_texture,
         }
     }
 }
@@ -60,12 +71,12 @@ impl Shape for AlphaMaskShape {
         return shape.world_bound();
     }
     fn intersect(&self, r: &Ray) -> Option<(Float, SurfaceInteraction)> {
-        if self.do_intersect {
+        if self.test_intersection {
             let shape = self.shape.as_ref();
             let t_max = r.t_max.get();
             if let Some((t, si)) = shape.intersect(r) {
-                if let Some(alpha) = self.alpha_mask.as_ref() {
-                    let a = alpha.evaluate(&si);
+                if let Some(mask) = self.alpha_mask_texture.as_ref() {
+                    let a = mask.evaluate(&si);
                     if a <= 0.0 {
                         r.t_max.set(t_max);
                         return None;
@@ -78,18 +89,18 @@ impl Shape for AlphaMaskShape {
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
-        if self.do_intersect_p {
+        if self.test_intersection_p {
             let shape = self.shape.as_ref();
             let t_max = r.t_max.get();
             if let Some((_, si)) = shape.intersect(r) {
                 r.t_max.set(t_max);
-                if let Some(mask) = self.alpha_mask.as_ref() {
+                if let Some(mask) = self.alpha_mask_texture.as_ref() {
                     let a = mask.evaluate(&si);
                     if a <= 0.0 {
                         return false;
                     }
                 }
-                if let Some(mask) = self.shadow_alpha_mask.as_ref() {
+                if let Some(mask) = self.shadow_alpha_mask_texture.as_ref() {
                     let a = mask.evaluate(&si);
                     if a <= 0.0 {
                         return false;

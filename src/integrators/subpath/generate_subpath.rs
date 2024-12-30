@@ -302,6 +302,8 @@ pub fn generate_camera_subpath(
     p_film: &Point2f,
     path: &mut Vec<Arc<RwLock<Vertex>>>,
 ) -> usize {
+    let _p = ProfilePhase::new(Prof::BDPTGenerateSubpath);
+
     if max_depth == 0 {
         return 0;
     }
@@ -319,6 +321,8 @@ pub fn generate_light_subpath(
     light_to_index: &LightIndexMap,
     path: &mut Vec<Arc<RwLock<Vertex>>>,
 ) -> usize {
+    let _p = ProfilePhase::new(Prof::BDPTGenerateSubpath);
+
     if max_depth == 0 {
         return 0;
     }

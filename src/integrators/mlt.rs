@@ -1,8 +1,8 @@
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 
-use crate::core::pbrt::*;
 use super::subpath::*;
+use crate::core::pbrt::*;
 
 use std::sync::atomic::*;
 use std::sync::Arc;

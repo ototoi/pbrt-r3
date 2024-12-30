@@ -50,14 +50,12 @@ pub fn infinite_light_density(
         let light = light.as_ref();
         let light_ptr = light as *const dyn Light;
         let key = LightKeyType::from(light_ptr);
-        if let Some(index) = light_to_index.get(&key) {
-            let index = *index;
-            if index < light_distr.func.len() {
-                let pdf_i = light.pdf_li(&Interaction::default(), &-*w) * light_distr.func[index];
-                assert!(pdf_i >= 0.0);
-                pdf += pdf_i;
-            }
-        }
+        let index = light_to_index.get(&key).unwrap();
+        let index = *index;
+        assert!(index < light_distr.func.len());
+        let pdf_i = light.pdf_li(&Interaction::default(), &-*w) * light_distr.func[index];
+        assert!(pdf_i >= 0.0);
+        pdf += pdf_i;
     }
     return pdf / (light_distr.func_int * light_distr.count() as Float);
 }
@@ -105,7 +103,13 @@ impl Default for Vertex {
 }
 
 impl Vertex {
-    pub fn new(beta: Spectrum, interaction: VertexInteraction, delta: bool, pdf_fwd: Float, pdf_rev: Float) -> Self {
+    pub fn new(
+        beta: Spectrum,
+        interaction: VertexInteraction,
+        delta: bool,
+        pdf_fwd: Float,
+        pdf_rev: Float,
+    ) -> Self {
         Vertex {
             beta: VertexValue::new(beta),
             interaction: VertexValue::new(interaction),
@@ -115,7 +119,15 @@ impl Vertex {
         }
     }
 
-    pub fn as_tuple(&self) -> (Arc<RwLock<Spectrum>>, Arc<RwLock<VertexInteraction>>, Arc<RwLock<bool>>, Arc<RwLock<Float>>, Arc<RwLock<Float>>) {
+    pub fn as_tuple(
+        &self,
+    ) -> (
+        Arc<RwLock<Spectrum>>,
+        Arc<RwLock<VertexInteraction>>,
+        Arc<RwLock<bool>>,
+        Arc<RwLock<Float>>,
+        Arc<RwLock<Float>>,
+    ) {
         return (
             self.beta.value.clone(),
             self.interaction.value.clone(),
@@ -256,18 +268,29 @@ impl Vertex {
         } else {
             // Return solid angle density for non-infinite light sources
             // Get pointer _light_ to the light source at the vertex
-            if let Some(light) = self.get_light() {
-                let light = light.as_ref();
-                let light_ptr = light as *const dyn Light;
-                let key = LightKeyType::from(light_ptr);
-                if let Some(index) = light_to_index.get(&LightKeyType::from(key)) {
-                    let index = *index;
-                    let pdf_choice = light_distr.discrete_pdf(index);
-                    let ray = Ray::new(&self.get_p(), &w, Float::INFINITY, 0.0);
-                    if let Some((pdf_pos, _pdf_dir)) = light.pdf_le(&ray, &self.get_ng()) {
-                        return pdf_choice * pdf_pos;
-                    }
+            let t = self.get_type();
+            let light = if t == VertexType::Light {
+                self.get_light()
+            } else {
+                let interaction = self.interaction.value.read().unwrap();
+                let si = interaction.as_surface().unwrap();
+                if let Some(premitive) = si.primitive.as_ref() {
+                    let premitive = premitive.upgrade().unwrap();
+                    premitive.get_area_light()
+                } else {
+                    None
                 }
+            };
+            let light = light.unwrap();
+            let light = light.as_ref();
+            let light_ptr = light as *const dyn Light;
+            let key = LightKeyType::from(light_ptr);
+            let index = light_to_index.get(&LightKeyType::from(key)).unwrap();
+            let index = *index;
+            let pdf_choice = light_distr.discrete_pdf(index);
+            let ray = Ray::new(&self.get_p(), &w, Float::INFINITY, 0.0);
+            if let Some((pdf_pos, _pdf_dir)) = light.pdf_le(&ray, &self.get_ng()) {
+                return pdf_choice * pdf_pos;
             }
             return 0.0;
         }
@@ -411,7 +434,13 @@ impl Vertex {
     }
 
     pub fn create_camera_from_ray(camera: &Arc<dyn Camera>, ray: &Ray, beta: &Spectrum) -> Self {
-        let v = Vertex::new(beta.clone(), VertexInteraction::from_camera_ray(camera, ray), false, 0.0, 0.0);
+        let v = Vertex::new(
+            beta.clone(),
+            VertexInteraction::from_camera_ray(camera, ray),
+            false,
+            0.0,
+            0.0,
+        );
         assert!(v.get_type() == VertexType::Camera);
         return v;
     }
@@ -421,7 +450,13 @@ impl Vertex {
         it: &Interaction,
         beta: &Spectrum,
     ) -> Self {
-        let v = Vertex::new(beta.clone(), VertexInteraction::from_camera_interaction(camera, it), false, 0.0, 0.0);
+        let v = Vertex::new(
+            beta.clone(),
+            VertexInteraction::from_camera_interaction(camera, it),
+            false,
+            0.0,
+            0.0,
+        );
         assert!(v.get_type() == VertexType::Camera);
         return v;
     }
@@ -433,7 +468,13 @@ impl Vertex {
         le: &Spectrum,
         pdf: Float,
     ) -> Self {
-        let v = Vertex::new(le.clone(), VertexInteraction::from_light_ray(light, ray, n_light), false, pdf, 0.0);
+        let v = Vertex::new(
+            le.clone(),
+            VertexInteraction::from_light_ray(light, ray, n_light),
+            false,
+            pdf,
+            0.0,
+        );
         assert!(v.get_type() == VertexType::Light);
         return v;
     }
@@ -443,7 +484,13 @@ impl Vertex {
         beta: &Spectrum,
         pdf: Float,
     ) -> Self {
-        let v = Vertex::new(beta.clone(), VertexInteraction::EndPoint(ei.clone()), false, pdf, 0.0);
+        let v = Vertex::new(
+            beta.clone(),
+            VertexInteraction::EndPoint(ei.clone()),
+            false,
+            pdf,
+            0.0,
+        );
         assert!(v.get_type() == VertexType::Light);
         return v;
     }
@@ -454,7 +501,13 @@ impl Vertex {
         pdf: Float,
         prev: &Vertex,
     ) -> Self {
-        let v = Vertex::new(beta.clone(), VertexInteraction::Surface(si.clone()), false, 0.0, 0.0);
+        let v = Vertex::new(
+            beta.clone(),
+            VertexInteraction::Surface(si.clone()),
+            false,
+            0.0,
+            0.0,
+        );
         v.pdf_fwd.set(prev.convert_density(pdf, &v));
         assert!(v.get_type() == VertexType::Surface);
         return v;
@@ -466,7 +519,13 @@ impl Vertex {
         pdf: Float,
         prev: &Vertex,
     ) -> Self {
-        let v = Vertex::new(beta.clone(), VertexInteraction::Medium(mi.clone()), false, 0.0, 0.0);
+        let v = Vertex::new(
+            beta.clone(),
+            VertexInteraction::Medium(mi.clone()),
+            false,
+            0.0,
+            0.0,
+        );
         v.pdf_fwd.set(prev.convert_density(pdf, &v));
         assert!(v.get_type() == VertexType::Medium);
         return v;

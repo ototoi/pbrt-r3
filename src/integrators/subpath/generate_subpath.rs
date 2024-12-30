@@ -176,26 +176,29 @@ fn generate_camera_subpath_core(
         p_lens: sampler.get_2d(),
     };
     if let Some((beta, mut ray)) = camera.generate_ray_differential(&camera_sample) {
+        let beta = Spectrum::from(beta);
         ray.scale_differentials(1.0 / Float::sqrt(sampler.get_samples_per_pixel() as Float));
-        if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray.ray) {
-            let beta = Spectrum::from(beta);
-            let new_vertex = Arc::new(RwLock::new(Vertex::create_camera_from_ray(
-                &camera, &ray.ray, &beta,
-            )));
-            path[0] = Some(new_vertex);
-            if max_depth > 1 {
-                random_walk(
-                    scene,
-                    &ray,
-                    sampler,
-                    arena,
-                    &beta,
-                    pdf_dir,
-                    TransportMode::Radiance,
-                    1,
-                    &mut path,
-                );
-            }
+        let pdf_dir = if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray.ray) {
+            pdf_dir
+        } else {
+            0.0
+        };
+        let new_vertex = Arc::new(RwLock::new(Vertex::create_camera_from_ray(
+            &camera, &ray.ray, &beta,
+        )));
+        path[0] = Some(new_vertex);
+        if max_depth > 1 {
+            random_walk(
+                scene,
+                &ray,
+                sampler,
+                arena,
+                &beta,
+                pdf_dir,
+                TransportMode::Radiance,
+                1,
+                &mut path,
+            );
         }
     }
     return path;
@@ -413,7 +416,7 @@ fn mis_weight(
         let qs = qs.read().unwrap();
         let qs = qs.as_tuple();
         let sampled = sampled.read().unwrap();
-        let sampled = sampled.as_tuple(); //len() == 5
+        let sampled = sampled.as_tuple();
         let v0 = ScopedAssignment::new(&qs.0, &sampled.0.read().unwrap());
         let v1 = ScopedAssignment::new(&qs.1, &sampled.1.read().unwrap());
         let v2 = ScopedAssignment::new(&qs.2, &sampled.2.read().unwrap());
@@ -437,6 +440,7 @@ fn mis_weight(
         None
     };
 
+    // Mark connection vertices as non-degenerate
     let _a2 = if pt.is_some() {
         let pt = pt.as_ref().unwrap();
         let pt = pt.read().unwrap();
@@ -464,15 +468,13 @@ fn mis_weight(
             let pdf = qs.pdf(scene, &qs_minus, pt.deref());
             assert!(pdf >= 0.0);
             pdf
-        } else if t > 1 {
+        } else {
             assert!(pt_minus.is_some());
             let pt_minus = pt_minus.as_ref().unwrap();
             let pt_minus = pt_minus.read().unwrap();
             let pdf = pt.pdf_light_origin(scene, pt_minus.deref(), light_pdf, light_to_index);
             assert!(pdf >= 0.0);
             pdf
-        } else {
-            0.0
         };
         assert!(pdf >= 0.0);
         Some(ScopedAssignment::new(&pt.pdf_rev.value, &pdf))
@@ -620,6 +622,8 @@ pub fn connect_bdpt(
     sampler: &mut dyn Sampler,
     p_raster: &Point2f,
 ) -> Option<(Spectrum, Float, Point2f)> {
+    let _p = ProfilePhase::new(Prof::BDPTConnectSubpaths);
+
     let mut p_raster = *p_raster;
     // Ignore invalid connections related to infinite area lights
     if t > 1 && s != 0 {

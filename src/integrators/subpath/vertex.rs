@@ -232,7 +232,6 @@ impl Vertex {
             pdf = 1.0 / (PI * world_radius * world_radius);
         } else {
             if let Some(light) = self.get_light() {
-                let light = light.as_ref();
                 let ray = Ray::new(&self.get_p(), &w, Float::INFINITY, 0.0);
                 if let Some((_pdf_pos, pdf_dir)) = light.pdf_le(&ray, &self.get_ng()) {
                     assert!(pdf_dir >= 0.0);
@@ -268,29 +267,18 @@ impl Vertex {
         } else {
             // Return solid angle density for non-infinite light sources
             // Get pointer _light_ to the light source at the vertex
-            let t = self.get_type();
-            let light = if t == VertexType::Light {
-                self.get_light()
-            } else {
-                let interaction = self.interaction.value.read().unwrap();
-                let si = interaction.as_surface().unwrap();
-                if let Some(premitive) = si.primitive.as_ref() {
-                    let premitive = premitive.upgrade().unwrap();
-                    premitive.get_area_light()
-                } else {
-                    None
+            if let Some(light) = self.get_light() {
+                let light = light.as_ref();
+                let light_ptr = light as *const dyn Light;
+                let key = LightKeyType::from(light_ptr);
+                let index = light_to_index.get(&LightKeyType::from(key)).unwrap();
+                let index = *index;
+                assert!(index < light_distr.func.len());
+                let pdf_choice = light_distr.discrete_pdf(index);
+                let ray = Ray::new(&self.get_p(), &w, Float::INFINITY, 0.0);
+                if let Some((pdf_pos, _pdf_dir)) = light.pdf_le(&ray, &self.get_ng()) {
+                    return pdf_choice * pdf_pos;
                 }
-            };
-            let light = light.unwrap();
-            let light = light.as_ref();
-            let light_ptr = light as *const dyn Light;
-            let key = LightKeyType::from(light_ptr);
-            let index = light_to_index.get(&LightKeyType::from(key)).unwrap();
-            let index = *index;
-            let pdf_choice = light_distr.discrete_pdf(index);
-            let ray = Ray::new(&self.get_p(), &w, Float::INFINITY, 0.0);
-            if let Some((pdf_pos, _pdf_dir)) = light.pdf_le(&ray, &self.get_ng()) {
-                return pdf_choice * pdf_pos;
             }
             return 0.0;
         }

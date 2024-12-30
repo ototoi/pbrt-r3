@@ -136,7 +136,7 @@ impl EndpointInteraction {
 
 impl Default for EndpointInteraction {
     fn default() -> Self {
-        return Self::Light((Interaction::default(), None));
+        return Self::Camera((Interaction::default(), None));
     }
 }
 
@@ -153,6 +153,12 @@ pub enum VertexInteraction {
     EndPoint(EndpointInteraction),
     Medium(MediumInteraction),
     Surface(SurfaceInteraction),
+}
+
+impl Default for VertexInteraction {
+    fn default() -> Self {
+        return Self::EndPoint(EndpointInteraction::default());
+    }
 }
 
 impl VertexInteraction {
@@ -252,6 +258,13 @@ impl VertexInteraction {
     pub fn get_light(&self) -> Option<Arc<dyn Light>> {
         match self {
             Self::EndPoint(inter) => inter.get_light(),
+            Self::Surface(si) => {
+                if let Some(primitive) = &si.primitive {
+                    let primitive = primitive.upgrade().unwrap();
+                    return primitive.get_area_light();
+                }
+                return None;
+            }
             _ => None,
         }
     }

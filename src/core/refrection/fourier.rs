@@ -4,10 +4,8 @@ use crate::core::pbrt::*;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;
-use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::RwLock;
 
 const HEADER_EXP: [char; 8] = ['S', 'C', 'A', 'T', 'F', 'U', 'N', '\x01'];
 

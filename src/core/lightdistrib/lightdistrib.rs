@@ -1,6 +1,5 @@
 use crate::core::pbrt::*;
 use std::sync::Arc;
-use std::sync::RwLock;
 
 // LightDistribution defines a general interface for classes that provide
 // probability distributions for sampling light sources at a given point in

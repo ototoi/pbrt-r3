@@ -1,6 +1,5 @@
 use crate::core::pbrt::*;
 
-use log::*;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -94,10 +93,6 @@ impl Integrator for AOVIntegrator {
 }
 
 impl SamplerIntegrator for AOVIntegrator {
-    fn preprocess(&mut self, scene: &Scene, sampler: &mut dyn Sampler) {
-        //
-    }
-
     fn li(
         &self,
         r: &RayDifferential,

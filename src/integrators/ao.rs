@@ -46,10 +46,6 @@ impl Integrator for AOIntegrator {
 }
 
 impl SamplerIntegrator for AOIntegrator {
-    fn preprocess(&mut self, scene: &Scene, sampler: &mut dyn Sampler) {
-        //
-    }
-
     fn li(
         &self,
         r: &RayDifferential,

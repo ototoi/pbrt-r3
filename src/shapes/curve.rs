@@ -343,7 +343,7 @@ fn recursive_intersect(
             // Compute $\dpdu$ and $\dpdv$ for curve intersection
             let (_, dpdu) = eval_bezier(&common.cp_obj, u); //object space
 
-            let mut dpdv = Vector3f::zero();
+            let dpdv; // = Vector3f::zero();
             if t == CurveType::Ribbon {
                 dpdv = Vector3f::normalize(&Vector3f::cross(&n_hit, &dpdu)) * hit_width;
             } else {

@@ -1,6 +1,5 @@
 use crate::core::pbrt::*;
 use std::sync::Arc;
-use std::sync::RwLock;
 
 // Ported from integrator.cpp
 pub fn compute_light_power_distribution(scene: &Scene) -> Arc<Distribution1D> {

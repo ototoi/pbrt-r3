@@ -1,3 +1,5 @@
+pub mod sequential;
 pub mod tev;
 
-pub use tev::tev_display::*;
+pub use sequential::*;
+pub use tev::*;

@@ -5,6 +5,7 @@ use pbrt_r3::core::parser::*;
 use pbrt_r3::core::pbrt::*;
 use pbrt_r3::core::profile;
 use pbrt_r3::core::stats;
+use pbrt_r3::displays::SequentialDisplay;
 use pbrt_r3::displays::TevDisplay;
 use std::cell::RefCell;
 use std::env;
@@ -122,6 +123,10 @@ struct CommandOptions {
     /// No profile.
     #[arg(long = "no-profile", default_value = "false")]
     pub no_profile: bool,
+
+    /// Sequential display.
+    #[arg(short = 'k', long = "sequential-display", value_name = "dir")]
+    pub sequential_display: Option<PathBuf>,
 
     #[arg(value_name = "filename.pbrt")]
     pub pbrtfile: Option<Vec<PathBuf>>,
@@ -299,6 +304,17 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
                         warn!("{}", e);
                     }
                 }
+            }
+            if let Some(out_dir) = opts.sequential_display.as_ref() {
+                std::fs::create_dir_all(out_dir).unwrap();
+                let display: Arc<RwLock<dyn Display>> = Arc::new(RwLock::new(
+                    SequentialDisplay::new(out_dir.to_str().unwrap()),
+                ));
+                let integrator = integrator.as_ref().read().unwrap();
+                let camera = integrator.get_camera();
+                let film = camera.as_ref().get_film();
+                let mut f = film.as_ref().write().unwrap();
+                f.add_display(&display);
             }
 
             //if !opts.quiet && !opts.no_stats {

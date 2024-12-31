@@ -18,9 +18,9 @@ enum DisplayDirective {
 }
 
 pub struct IPCChannel {
-    num_failures: i32,
-    address: String,
-    port: String,
+    //_num_failures: i32,
+    //_address: String,
+    //_port: String,
     addr: SocketAddr,
     stream: Option<TcpStream>,
 }
@@ -38,9 +38,9 @@ impl IPCChannel {
                 match s {
                     Ok(stream) => {
                         let channel = IPCChannel {
-                            num_failures: 0,
-                            address,
-                            port,
+                            //_num_failures: 0,
+                            //address,
+                            //port,
                             addr,
                             stream: Some(stream),
                         };

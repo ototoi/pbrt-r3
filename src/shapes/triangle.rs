@@ -659,7 +659,9 @@ pub fn get_alpha_texture(
         if textures.len() >= 1 {
             let alpha_tex_name = textures[0].clone();
             if let Some(tex) = float_textures.get(&alpha_tex_name) {
-                return Some(AlphaMaskInfo::Texture { texture: Arc::clone(tex) });
+                return Some(AlphaMaskInfo::Texture {
+                    texture: Arc::clone(tex),
+                });
             }
         }
     } else if let Some(alpha) = params.get_floats_ref("alpha") {
@@ -678,7 +680,9 @@ pub fn get_shadow_alpha_texture(
         if textures.len() >= 1 {
             let alpha_tex_name = textures[0].clone();
             if let Some(tex) = float_textures.get(&alpha_tex_name) {
-                return Some(AlphaMaskInfo::Texture { texture: Arc::clone(tex) });
+                return Some(AlphaMaskInfo::Texture {
+                    texture: Arc::clone(tex),
+                });
             }
         }
     } else if let Some(alpha) = params.get_floats_ref("shadowalpha") {

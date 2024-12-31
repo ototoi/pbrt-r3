@@ -81,9 +81,8 @@ impl BaseRealisticCamera {
         // (e.g. 2 [mm] for `aperturediameter` with wide.22mm.dat),
         let mut found_ray: Option<Ray> = None;
         //const SCALE_FACTORS: [Float; 3] = [0.1, 0.01, 0.001];
-        let mut lu = 1.0;
         for scale in [0.1, 0.01, 0.001] {
-            lu = scale * bounds.max[0];
+            let lu = scale * bounds.max[0];
             let ro = Point3f::new(0.0, 0.0, self.lens_rear_z() - film_distance);
             let rd = Vector3f::new(lu, 0.0, film_distance);
             let r_camera = Ray::new(&ro, &rd, Float::INFINITY, 0.0);

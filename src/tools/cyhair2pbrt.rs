@@ -109,6 +109,34 @@ impl CyHair {
         let (input, default_color1) = le_f32(input)?;
         let (input, default_color2) = le_f32(input)?;
 
+        let has_segments = (flags & 1) != 0;
+        let has_points = (flags & 2) != 0;
+        let has_thickness = (flags & 4) != 0;
+        let has_transparency = (flags & 8) != 0;
+        let has_color = (flags & 16) != 0;
+
+        //eprintln!("magic = [{}, {}, {}, {}]", magic0, magic1, magic2, magic3);
+        eprintln!(
+            "magic = {}",
+            String::from_utf8_lossy(&[magic0, magic1, magic2, magic3])
+        );
+        eprintln!("flags = {}", flags);
+        eprintln!("  has_segments = {}", has_segments);
+        eprintln!("  has_points = {}", has_points);
+        eprintln!("  has_thickness = {}", has_thickness);
+        eprintln!("  has_transparency = {}", has_transparency);
+        eprintln!("  has_color = {}", has_color);
+        eprintln!("num_strands = {}", num_strands);
+        eprintln!("total_points = {}", total_points);
+
+        eprintln!("default_segments = {}", default_segments);
+        eprintln!("default_thickness = {}", default_thickness);
+        eprintln!("default_transparency = {}", default_transparency);
+        eprintln!(
+            "default_color = [{}, {}, {}]",
+            default_color0, default_color1, default_color2
+        );
+
         return Ok((
             input,
             CyHairHeader {
@@ -167,8 +195,9 @@ impl CyHair {
 
     fn parse_strands<'a>(input: &'a [u8], header: &'a CyHairHeader) -> IResult<&'a [u8], CyHair> {
         let flags = header.flags;
+        //println!("flags = {}", flags);
         let has_segments = (flags & 1) != 0;
-        //let has_points = (flags & 2) != 0;
+        let has_points = (flags & 2) != 0;
         let has_thickness = (flags & 4) != 0;
         let has_transparency = (flags & 8) != 0;
         let has_color = (flags & 16) != 0;
@@ -185,7 +214,7 @@ impl CyHair {
             segments = _segments;
         }
         let mut points = Vec::new();
-        {
+        if has_points {
             let (_input, _points) = nom::multi::count(le_f32, total_points * 3)(input)?;
             input = _input;
             points = _points;
@@ -460,6 +489,7 @@ fn write_pbrt(
             .as_bytes(),
         )?;
     }
+    writer.flush()?;
     return Ok(());
 }
 

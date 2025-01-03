@@ -1,6 +1,6 @@
 use clap::*;
 
-use core::num;
+use std::ops::{Add, Mul};
 use std::path::Path;
 use std::path::PathBuf;
 use std::process;
@@ -222,7 +222,121 @@ impl CyHair {
     }
 }
 
-fn to_cubic_bezier_curves(cyhair: &CyHair, max_strands: Option<usize>, user_thickness: Option<f32>) -> Result<(Vec<f32>, Vec<f32>), CyHairError> {
+//type Real3 = (f32, f32, f32);
+#[derive(Debug, Default, Copy, Clone, PartialEq)]
+struct Real3(pub (f32, f32, f32));
+impl From<(f32, f32, f32)> for Real3 {
+    fn from(t: (f32, f32, f32)) -> Self {
+        Real3(t)
+    }
+}
+
+impl Add for Real3 {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        Real3((
+            self.0 .0 + other.0 .0,
+            self.0 .1 + other.0 .1,
+            self.0 .2 + other.0 .2,
+        ))
+    }
+}
+
+impl Mul<Real3> for f32 {
+    type Output = Real3;
+    fn mul(self, other: Real3) -> Real3 {
+        Real3((self * other.0 .0, self * other.0 .1, self * other.0 .2))
+    }
+}
+
+impl Mul<f32> for Real3 {
+    type Output = Self;
+    fn mul(self, other: f32) -> Self {
+        Real3((self.0 .0 * other, self.0 .1 * other, self.0 .2 * other))
+    }
+}
+
+impl Mul<Real3> for Real3 {
+    type Output = Self;
+    fn mul(self, other: Real3) -> Self {
+        Real3((
+            self.0 .0 * other.0 .0,
+            self.0 .1 * other.0 .1,
+            self.0 .2 * other.0 .2,
+        ))
+    }
+}
+
+const TO_C2B: [[f32; 4]; 4] = [
+    [0.0, 6.0 / 6.0, 0.0, 0.0],
+    [-1.0 / 6.0, 6.0 / 6.0, 1.0 / 6.0, 0.0],
+    [0.0, 1.0 / 6.0, 6.0 / 6.0, -1.0 / 6.0],
+    [0.0, 0.0, 6.0 / 6.0, 0.0],
+];
+
+const TO_C2B0: [[f32; 4]; 4] = [
+    [0.0, 6.0 / 6.0, 0.0, 0.0],
+    [0.0, 3.0 / 6.0, 4.0 / 6.0, -1.0 / 6.0],
+    [0.0, 1.0 / 6.0, 6.0 / 6.0, -1.0 / 6.0],
+    [0.0, 0.0, 6.0 / 6.0, 0.0],
+];
+
+const TO_C2B1: [[f32; 4]; 4] = [
+    [0.0, 6.0 / 6.0, 0.0, 0.0],
+    [-1.0 / 6.0, 6.0 / 6.0, 1.0 / 6.0, 0.0],
+    [-1.0 / 6.0, 4.0 / 6.0, 3.0 / 6.0, 0.0],
+    [0.0, 0.0, 6.0 / 6.0, 0.0],
+];
+
+fn mul_matrix(mat: &[[f32; 4]; 4], pt: &[Real3; 4]) -> [Real3; 4] {
+    let mut out = [Real3::default(); 4];
+    for i in 0..4 {
+        out[i] = mat[i][0] * pt[0] + mat[i][1] * pt[1] + mat[i][2] * pt[2] + mat[i][3] * pt[3];
+    }
+    return out;
+}
+
+fn camull_rom_to_cubic_bezier(cps: &[Real3], seg_idx: usize) -> [Real3; 4] {
+    let cps_size = cps.len();
+    if cps_size == 2 {
+        let i0 = seg_idx;
+        let i1 = seg_idx + 1;
+        let p0 = cps[i0];
+        let p1 = cps[i0] * (2.0 / 3.0) + cps[i1] * (1.0 / 3.0);
+        let p2 = cps[i0] * (1.0 / 3.0) + cps[i1] * (2.0 / 3.0);
+        let p3 = cps[i1];
+        return [p0, p1, p2, p3];
+    } else {
+        if seg_idx == 0 {
+            let i0 = seg_idx;
+            let i1 = seg_idx + 1;
+            let i2 = seg_idx + 2;
+            let p = [Real3::default(), cps[i0], cps[i1], cps[i2]];
+            return mul_matrix(&TO_C2B0, &p);
+        } else if seg_idx == cps_size - 2 {
+            let i0 = seg_idx - 1;
+            let i1 = seg_idx;
+            let i2 = seg_idx + 1;
+            let p = [cps[i0], cps[i1], cps[i2], Real3::default()];
+            return mul_matrix(&TO_C2B1, &p);
+        } else {
+            let i0 = seg_idx - 1;
+            let i1 = seg_idx;
+            let i2 = seg_idx + 1;
+            let i3 = seg_idx + 2;
+            let p = [cps[i0], cps[i1], cps[i2], cps[i3]];
+            return mul_matrix(&TO_C2B, &p);
+        }
+    }
+}
+
+fn to_cubic_bezier_curves(
+    cyhair: &CyHair,
+    vertex_scale: Real3,
+    vertex_translate: Real3,
+    max_strands: Option<usize>,
+    user_thickness: Option<f32>,
+) -> Result<(Vec<f32>, Vec<f32>), CyHairError> {
     if cyhair.points.is_empty() || cyhair.strand_offsets.is_empty() {
         return Err(CyHairError::Message("No valid CyHair data.".to_string()));
     }
@@ -241,22 +355,45 @@ fn to_cubic_bezier_curves(cyhair: &CyHair, max_strands: Option<usize>, user_thic
             cyhair.segments[i] as usize
         };
 
-        let mut segment_points = Vec::new();
+        if num_segments < 2 {
+            continue;
+        }
+
+        let mut segment_points: Vec<Real3> = Vec::new();
         for k in 0..num_segments {
             // Zup -> Yup
-            let x = cyhair.points[3 * (cyhair.strand_offsets[i] + k) + 0];//0
-            let y = cyhair.points[3 * (cyhair.strand_offsets[i] + k) + 2];//1
-            let z = cyhair.points[3 * (cyhair.strand_offsets[i] + k) + 1];//
-            segment_points.push((x, y, z));
+            let x = cyhair.points[3 * (cyhair.strand_offsets[i] + k) + 0]; //0
+            let y = cyhair.points[3 * (cyhair.strand_offsets[i] + k) + 2]; //2
+            let z = cyhair.points[3 * (cyhair.strand_offsets[i] + k) + 1]; //1
+            let p = (x, y, z).into();
+            segment_points.push(p);
+        }
+
+        // Skip both endpoints
+        for s in 1..num_segments - 1 {
+            let seg_idx = s - 1;
+            let q = camull_rom_to_cubic_bezier(&segment_points, seg_idx);
+            for j in 0..4 {
+                let qq = q[j];
+                let qqt = qq * vertex_scale + vertex_translate;
+                let qqt: (f32, f32, f32) = qqt.0;
+                vertices.push(qqt.0);
+                vertices.push(qqt.1);
+                vertices.push(qqt.2);
+            }
+
+            if let Some(user_thickness) = user_thickness {
+                for _ in 0..4 {
+                    radiuss.push(user_thickness);
+                }
+            } else {
+                let thickness = cyhair.header.default_thickness; //todo
+                for _ in 0..4 {
+                    radiuss.push(thickness);
+                }
+            }
         }
     }
-
-    // Skip both endpoints
-    for s in 1..num_strands-1 {
-        
-    }
-
-
     return Ok((vertices, radiuss));
 }
 
@@ -264,16 +401,65 @@ fn write_pbrt(
     writer: &mut dyn std::io::Write,
     vertices: &Vec<f32>,
     radiuss: &Vec<f32>,
+    input_file: &str,
+    user_thickness: f32,
 ) -> Result<(), CyHairError> {
+    let mut bounds: [Real3; 2] = [
+        Real3::from((1e30, 1e30, 1e30)),
+        Real3::from((-1e30, -1e30, -1e30)),
+    ];
+    for i in 0..vertices.len() / 3 {
+        let thickness = radiuss[i];
+        let x = vertices[3 * i + 0];
+        let y = vertices[3 * i + 1];
+        let z = vertices[3 * i + 2];
+
+        bounds[0].0 .0 = f32::min(bounds[0].0 .0, x - thickness);
+        bounds[0].0 .1 = f32::min(bounds[0].0 .1, y - thickness);
+        bounds[0].0 .2 = f32::min(bounds[0].0 .2, z - thickness);
+        bounds[1].0 .0 = f32::max(bounds[1].0 .0, x + thickness);
+        bounds[1].0 .1 = f32::max(bounds[1].0 .1, y + thickness);
+        bounds[1].0 .2 = f32::max(bounds[1].0 .2, z + thickness);
+    }
+    let num_strands = radiuss.len() / 4;
+    writer.write_all(format!("# Converted from \"{}\" by cyhair2pbrt\n", input_file).as_bytes())?;
+    writer.write_all(
+        format!(
+            "# The number of strands = {}. user_thickness = {}\n",
+            num_strands, user_thickness
+        )
+        .as_bytes(),
+    )?;
+    let x0 = bounds[0].0 .0;
+    let y0 = bounds[0].0 .1;
+    let z0 = bounds[0].0 .2;
+    let x1 = bounds[1].0 .0;
+    let y1 = bounds[1].0 .1;
+    let z1 = bounds[1].0 .2;
+    writer.write_all(
+        format!(
+            "# Scene bounds: ({}, {}, {}) - ({}, {}, {})\n\n\n",
+            x0, y0, z0, x1, y1, z1
+        )
+        .as_bytes(),
+    )?;
+
     let num_curves = radiuss.len() / 4;
     for i in 0..num_curves {
-        writer.write_all(b"Shape \"curve\" \"string type\" \"cylinder\" \"point P\" [")?;
+        writer.write_all(b"Shape \"curve\" \"string type\" [ \"cylinder\" ] \"point P\" [ ")?;
         for j in 0..12 {
             let idx = i * 12 + j;
             writer.write_all(format!("{} ", vertices[idx]).as_bytes())?;
         }
+        writer.write_all(
+            format!(
+                " ] \"float width0\" [ {} ] \"float width1\" [ {} ]\n",
+                radiuss[4 * i + 0],
+                radiuss[4 * i + 3]
+            )
+            .as_bytes(),
+        )?;
     }
-
     return Ok(());
 }
 
@@ -328,7 +514,7 @@ pub fn main() {
     }
 
     let max_strands = opts.max_strands;
-    let thickness = opts.user_thickness;
+    let user_thickness = opts.user_thickness;
 
     if infile.is_none() {
         eprintln!(
@@ -337,7 +523,9 @@ pub fn main() {
         process::exit(1);
     }
 
-    let cyhair = match CyHair::load(infile.as_ref().unwrap()) {
+    let infile = infile.as_ref().unwrap();
+
+    let cyhair = match CyHair::load(&infile) {
         Ok(cyhair) => cyhair,
         Err(err) => {
             eprintln!("Failed to load CyHair file [ {} ]", err);
@@ -345,7 +533,16 @@ pub fn main() {
         }
     };
 
-    let (vertices, radiuss) = match to_cubic_bezier_curves(&cyhair, max_strands, thickness) {
+    let vertex_scale = Real3((1.0, 1.0, 1.0));
+    let vertex_translate = Real3((0.0, 0.0, 0.0));
+
+    let (vertices, radiuss) = match to_cubic_bezier_curves(
+        &cyhair,
+        vertex_scale,
+        vertex_translate,
+        max_strands,
+        user_thickness,
+    ) {
         Ok((vertices, radiuss)) => (vertices, radiuss),
         Err(_err) => {
             eprintln!("Failed to convert CyHair data");
@@ -362,14 +559,17 @@ pub fn main() {
         None => Box::new(std::io::stdout()),
     };
 
-    match write_pbrt(&mut *writer, &vertices, &radiuss, ) {
+    let basename = infile.file_name().unwrap().to_str().unwrap();
+    let user_thickness = user_thickness.unwrap_or(-1.0);
+    match write_pbrt(&mut *writer, &vertices, &radiuss, basename, user_thickness) {
         Ok(_) => {}
         Err(err) => {
             eprintln!("Failed to write pbrt file [ {} ]", err);
             process::exit(1);
         }
     }
-    //
+
+    eprintln!("Converted {} strands.", radiuss.len() / 4);
 
     process::exit(0);
 }

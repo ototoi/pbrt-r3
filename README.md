@@ -17,6 +17,14 @@ You can render using pbrt-r3 with the following command.
 ```
 ./target/release/pbrt-r3 -i <exmaple.pbrt>
 ```
+### Tev display
+pbrt-r3 supports the [tev](https://github.com/Tom94/tev) display implemented in pbrt-v4.
+
+After starting tev, you can display the rendering progress by adding the following option.
+```
+./target/release/pbrt-r3 -i <exmaple.pbrt> --display-server localhost:14158
+```
+
 
 ## Example scenes
 pbrt-r3 can take pbrt-v3 scene files as input.

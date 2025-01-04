@@ -19,7 +19,7 @@ You can render using pbrt-r3 with the following command.
 ```
 ### Tev display
 pbrt-r3 supports the [tev](https://github.com/Tom94/tev) display implemented in pbrt-v4.
-After starting tev, you can display the rendering progress by adding the following option.
+After starting tev, you can display your rendering progress by adding the following option.
 ```
 ./target/release/pbrt-r3 -i <exmaple.pbrt> --display-server localhost:14158
 ```

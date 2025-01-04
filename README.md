@@ -7,7 +7,7 @@ pbrt-r3 is a rust implementation version of the pbrt-v3.
 pbrt-r3 is distributed under the BSD license based on the original pbrt-v3.
 
 ## Build
-You can build it using cargo.
+You can build this using cargo.
 ```
 cargo build --release
 ```

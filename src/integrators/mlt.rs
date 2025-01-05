@@ -287,7 +287,7 @@ impl MLTIntegrator {
 
         // Generate a light subpath with exactly _s_ vertices
         sampler.start_stream(LIGHT_STREAM_INDEX);
-        let time = camera_vertices[0].read().unwrap().get_time();
+        let time = camera_vertices[0].get_time();
         let mut light_vertices = Vec::with_capacity(s as usize);
         if generate_light_subpath(
             scene,

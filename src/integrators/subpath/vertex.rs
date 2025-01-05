@@ -159,7 +159,7 @@ impl Vertex {
         return pdf * inv_dist2;
     }
 
-    pub fn pdf(&self, scene: &Scene, prev: &Option<Arc<RwLock<Vertex>>>, next: &Vertex) -> Float {
+    pub fn pdf(&self, scene: &Scene, prev: &Option<Arc<Vertex>>, next: &Vertex) -> Float {
         let t = self.get_type();
         if t == VertexType::Light {
             let pdf = self.pdf_light(scene, next);
@@ -190,7 +190,6 @@ impl Vertex {
         } else {
             assert!(prev.is_some());
             let prev = prev.as_ref().unwrap();
-            let prev = prev.read().unwrap();
             let wp = prev.get_p() - self.get_p();
             if wp.length_squared() == 0.0 {
                 return 0.0;

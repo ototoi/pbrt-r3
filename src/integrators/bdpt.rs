@@ -192,6 +192,9 @@ impl Integrator for BDPTIntegrator {
                     //let camera = self.camera.clone();
                     let mut arena = MemoryArena::new();
 
+                    let mut camera_vertices = Vec::with_capacity(max_depth + 2);
+                    let mut light_vertices = Vec::with_capacity(max_depth + 1);
+
                     let x0 = tile_bounds.min.x;
                     let x1 = tile_bounds.max.x;
                     let y0 = tile_bounds.min.y;
@@ -217,8 +220,8 @@ impl Integrator for BDPTIntegrator {
                                     + tile_sampler.get_2d();
 
                                 // Trace the camera subpath
-                                let mut camera_vertices = Vec::with_capacity(max_depth + 2);
-                                let mut light_vertices = Vec::with_capacity(max_depth + 1);
+                                camera_vertices.clear();
+                                light_vertices.clear();
 
                                 let n_camera = generate_camera_subpath(
                                     scene,
@@ -240,7 +243,7 @@ impl Integrator for BDPTIntegrator {
                                     break;
                                 }
 
-                                let camera_vertex = camera_vertices[0].as_ref().read().unwrap();
+                                let camera_vertex = camera_vertices[0].as_ref();
 
                                 let p = camera_vertex.get_p();
                                 let light_distribution = light_distribution.as_ref();

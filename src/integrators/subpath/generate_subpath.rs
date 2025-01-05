@@ -56,9 +56,7 @@ fn random_walk(
             if let Some(phase) = mi.phase.as_ref() {
                 // Record medium interaction in _path_ and compute forward density
                 let prev = path[prev_index].clone();
-                let vertex = Arc::new(Vertex::create_medium(
-                    &mi, &beta, pdf_fwd, &prev,
-                ));
+                let vertex = Arc::new(Vertex::create_medium(&mi, &beta, pdf_fwd, &prev));
                 path.push(vertex);
                 bounces += 1;
                 if bounces + 1 >= max_depth {
@@ -80,9 +78,7 @@ fn random_walk(
                 // Capture escaped rays when tracing from the camera
                 if mode == TransportMode::Radiance {
                     let ei = EndpointInteraction::from_ray(&ray.ray);
-                    let vertex = Arc::new(Vertex::create_light_from_endpoint(
-                        &ei, &beta, pdf_fwd,
-                    ));
+                    let vertex = Arc::new(Vertex::create_light_from_endpoint(&ei, &beta, pdf_fwd));
                     path.push(vertex);
                     bounces += 1;
                 }
@@ -102,9 +98,7 @@ fn random_walk(
 
             // Initialize _vertex_ with surface intersection information
             let prev = path[prev_index].clone();
-            let vertex = Arc::new(Vertex::create_surface(
-                &isect, &beta, pdf_fwd, &prev,
-            ));
+            let vertex = Arc::new(Vertex::create_surface(&isect, &beta, pdf_fwd, &prev));
             path.push(vertex.clone());
             bounces += 1;
             if bounces >= max_depth {
@@ -180,9 +174,7 @@ pub fn generate_camera_subpath(
         let beta = Spectrum::from(beta);
         ray.scale_differentials(1.0 / Float::sqrt(sampler.get_samples_per_pixel() as Float));
         if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray.ray) {
-            let new_vertex = Arc::new(Vertex::create_camera_from_ray(
-                &camera, &ray.ray, &beta,
-            ));
+            let new_vertex = Arc::new(Vertex::create_camera_from_ray(&camera, &ray.ray, &beta));
             path.push(new_vertex);
             if max_depth > 1 {
                 return random_walk(
@@ -196,6 +188,8 @@ pub fn generate_camera_subpath(
                     TransportMode::Radiance,
                     path,
                 ) + 1;
+            } else {
+                return 1;
             }
         }
     }
@@ -538,7 +532,7 @@ pub fn connect_bdpt(
 
     let mut l = Spectrum::zero();
     let mut sampled = Arc::new(Vertex::default()); //TODO;  = nullptr;
-                                                                // Perform connection and write contribution to _L_
+                                                   // Perform connection and write contribution to _L_
     if s == 0 {
         assert!(t >= 1);
         // Interpret the camera subpath as a complete path

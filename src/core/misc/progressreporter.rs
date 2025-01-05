@@ -17,6 +17,7 @@ impl ProgressReporter {
                 //.progress_chars("++ "),
                 .progress_chars("█▇▆▅▄▃▂▁  "), //.progress_chars("=> ")
         );
+        pb.tick();
         ProgressReporter { pb }
     }
     pub fn update(&mut self, num: usize) {

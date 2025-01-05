@@ -2,9 +2,9 @@ use super::subpath::*;
 use crate::core::pbrt::*;
 use crate::filters::create_box_filter;
 use log::*;
-use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::IntoParallelRefMutIterator;
+use rayon::iter::ParallelIterator;
 use std::collections::HashMap;
-use std::ops::DerefMut;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -110,7 +110,7 @@ impl Integrator for BDPTIntegrator {
 
                     let seed = (y * n_tiles.x + x) as u32;
                     let s = sampler.read().unwrap().clone_with_seed(seed);
-                    let proxy = Arc::new(Mutex::new(ProxySampler::new(&s)));
+                    let proxy = ProxySampler::new(&s);
                     //let camera = self.camera.clone();
                     //let camera = Arc::downgrade(&camera);
                     tile_indices.push((tile_bounds, proxy));
@@ -188,7 +188,7 @@ impl Integrator for BDPTIntegrator {
             //let total = tile_indices.len();
 
             {
-                tile_indices.par_iter().for_each(|(tile_bounds, sampler)| {
+                tile_indices.par_iter_mut().for_each(|(tile_bounds, tile_sampler)| {
                     //let camera = self.camera.clone();
                     let mut arena = MemoryArena::new();
 
@@ -199,8 +199,6 @@ impl Integrator for BDPTIntegrator {
                     let x1 = tile_bounds.max.x;
                     let y0 = tile_bounds.min.y;
                     let y1 = tile_bounds.max.y;
-
-                    let mut tile_sampler = sampler.lock().unwrap();
 
                     let mut film_tile = proxy_film
                         .as_ref()
@@ -225,7 +223,7 @@ impl Integrator for BDPTIntegrator {
 
                                 let n_camera = generate_camera_subpath(
                                     scene,
-                                    tile_sampler.deref_mut(),
+                                    tile_sampler,
                                     &mut arena,
                                     max_depth + 2,
                                     &camera,
@@ -253,7 +251,7 @@ impl Integrator for BDPTIntegrator {
                                 let time = camera_vertex.get_time();
                                 let n_light = generate_light_subpath(
                                     scene,
-                                    tile_sampler.deref_mut(),
+                                    tile_sampler,
                                     &mut arena,
                                     max_depth + 1,
                                     time,
@@ -286,7 +284,7 @@ impl Integrator for BDPTIntegrator {
                                             &light_distr,
                                             &light_to_index,
                                             &camera,
-                                            tile_sampler.deref_mut(),
+                                            tile_sampler,
                                             &p_film,
                                         ) {
                                             assert!(!l_path.is_black());

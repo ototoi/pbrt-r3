@@ -196,11 +196,11 @@ impl SceneContext {
         let mut m = MediumInterface::new();
         if let Some(medium) = opts.named_media.get(&inside_name) {
             //println!("inside_name: {}", inside_name);
-            m.inside = Some(Arc::clone(medium));
+            m.set_inside(medium);
         }
         if let Some(medium) = opts.named_media.get(&outside_name) {
             //println!("outside_name: {}", outside_name);
-            m.outside = Some(Arc::clone(medium));
+            m.set_outside(medium);
         }
         return m;
     }

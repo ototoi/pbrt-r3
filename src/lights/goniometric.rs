@@ -91,12 +91,13 @@ impl Light for GonioPhotometricLight {
     ) -> Option<(Spectrum, Ray, Normal3f, Float, Float)> {
         let _p = ProfilePhase::new(Prof::LightSample);
 
+        let medium = self.base.medium_interface.get_inside();
         let ray = Ray::from((
             &self.p_light,
             &uniform_sample_sphere(u1),
             Float::INFINITY,
             time,
-            &self.base.medium_interface.inside,
+            &medium,
         ));
         let n_light = ray.d;
         let f = self.intensity * self.scale(&ray.d);

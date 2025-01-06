@@ -96,12 +96,13 @@ impl Light for SpotLight {
         let _p = ProfilePhase::new(Prof::LightSample);
 
         let w = uniform_sample_cone(u1, self.cos_total_width);
+        let medium = self.base.medium_interface.get_inside();
         let ray = Ray::from((
             &self.p_light,
             &self.base.light_to_world.transform_vector(&w),
             Float::INFINITY,
             time,
-            &self.base.medium_interface.inside,
+            &medium,
         ));
         let n_light = ray.d;
         let pdf_pos = 1.0;

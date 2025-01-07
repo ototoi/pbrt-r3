@@ -29,10 +29,8 @@ After starting tev, you can display your rendering progress by adding the follow
 ## Example scenes
 pbrt-r3 can take pbrt-v3 scene files as input.
 See the official [pbrt-v3 scenes page](http://pbrt.org/scenes-v3.html) on the pbrt website for information about how to download them.
-### pavilion-night
-![pavilion-night](https://github.com/user-attachments/assets/aa492fa3-493c-45f1-94e3-5c52a60086d6)
-### bmw-m6
-![bmw-m6](https://github.com/user-attachments/assets/33195ce5-f638-4e33-8414-e1d6e2c28485)
+![images](https://github.com/user-attachments/assets/ce1bebc6-8377-4da7-8b49-38e5073a397e)
+
 
 
 

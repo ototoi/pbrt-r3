@@ -1,4 +1,6 @@
 # pbrt-r3
+![example workflow]
+https://github.com/ototoi/pbrt-r3/.github/workflows/rust.yml/badge.svg
 
 ## What is pbrt-r3
 pbrt-r3 is a rust implementation version of the pbrt-v3.

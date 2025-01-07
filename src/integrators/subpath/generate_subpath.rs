@@ -52,26 +52,26 @@ fn random_walk(
         }
         let prev_index = path_offset + bounces;
         let curr_index = prev_index + 1;
-        if mi.is_valid() {
-            if let Some(phase) = mi.phase.as_ref() {
-                // Record medium interaction in _path_ and compute forward density
-                let prev = path[prev_index].clone();
-                let vertex = Arc::new(Vertex::create_medium(&mi, &beta, pdf_fwd, &prev));
-                path.push(vertex);
-                bounces += 1;
-                if bounces + 1 >= max_depth {
-                    break;
-                }
 
-                // Sample direction and compute reverse density at preceding vertex
-                let wo = -ray.ray.d;
-                let (pdf, wi) = phase.sample_p(&wo, &sampler.get_2d());
-                assert!(pdf >= 0.0);
-                pdf_fwd = pdf;
-                pdf_rev = pdf;
-
-                ray = mi.spawn_ray(&wi).into();
+        if let Some(phase) = mi.phase.as_ref() {
+            // mi.is_valid() && mi.phase.is_some() {
+            // Record medium interaction in _path_ and compute forward density
+            let prev = path[prev_index].clone();
+            let vertex = Arc::new(Vertex::create_medium(&mi, &beta, pdf_fwd, &prev));
+            path.push(vertex);
+            bounces += 1;
+            if bounces >= max_depth {
+                break;
             }
+
+            // Sample direction and compute reverse density at preceding vertex
+            let wo = -ray.ray.d;
+            let (pdf, wi) = phase.sample_p(&wo, &sampler.get_2d());
+            assert!(pdf >= 0.0);
+            pdf_fwd = pdf;
+            pdf_rev = pdf;
+
+            ray = mi.spawn_ray(&wi).into();
         } else {
             // Handle surface interaction for path generation
             if found_intersection.is_none() {
@@ -108,8 +108,7 @@ fn random_walk(
             // Sample BSDF at current vertex and compute reverse probability
             {
                 let wo = isect.wo;
-                let bsdf = isect.bsdf.as_ref().unwrap().clone();
-                let bsdf = bsdf.as_ref();
+                let bsdf = isect.bsdf.as_ref().unwrap();
                 // Sample BSDF at current vertex and compute reverse probability
                 if let Some((f, wi, pdf, t)) = bsdf.sample_f(&wo, &sampler.get_2d(), BSDF_ALL) {
                     pdf_fwd = pdf;

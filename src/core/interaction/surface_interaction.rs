@@ -297,10 +297,10 @@ impl SurfaceInteraction {
     pub fn get_medium(&self, w: &Vector3f) -> Option<Arc<dyn Medium>> {
         if Vector3f::dot(w, &self.n) > 0.0 {
             //print!("get_medium: outside {}\n", self.medium_interface.outside.is_some());
-            return self.medium_interface.outside.clone();
+            return self.medium_interface.get_outside();
         } else {
             //print!("get_medium: inside\n");
-            return self.medium_interface.inside.clone();
+            return self.medium_interface.get_inside();
         }
     }
 }

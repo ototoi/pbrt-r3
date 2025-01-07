@@ -64,13 +64,14 @@ impl Light for PointLight {
     ) -> Option<(Spectrum, Ray, Normal3f, Float, Float)> {
         let _p = ProfilePhase::new(Prof::LightSample);
 
+        let medium = self.base.medium_interface.get_inside();
         let f = self.intensity;
         let ray = Ray::from((
             &self.p_light,
             &uniform_sample_sphere(u1),
             f32::INFINITY,
             time,
-            &self.base.medium_interface.inside,
+            &medium,
         ));
         let n = ray.d;
         let pdf = 1.0;

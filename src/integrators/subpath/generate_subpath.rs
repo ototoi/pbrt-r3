@@ -60,7 +60,7 @@ fn random_walk(
             let vertex = Arc::new(Vertex::create_medium(&mi, &beta, pdf_fwd, &prev));
             path.push(vertex);
             bounces += 1;
-            if bounces + 1 >= max_depth {
+            if bounces >= max_depth {
                 break;
             }
 
@@ -108,8 +108,7 @@ fn random_walk(
             // Sample BSDF at current vertex and compute reverse probability
             {
                 let wo = isect.wo;
-                let bsdf = isect.bsdf.as_ref().unwrap().clone();
-                let bsdf = bsdf.as_ref();
+                let bsdf = isect.bsdf.as_ref().unwrap();
                 // Sample BSDF at current vertex and compute reverse probability
                 if let Some((f, wi, pdf, t)) = bsdf.sample_f(&wo, &sampler.get_2d(), BSDF_ALL) {
                     pdf_fwd = pdf;

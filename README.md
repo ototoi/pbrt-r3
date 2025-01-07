@@ -29,14 +29,8 @@ After starting tev, you can display your rendering progress by adding the follow
 ## Example scenes
 pbrt-r3 can take pbrt-v3 scene files as input.
 See the official [pbrt-v3 scenes page](http://pbrt.org/scenes-v3.html) on the pbrt website for information about how to download them.
+
 ![images](https://github.com/user-attachments/assets/ce1bebc6-8377-4da7-8b49-38e5073a397e)
-
-
-
-
-
-
-## Results
 Rendered images are stored at [pbrt-r3-devkit](https://github.com/ototoi/pbrt-r3-devkit).
 
 ## Differences

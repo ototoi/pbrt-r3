@@ -161,15 +161,10 @@ impl Medium for GridDensityMedium {
                 let density = self.density(&p);
                 if density * inv_max_density > sampler.get_1d() {
                     // Populate _mi_ with medium interaction information and return
-                    let phase = HenyeyGreenstein::new(g);
+                    let phase: Arc<dyn PhaseFunction> = Arc::new(HenyeyGreenstein::new(g));
                     let p_world = r_world.position(t);
 
-                    let mi = MediumInteraction::new(
-                        &p_world,
-                        &(-r_world.d),
-                        r_world.time,
-                        &Some(Arc::new(phase)),
-                    );
+                    let mi = MediumInteraction::new(&p_world, &(-r_world.d), r_world.time, &phase);
                     return (sigma_s_t, Some(mi));
                 }
             }

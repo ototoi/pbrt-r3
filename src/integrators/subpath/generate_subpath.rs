@@ -28,12 +28,15 @@ fn random_walk(
     let mut bounces: usize = 0;
     // Declare variables for forward and reverse probability densities
     let mut beta = *beta;
+
+    #[allow(unused_assignments)]
     let mut pdf_fwd = pdf;
+    #[allow(unused_assignments)]
     let mut pdf_rev = 0.0;
     loop {
         // println!("bounces: {}", bounces);
         // Attempt to create the next subpath vertex in _path_
-        let mut mi = MediumInteraction::default();
+        let mut mi = None;
 
         // vlog(2) << "Random walk. Path: " << *this << ", bounces: " << bounces << ", beta: " << beta << ", pdfFwd: " << pdfFwd << ", pdfRev: " << pdfRev;
 
@@ -43,7 +46,7 @@ fn random_walk(
             let (spec, m) = medium.sample(&ray.ray, sampler, arena);
             if let Some(mut m) = m {
                 m.medium_interface = MediumInterface::from(medium);
-                mi = m;
+                mi = Some(m);
             }
             beta *= spec;
         };
@@ -53,7 +56,7 @@ fn random_walk(
         let prev_index = path_offset + bounces;
         let curr_index = prev_index + 1;
 
-        if let Some(phase) = mi.phase.as_ref() {
+        if let Some(mi) = mi.as_ref() {
             // mi.is_valid() && mi.phase.is_some() {
             // Record medium interaction in _path_ and compute forward density
             let prev = path[prev_index].clone();
@@ -66,7 +69,7 @@ fn random_walk(
 
             // Sample direction and compute reverse density at preceding vertex
             let wo = -ray.ray.d;
-            let (pdf, wi) = phase.sample_p(&wo, &sampler.get_2d());
+            let (pdf, wi) = mi.phase.sample_p(&wo, &sampler.get_2d());
             assert!(pdf >= 0.0);
             pdf_fwd = pdf;
             pdf_rev = pdf;

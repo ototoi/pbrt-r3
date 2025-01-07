@@ -92,14 +92,14 @@ impl SamplerIntegrator for VolPathIntegrator {
             // Intersect _ray_ with scene and store intersection in _isect_
             let mut found_intersection = scene.intersect(&ray.ray);
 
-            let mut mi = MediumInteraction::default();
+            let mut mi = None;
             // Sample the participating medium, if present
             if let Some(medium) = ray.ray.medium.as_ref() {
                 //println!("MediumInteraction: {:?}", medium);
                 let (spec, m) = medium.sample(&ray.ray, sampler, arena);
                 if let Some(mut m) = m {
                     m.medium_interface = MediumInterface::from(medium);
-                    mi = m;
+                    mi = Some(m);
                 }
                 beta *= spec;
             }
@@ -107,7 +107,7 @@ impl SamplerIntegrator for VolPathIntegrator {
                 break;
             }
 
-            if mi.is_valid() {
+            if let Some(mi) = mi {
                 // Terminate path if ray escaped or _maxDepth_ was reached
                 if bounces >= self.max_depth {
                     break;
@@ -129,11 +129,9 @@ impl SamplerIntegrator for VolPathIntegrator {
                     );
                 l += ld;
                 let wo = -ray.ray.d;
-                if let Some(phase) = mi.phase.as_ref() {
-                    let (_pdf, wi) = phase.sample_p(&wo, &sampler.get_2d());
-                    ray = mi.spawn_ray(&wi).into();
-                    specular_bounce = false;
-                }
+                let (_pdf, wi) = mi.phase.sample_p(&wo, &sampler.get_2d());
+                ray = mi.spawn_ray(&wi).into();
+                specular_bounce = false;
             } else {
                 SURFACE_INTERACTIONS.with(|c| c.inc());
                 // Handle scattering at point on surface for volumetric path tracer

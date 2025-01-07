@@ -208,8 +208,7 @@ impl Vertex {
                 assert!(t == VertexType::Medium);
                 let interaction = self.interaction.value.read().unwrap();
                 let mi = interaction.as_medium().unwrap();
-                let phase = mi.phase.as_ref().unwrap();
-                let pdf = phase.p(&wp, &wn);
+                let pdf = mi.phase.p(&wp, &wn);
                 assert!(pdf >= 0.0);
                 let pdf = self.convert_density(pdf, next);
                 assert!(pdf >= 0.0);
@@ -383,8 +382,7 @@ impl Vertex {
             VertexType::Medium => {
                 let interaction = self.interaction.value.read().unwrap();
                 let mi = interaction.as_medium().unwrap();
-                let phase = mi.phase.as_ref().unwrap();
-                let p = phase.p(&mi.wo, &wi);
+                let p = mi.phase.p(&mi.wo, &wi);
                 return Spectrum::from(p);
             }
             _ => {

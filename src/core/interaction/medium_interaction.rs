@@ -3,7 +3,7 @@ use crate::core::pbrt::*;
 use std::fmt::{Debug, Formatter, Result};
 use std::sync::Arc;
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct MediumInteraction {
     pub p: Point3f,
     pub p_error: Vector3f,
@@ -13,16 +13,11 @@ pub struct MediumInteraction {
     pub wo: Vector3f,
     pub medium_interface: MediumInterface,
     //-------------
-    pub phase: Option<Arc<dyn PhaseFunction>>,
+    pub phase: Arc<dyn PhaseFunction>,
 }
 
 impl MediumInteraction {
-    pub fn new(
-        p: &Point3f,
-        wo: &Vector3f,
-        time: Float,
-        phase: &Option<Arc<dyn PhaseFunction>>,
-    ) -> Self {
+    pub fn new(p: &Point3f, wo: &Vector3f, time: Float, phase: &Arc<dyn PhaseFunction>) -> Self {
         let p = *p;
         let wo = *wo;
         let medium_interface = MediumInterface::from(&None);
@@ -56,10 +51,6 @@ impl MediumInteraction {
         } else {
             return self.medium_interface.get_inside();
         }
-    }
-
-    pub fn is_valid(&self) -> bool {
-        return self.phase.is_some();
     }
 }
 

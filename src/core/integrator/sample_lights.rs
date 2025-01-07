@@ -150,11 +150,9 @@ pub fn estimate_direct(
                             //assert!(scattering_pdf >= 0.0);
                         }
                     } else if let Some(mi) = it.as_medium_interaction() {
-                        if let Some(phase) = mi.phase.as_ref() {
-                            let p = phase.p(&mi.wo, &wi);
-                            f = Spectrum::from(p);
-                            scattering_pdf = p;
-                        }
+                        let p = mi.phase.p(&mi.wo, &wi);
+                        f = Spectrum::from(p);
+                        scattering_pdf = p;
                     } else {
                         panic!("Interaction is neither SurfaceInteraction nor MediumInteraction");
                     }
@@ -211,12 +209,10 @@ pub fn estimate_direct(
                     }
                 }
             } else if let Some(mi) = it.as_medium_interaction() {
-                if let Some(phase) = mi.phase.as_ref() {
-                    let (p, wi2) = phase.sample_p(&mi.wo, u_scattering);
-                    wi = wi2;
-                    f = Spectrum::from(p);
-                    scattering_pdf = p;
-                }
+                let (p, wi2) = mi.phase.sample_p(&mi.wo, u_scattering);
+                wi = wi2;
+                f = Spectrum::from(p);
+                scattering_pdf = p;
             }
 
             if !f.is_black() && scattering_pdf > 0.0 {

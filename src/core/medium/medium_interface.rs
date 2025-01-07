@@ -1,12 +1,12 @@
 use super::medium::Medium;
 
 use std::sync::Arc;
-use std::sync::Weak;
+//use std::sync::Weak;
 
 #[derive(Clone, Default, Debug)]
 pub struct MediumInterface {
-    pub inside: Option<Weak<dyn Medium>>,
-    pub outside: Option<Weak<dyn Medium>>,
+    pub inside: Option<Arc<dyn Medium>>,
+    pub outside: Option<Arc<dyn Medium>>,
 }
 
 impl MediumInterface {
@@ -18,23 +18,23 @@ impl MediumInterface {
     }
 
     pub fn set_inside(&mut self, medium: &Arc<dyn Medium>) {
-        self.inside = Some(Arc::downgrade(medium));
+        self.inside = Some(Arc::clone(medium));
     }
 
     pub fn set_outside(&mut self, medium: &Arc<dyn Medium>) {
-        self.outside = Some(Arc::downgrade(medium));
+        self.outside = Some(Arc::clone(medium));
     }
 
     pub fn get_inside(&self) -> Option<Arc<dyn Medium>> {
         match &self.inside {
-            Some(inside) => inside.upgrade(),
+            Some(inside) => Some(inside.clone()),
             None => None,
         }
     }
 
     pub fn get_outside(&self) -> Option<Arc<dyn Medium>> {
         match &self.outside {
-            Some(outside) => outside.upgrade(),
+            Some(outside) => Some(outside.clone()),
             None => None,
         }
     }
@@ -62,10 +62,11 @@ impl From<&Option<Arc<dyn Medium>>> for MediumInterface {
 
 impl From<&Arc<dyn Medium>> for MediumInterface {
     fn from(medium: &Arc<dyn Medium>) -> Self {
-        let medium = Arc::downgrade(medium);
+        let inside = Arc::clone(medium);
+        let outside = Arc::clone(medium);
         MediumInterface {
-            inside: Some(medium.clone()),
-            outside: Some(medium.clone()),
+            inside: Some(inside),
+            outside: Some(outside),
         }
     }
 }

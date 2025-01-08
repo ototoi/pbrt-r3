@@ -599,6 +599,7 @@ pub fn connect_bdpt(
                     if pt.is_on_surface() {
                         l *= Vector3f::abs_dot(&wi, &pt.get_ns());
                     }
+                    // Only check visibility if the path would carry radiance.
                     if !l.is_black() {
                         l *= vis.tr(scene, sampler);
                     }

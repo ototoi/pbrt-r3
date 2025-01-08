@@ -568,9 +568,9 @@ pub fn connect_bdpt(
                     assert!(l.is_valid());
                     // Only check visibility after we know that the path would
                     // make a non-zero contribution.
-                    //if !l.is_black() {
-                    //    l *= vis.tr(scene, sampler);
-                    //}
+                    if !l.is_black() {
+                        l *= vis.tr(scene, sampler);
+                    }
 
                     sampled = Arc::new(sampled_v);
                 }

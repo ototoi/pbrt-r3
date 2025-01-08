@@ -568,9 +568,9 @@ pub fn connect_bdpt(
                     assert!(l.is_valid());
                     // Only check visibility after we know that the path would
                     // make a non-zero contribution.
-                    if !l.is_black() {
-                        l *= vis.tr(scene, sampler);
-                    }
+                    //if !l.is_black() {
+                    //    l *= vis.tr(scene, sampler);
+                    //}
 
                     sampled = Arc::new(sampled_v);
                 }
@@ -599,6 +599,7 @@ pub fn connect_bdpt(
                     if pt.is_on_surface() {
                         l *= Vector3f::abs_dot(&wi, &pt.get_ns());
                     }
+                    // Only check visibility if the path would carry radiance.
                     if !l.is_black() {
                         l *= vis.tr(scene, sampler);
                     }

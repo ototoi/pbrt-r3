@@ -358,6 +358,24 @@ impl Vertex {
         }
     }
 
+    pub fn is_transmission(&self) -> bool {
+        let t = self.get_type();
+        match t {
+            VertexType::Surface => {
+                let interaction = self.interaction.value.read().unwrap();
+                let si = interaction.as_surface().unwrap();
+                let bsdf = si.bsdf.as_ref().unwrap();
+                return bsdf.num_components(BSDF_TRANSMISSION) > 0;
+            }
+            VertexType::Medium => {
+                return true;
+            }
+            _ => {
+                return false;
+            }
+        }
+    }
+
     pub fn is_on_surface(&self) -> bool {
         let ng = self.get_ng();
         return ng.length_squared() != 0.0;

@@ -22,10 +22,9 @@ fn random_walk(
     path: &mut Vec<Arc<Vertex>>,
 ) -> usize {
     assert!(!path.is_empty());
-    let path_offset = path.len() - 1;
     let mut ray = ray.clone();
 
-    let mut bounces: usize = 0;
+    let offset = path.len();
     // Declare variables for forward and reverse probability densities
     let mut beta = *beta;
 
@@ -53,8 +52,9 @@ fn random_walk(
         if beta.is_black() {
             break;
         }
-        let prev_index = path_offset + bounces;
-        let curr_index = prev_index + 1;
+
+        let prev_index = path.len() - 1;
+        let curr_index = path.len();
 
         if let Some(mi) = mi.as_ref() {
             // mi.is_valid() && mi.phase.is_some() {
@@ -62,8 +62,7 @@ fn random_walk(
             let prev = path[prev_index].clone();
             let vertex = Arc::new(Vertex::create_medium(&mi, &beta, pdf_fwd, &prev));
             path.push(vertex);
-            bounces += 1;
-            if bounces >= max_depth {
+            if path.len() >= max_depth {
                 break;
             }
 
@@ -83,7 +82,6 @@ fn random_walk(
                     let ei = EndpointInteraction::from_ray(&ray.ray);
                     let vertex = Arc::new(Vertex::create_light_from_endpoint(&ei, &beta, pdf_fwd));
                     path.push(vertex);
-                    bounces += 1;
                 }
                 break;
             }
@@ -103,8 +101,7 @@ fn random_walk(
             let prev = path[prev_index].clone();
             let vertex = Arc::new(Vertex::create_surface(&isect, &beta, pdf_fwd, &prev));
             path.push(vertex.clone());
-            bounces += 1;
-            if bounces >= max_depth {
+            if path.len() >= max_depth {
                 break;
             }
 
@@ -145,7 +142,7 @@ fn random_walk(
         }
     }
     //println!("breaked!");
-    return bounces;
+    return path.len() - offset;
 }
 
 // GenerateLightSubpath
@@ -162,7 +159,7 @@ pub fn generate_camera_subpath(
     let _p = ProfilePhase::new(Prof::BDPTGenerateSubpath);
 
     if max_depth == 0 {
-        return 0;
+        return path.len();
     }
 
     // Sample initial ray for camera subpath
@@ -186,16 +183,16 @@ pub fn generate_camera_subpath(
                     arena,
                     &beta,
                     pdf_dir,
-                    max_depth - 1,
+                    max_depth,
                     TransportMode::Radiance,
                     path,
                 ) + 1;
             } else {
-                return 1;
+                return path.len();
             }
         }
     }
-    return 0;
+    return path.len();
 }
 
 pub fn generate_light_subpath(
@@ -211,7 +208,7 @@ pub fn generate_light_subpath(
     let _p = ProfilePhase::new(Prof::BDPTGenerateSubpath);
 
     if max_depth == 0 {
-        return 0;
+        return path.len();
     }
 
     let (light_num, light_pdf, _remapped) = light_distr.sample_discrete(sampler.get_1d());
@@ -220,7 +217,7 @@ pub fn generate_light_subpath(
         light.sample_le(&sampler.get_2d(), &sampler.get_2d(), time)
     {
         if pdf_pos <= 0.0 || pdf_dir <= 0.0 || le.is_black() {
-            return 0;
+            return path.len();
         }
 
         // Generate first vertex on light subpath and start random walk
@@ -233,7 +230,7 @@ pub fn generate_light_subpath(
         ));
         path.push(vertex.clone());
         if max_depth == 1 {
-            return 1;
+            return path.len();
         }
 
         let beta = le * n_light.abs_dot(&ray.d) * (1.0 / (light_pdf * pdf_pos * pdf_dir));
@@ -246,7 +243,7 @@ pub fn generate_light_subpath(
             arena,
             &beta,
             pdf_dir,
-            max_depth - 1,
+            max_depth,
             TransportMode::Importance,
             path,
         );
@@ -266,9 +263,9 @@ pub fn generate_light_subpath(
             let pdf_fwd = infinite_light_density(scene, light_distr, light_to_index, &ray.ray.d);
             vertex.pdf_fwd.set(pdf_fwd);
         }
-        return n_vertices + 1;
+        return path.len();
     }
-    return 0;
+    return path.len();
 }
 
 #[inline]

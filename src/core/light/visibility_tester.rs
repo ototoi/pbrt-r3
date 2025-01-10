@@ -28,8 +28,8 @@ impl VisibilityTester {
                     if primitive.get_material().is_some() {
                         //ray.t_max.set(t_max);
                         //if primitive.intersect_p(&ray) {
-                            //check if the ray intersects the primitive
-                            return Spectrum::zero();
+                        //check if the ray intersects the primitive
+                        return Spectrum::zero();
                         //}
                     }
                 }

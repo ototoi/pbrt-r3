@@ -293,7 +293,7 @@ fn mis_weight(
     scene: &Scene,
     light_vertices: &[Arc<Vertex>],
     camera_vertices: &[Arc<Vertex>],
-    sampled: &Arc<Vertex>,
+    sampled: &Option<Arc<Vertex>>,
     s: i32,
     t: i32,
     light_pdf: &Distribution1D,
@@ -334,6 +334,7 @@ fn mis_weight(
         assert!(qs.is_some());
         let qs = qs.as_ref().unwrap();
         let qs = qs.as_tuple();
+        let sampled = sampled.as_ref().unwrap();
         let sampled = sampled.as_tuple();
         let v0 = ScopedAssignment::new(&qs.0, &sampled.0.read().unwrap());
         let v1 = ScopedAssignment::new(&qs.1, &sampled.1.read().unwrap());
@@ -345,6 +346,7 @@ fn mis_weight(
         assert!(pt.is_some());
         let pt = pt.as_ref().unwrap();
         let pt = pt.as_tuple();
+        let sampled = sampled.as_ref().unwrap();
         let sampled = sampled.as_tuple();
         let v0 = ScopedAssignment::new(&pt.0, &sampled.0.read().unwrap());
         let v1 = ScopedAssignment::new(&pt.1, &sampled.1.read().unwrap());
@@ -530,8 +532,8 @@ pub fn connect_bdpt(
     }
 
     let mut l = Spectrum::zero();
-    let mut sampled = Arc::new(Vertex::default()); //TODO;  = nullptr;
-                                                   // Perform connection and write contribution to _L_
+    let mut sampled = None; //TODO;  = nullptr;
+                            // Perform connection and write contribution to _L_
     if s == 0 {
         assert!(t >= 1);
         // Interpret the camera subpath as a complete path
@@ -569,7 +571,7 @@ pub fn connect_bdpt(
                         l *= vis.tr(scene, sampler);
                     }
 
-                    sampled = Arc::new(sampled_v);
+                    sampled = Some(Arc::new(sampled_v));
                 }
             }
         }
@@ -601,7 +603,7 @@ pub fn connect_bdpt(
                         l *= vis.tr(scene, sampler);
                     }
 
-                    sampled = Arc::new(sampled_v);
+                    sampled = Some(Arc::new(sampled_v));
                 }
             }
         }

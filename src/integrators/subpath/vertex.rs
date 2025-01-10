@@ -202,12 +202,14 @@ impl Vertex {
         }
     }
 
+    //PdfLight
     pub fn pdf_light(&self, scene: &Scene, v: &Vertex) -> Float {
         let w = v.get_p() - self.get_p();
-        let inv_dist2 = 1.0 / w.length_squared();
-        if w.length_squared() == 0.0 {
+        let dist2 = w.length_squared();
+        if dist2 == 0.0 {
             return 0.0;
         }
+        let inv_dist2 = 1.0 / dist2;
         let w = w * Float::sqrt(inv_dist2);
         let mut pdf = 0.0;
         if self.is_infinite_light() {
@@ -230,6 +232,7 @@ impl Vertex {
         return pdf;
     }
 
+    //PdfLightOrigin
     pub fn pdf_light_origin(
         &self,
         scene: &Scene,
@@ -387,20 +390,26 @@ impl Vertex {
         match interaction.deref() {
             VertexInteraction::EndPoint(ei) => {
                 let mut le = Spectrum::zero();
-                if let EndpointInteraction::Light(_ei) = ei {
+                if let EndpointInteraction::Light(ei) = ei {
                     //let light = ei.1.as_ref().unwrap().upgrade().unwrap();
+                    let ray = RayDifferential::from(Ray::new(
+                        &self.get_p(),
+                        &-w,
+                        Float::INFINITY,
+                        0.0,
+                    ));
                     if self.is_infinite_light() {
                         // Return emitted radiance for infinite light sources
                         for light in scene.infinite_lights.iter() {
-                            let ray = RayDifferential::from(Ray::new(
-                                &self.get_p(),
-                                &-w,
-                                Float::INFINITY,
-                                0.0,
-                            ));
                             le += light.le(&ray);
                         }
                     }
+                    /* 
+                    else {
+                        let light= ei.1.as_ref().unwrap();
+                        le += light.le(&ray);
+                    }
+                    */
                 }
                 return le;
             }

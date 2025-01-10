@@ -22,15 +22,15 @@ impl VisibilityTester {
         let mut ray = self.p0.spawn_ray_to(&self.p1);
         let mut tr = Spectrum::one();
         loop {
-            let t_max = ray.t_max.get();
+            //let t_max = ray.t_max.get();
             if let Some(isect) = scene.intersect(&ray) {
                 if let Some(primitive) = isect.get_primitive() {
                     if primitive.get_material().is_some() {
-                        ray.t_max.set(t_max);
-                        if primitive.intersect_p(&ray) {
-                            //check if the ray intersects the primitive
-                            return Spectrum::zero();
-                        }
+                        //ray.t_max.set(t_max);
+                        //if primitive.intersect_p(&ray) {
+                        //check if the ray intersects the primitive
+                        return Spectrum::zero();
+                        //}
                     }
                 }
 

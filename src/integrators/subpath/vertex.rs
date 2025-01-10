@@ -1,6 +1,7 @@
 use super::vertex_interaction::*;
 use crate::core::pbrt::*;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -81,25 +82,13 @@ impl<T: Clone> VertexValue<T> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Vertex {
     pub beta: VertexValue<Spectrum>,
     pub interaction: VertexValue<VertexInteraction>,
     pub delta: VertexValue<bool>,
     pub pdf_fwd: VertexValue<Float>,
     pub pdf_rev: VertexValue<Float>,
-}
-
-impl Default for Vertex {
-    fn default() -> Self {
-        Vertex {
-            beta: VertexValue::new(Spectrum::default()),
-            interaction: VertexValue::new(VertexInteraction::default()),
-            delta: VertexValue::new(false),
-            pdf_fwd: VertexValue::new(0.0),
-            pdf_rev: VertexValue::new(0.0),
-        }
-    }
 }
 
 impl Vertex {
@@ -162,56 +151,52 @@ impl Vertex {
     pub fn pdf(&self, scene: &Scene, prev: &Option<Arc<Vertex>>, next: &Vertex) -> Float {
         let t = self.get_type();
         if t == VertexType::Light {
-            let pdf = self.pdf_light(scene, next);
-            assert!(pdf >= 0.0);
-            return pdf;
+            return self.pdf_light(scene, next);
         }
+
         let wn = next.get_p() - self.get_p();
         if wn.length_squared() == 0.0 {
             return 0.0;
         }
         let wn = wn.normalize();
-
         assert!(t != VertexType::Light);
         // Compute directional density depending on the vertex types
-        if t == VertexType::Camera {
-            let interaction = self.interaction.value.read().unwrap();
-            let ei = interaction.as_camera().unwrap();
-            let ray = ei.0.spawn_ray(&wn);
-            let camera = ei.1.as_ref().unwrap().upgrade().unwrap();
-            if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray) {
-                assert!(pdf_dir >= 0.0);
-                let pdf = self.convert_density(pdf_dir, next);
-                assert!(pdf >= 0.0);
-                return pdf;
-            } else {
+        let interaction = self.interaction.value.read().unwrap();
+        match interaction.deref() {
+            VertexInteraction::EndPoint(ei) => {
+                if let EndpointInteraction::Camera(ei) = ei {
+                    let ray = ei.0.spawn_ray(&wn);
+                    let camera = ei.1.as_ref().unwrap();
+                    if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray) {
+                        let pdf = self.convert_density(pdf_dir, next);
+                        return pdf;
+                    }
+                }
                 return 0.0;
             }
-        } else {
-            assert!(prev.is_some());
-            let prev = prev.as_ref().unwrap();
-            let wp = prev.get_p() - self.get_p();
-            if wp.length_squared() == 0.0 {
-                return 0.0;
-            }
-            let wp = wp.normalize();
-            if t == VertexType::Surface {
-                let interaction = self.interaction.value.read().unwrap();
-                let si = interaction.as_surface().unwrap();
-                let bsdf = si.bsdf.as_ref().unwrap().clone();
+            VertexInteraction::Surface(si) => {
+                let prev = prev.as_ref().unwrap();
+                let wp = prev.get_p() - self.get_p();
+                if wp.length_squared() == 0.0 {
+                    return 0.0;
+                }
+                let wp = wp.normalize();
+
+                let bsdf = si.bsdf.as_ref().unwrap();
                 let pdf = bsdf.pdf(&wp, &wn, BSDF_ALL);
-                assert!(pdf >= 0.0);
                 let pdf = self.convert_density(pdf, next);
-                assert!(pdf >= 0.0);
                 return pdf;
-            } else {
-                assert!(t == VertexType::Medium);
-                let interaction = self.interaction.value.read().unwrap();
-                let mi = interaction.as_medium().unwrap();
+            }
+            VertexInteraction::Medium(mi) => {
+                let prev = prev.as_ref().unwrap();
+                let wp = prev.get_p() - self.get_p();
+                if wp.length_squared() == 0.0 {
+                    return 0.0;
+                }
+                let wp = wp.normalize();
+
                 let pdf = mi.phase.p(&wp, &wn);
-                assert!(pdf >= 0.0);
                 let pdf = self.convert_density(pdf, next);
-                assert!(pdf >= 0.0);
                 return pdf;
             }
         }
@@ -283,14 +268,15 @@ impl Vertex {
     }
 
     pub fn is_light(&self) -> bool {
-        let t = self.get_type();
-        match t {
-            VertexType::Light => {
-                return true;
+        let interaction = self.interaction.value.read().unwrap();
+        match interaction.deref() {
+            VertexInteraction::EndPoint(ei) => {
+                if let EndpointInteraction::Light(_) = ei {
+                    return true;
+                }
+                return false;
             }
-            VertexType::Surface => {
-                let interaction = self.interaction.value.read().unwrap();
-                let si = interaction.as_surface().unwrap();
+            VertexInteraction::Surface(si) => {
                 let premitive = si.primitive.clone();
                 if let Some(premitive) = premitive.as_ref() {
                     let premitive = premitive.upgrade().unwrap();
@@ -358,24 +344,6 @@ impl Vertex {
         }
     }
 
-    pub fn is_transmission(&self) -> bool {
-        let t = self.get_type();
-        match t {
-            VertexType::Surface => {
-                let interaction = self.interaction.value.read().unwrap();
-                let si = interaction.as_surface().unwrap();
-                let bsdf = si.bsdf.as_ref().unwrap();
-                return bsdf.num_components(BSDF_TRANSMISSION) > 0;
-            }
-            VertexType::Medium => {
-                return true;
-            }
-            _ => {
-                return false;
-            }
-        }
-    }
-
     pub fn is_on_surface(&self) -> bool {
         let ng = self.get_ng();
         return ng.length_squared() != 0.0;
@@ -387,19 +355,15 @@ impl Vertex {
             return Spectrum::zero();
         }
         let wi = wi.normalize();
-        let t = self.get_type();
-        match t {
-            VertexType::Surface => {
-                let interaction = self.interaction.value.read().unwrap();
-                let si = interaction.as_surface().unwrap();
+        let interaction = self.interaction.value.read().unwrap();
+        match interaction.deref() {
+            VertexInteraction::Surface(si) => {
                 let bsdf = si.bsdf.as_ref().unwrap();
                 let f = bsdf.f(&si.wo, &wi, BSDF_ALL);
                 let ns = correct_shading_normal(si, &si.wo, &wi, mode);
                 return f * ns;
             }
-            VertexType::Medium => {
-                let interaction = self.interaction.value.read().unwrap();
-                let mi = interaction.as_medium().unwrap();
+            VertexInteraction::Medium(mi) => {
                 let p = mi.phase.p(&mi.wo, &wi);
                 return Spectrum::from(p);
             }
@@ -418,21 +382,37 @@ impl Vertex {
             return Spectrum::zero();
         }
         let w = w.normalize();
-        if self.is_infinite_light() {
-            // Return emitted radiance for infinite light sources
-            let mut le = Spectrum::zero();
-            for light in scene.infinite_lights.iter() {
-                let ray = RayDifferential::from(Ray::new(&self.get_p(), &-w, Float::INFINITY, 0.0));
-                le += light.le(&ray);
+
+        let interaction = self.interaction.value.read().unwrap();
+        match interaction.deref() {
+            VertexInteraction::EndPoint(ei) => {
+                let mut le = Spectrum::zero();
+                if let EndpointInteraction::Light(_ei) = ei {
+                    //let light = ei.1.as_ref().unwrap().upgrade().unwrap();
+                    if self.is_infinite_light() {
+                        // Return emitted radiance for infinite light sources
+                        for light in scene.infinite_lights.iter() {
+                            let ray = RayDifferential::from(Ray::new(
+                                &self.get_p(),
+                                &-w,
+                                Float::INFINITY,
+                                0.0,
+                            ));
+                            le += light.le(&ray);
+                        }
+                    }
+                }
+                return le;
             }
-            return le;
-        } else {
-            let interaction = self.interaction.value.read().unwrap();
-            let si = interaction.as_surface().unwrap();
-            let premitive = si.primitive.as_ref().unwrap().upgrade().unwrap();
-            let area_light = premitive.get_area_light().unwrap();
-            let area_light = area_light.as_area_light().unwrap();
-            return area_light.l(&Interaction::from(si), &w);
+            VertexInteraction::Surface(si) => {
+                let premitive = si.primitive.as_ref().unwrap().upgrade().unwrap();
+                let area_light = premitive.get_area_light().unwrap();
+                let area_light = area_light.as_area_light().unwrap();
+                return area_light.l(&Interaction::from(si), &w);
+            }
+            _ => {
+                return Spectrum::zero();
+            }
         }
     }
 

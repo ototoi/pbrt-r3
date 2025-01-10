@@ -82,25 +82,13 @@ impl<T: Clone> VertexValue<T> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Vertex {
     pub beta: VertexValue<Spectrum>,
     pub interaction: VertexValue<VertexInteraction>,
     pub delta: VertexValue<bool>,
     pub pdf_fwd: VertexValue<Float>,
     pub pdf_rev: VertexValue<Float>,
-}
-
-impl Default for Vertex {
-    fn default() -> Self {
-        Vertex {
-            beta: VertexValue::new(Spectrum::default()),
-            interaction: VertexValue::new(VertexInteraction::default()),
-            delta: VertexValue::new(false),
-            pdf_fwd: VertexValue::new(0.0),
-            pdf_rev: VertexValue::new(0.0),
-        }
-    }
 }
 
 impl Vertex {
@@ -178,7 +166,7 @@ impl Vertex {
             VertexInteraction::EndPoint(ei) => {
                 if let EndpointInteraction::Camera(ei) = ei {
                     let ray = ei.0.spawn_ray(&wn);
-                    let camera = ei.1.as_ref().unwrap().upgrade().unwrap();
+                    let camera = ei.1.as_ref().unwrap();
                     if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray) {
                         let pdf = self.convert_density(pdf_dir, next);
                         return pdf;
@@ -352,24 +340,6 @@ impl Vertex {
                 return bsdf.num_components(
                     BSDF_DIFFUSE | BSDF_GLOSSY | BSDF_REFLECTION | BSDF_TRANSMISSION,
                 ) > 0;
-            }
-        }
-    }
-
-    pub fn is_transmission(&self) -> bool {
-        let t = self.get_type();
-        match t {
-            VertexType::Surface => {
-                let interaction = self.interaction.value.read().unwrap();
-                let si = interaction.as_surface().unwrap();
-                let bsdf = si.bsdf.as_ref().unwrap();
-                return bsdf.num_components(BSDF_TRANSMISSION) > 0;
-            }
-            VertexType::Medium => {
-                return true;
-            }
-            _ => {
-                return false;
             }
         }
     }

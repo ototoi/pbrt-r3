@@ -1,12 +1,11 @@
 use crate::core::pbrt::*;
 
 use std::sync::Arc;
-use std::sync::Weak;
 
-pub type CameraInteraction = (Interaction, Option<Weak<dyn Camera>>);
-pub type LightInteraction = (Interaction, Option<Weak<dyn Light>>);
+pub type CameraInteraction = (Interaction, Option<Arc<dyn Camera>>);
+pub type LightInteraction = (Interaction, Option<Arc<dyn Light>>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum EndpointInteraction {
     Camera(CameraInteraction),
     Light(LightInteraction),
@@ -44,12 +43,7 @@ impl EndpointInteraction {
     pub fn get_camera(&self) -> Option<Arc<dyn Camera>> {
         match self {
             Self::Camera(inter) => {
-                if let Some(arc) = inter.1.as_ref() {
-                    if let Some(arc) = arc.upgrade() {
-                        return Some(arc);
-                    }
-                }
-                return None;
+                return inter.1.clone();
             }
             _ => None,
         }
@@ -58,46 +52,37 @@ impl EndpointInteraction {
     pub fn get_light(&self) -> Option<Arc<dyn Light>> {
         match self {
             Self::Light(inter) => {
-                if let Some(arc) = inter.1.as_ref() {
-                    if let Some(arc) = arc.upgrade() {
-                        return Some(arc);
-                    }
-                }
-                return None;
+                return inter.1.clone();
             }
             _ => None,
         }
     }
 
     pub fn from_camera_ray(camera: &Arc<dyn Camera>, ray: &Ray) -> Self {
-        let weak = Arc::downgrade(camera);
         let mut inter = BaseInteraction::default();
         inter.p = ray.o;
         inter.time = ray.time;
         inter.medium_interface = MediumInterface::from(&ray.medium);
         let inter = Interaction::Base(inter);
-        return Self::Camera((inter, Some(weak)));
+        return Self::Camera((inter, Some(camera.clone())));
     }
 
     pub fn from_camera_interaction(camera: &Arc<dyn Camera>, inter: &Interaction) -> Self {
-        let weak = Arc::downgrade(camera);
-        return Self::Camera((inter.clone(), Some(weak)));
+        return Self::Camera((inter.clone(), Some(camera.clone())));
     }
 
     pub fn from_light_ray(light: &Arc<dyn Light>, ray: &Ray, n_light: &Normal3f) -> Self {
-        let weak = Arc::downgrade(light);
         let mut inter = BaseInteraction::default();
         inter.p = ray.o;
         inter.time = ray.time;
         inter.n = *n_light;
         inter.medium_interface = MediumInterface::from(&ray.medium);
         let inter = Interaction::Base(inter);
-        return Self::Light((inter, Some(weak)));
+        return Self::Light((inter, Some(light.clone())));
     }
 
     pub fn from_light_interaction(light: &Arc<dyn Light>, inter: &Interaction) -> Self {
-        let weak = Arc::downgrade(light);
-        return Self::Light((inter.clone(), Some(weak)));
+        return Self::Light((inter.clone(), Some(light.clone())));
     }
 
     pub fn from_ray(ray: &Ray) -> Self {
@@ -148,7 +133,7 @@ pub enum VertexType {
     Medium,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum VertexInteraction {
     EndPoint(EndpointInteraction),
     Medium(MediumInteraction),

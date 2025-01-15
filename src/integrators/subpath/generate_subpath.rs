@@ -20,11 +20,10 @@ fn random_walk(
     max_depth: usize,
     mode: TransportMode,
     path: &mut Vec<Arc<Vertex>>,
-) -> usize {
+) {
     assert!(!path.is_empty());
     let mut ray = ray.clone();
 
-    let offset = path.len();
     // Declare variables for forward and reverse probability densities
     let mut beta = *beta;
 
@@ -141,8 +140,6 @@ fn random_walk(
             prev.pdf_rev.set(pdf_rev);
         }
     }
-    //println!("breaked!");
-    return path.len() - offset;
 }
 
 // GenerateLightSubpath
@@ -176,7 +173,7 @@ pub fn generate_camera_subpath(
             let new_vertex = Arc::new(Vertex::create_camera_from_ray(&camera, &ray.ray, &beta));
             path.push(new_vertex);
             if max_depth > 1 {
-                return random_walk(
+                random_walk(
                     scene,
                     &ray,
                     sampler,
@@ -186,9 +183,7 @@ pub fn generate_camera_subpath(
                     max_depth,
                     TransportMode::Radiance,
                     path,
-                ) + 1;
-            } else {
-                return path.len();
+                );
             }
         }
     }
@@ -236,7 +231,8 @@ pub fn generate_light_subpath(
         let beta = le * n_light.abs_dot(&ray.d) * (1.0 / (light_pdf * pdf_pos * pdf_dir));
         let ray = RayDifferential::from(&ray);
         assert!(max_depth > 1);
-        let n_vertices = random_walk(
+
+        random_walk(
             scene,
             &ray,
             sampler,
@@ -251,7 +247,7 @@ pub fn generate_light_subpath(
         // Correct subpath sampling densities for infinite area lights
         if vertex.is_infinite_light() {
             // Set spatial density of _path[1]_ for infinite area light
-            if n_vertices > 0 {
+            if path.len() > 1 {
                 let next = path[1].clone();
                 let mut pdf_fwd = pdf_pos;
                 if next.is_on_surface() {
@@ -263,7 +259,6 @@ pub fn generate_light_subpath(
             let pdf_fwd = infinite_light_density(scene, light_distr, light_to_index, &ray.ray.d);
             vertex.pdf_fwd.set(pdf_fwd);
         }
-        return path.len();
     }
     return path.len();
 }

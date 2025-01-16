@@ -184,6 +184,10 @@ impl Sampler for MLTSampler {
         return self.base.get_2d_array(n);
     }
 
+    fn start_next_sample(&mut self) -> bool {
+        return self.base.start_next_sample();
+    }
+
     fn clone_with_seed(&self, seed: u32) -> Arc<RwLock<dyn Sampler>> {
         let sampler = MLTSampler {
             base: self.base.clone(),

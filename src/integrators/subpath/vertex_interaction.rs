@@ -26,6 +26,18 @@ impl EndpointInteraction {
         }
     }
 
+    pub fn is_delta_light(&self) -> bool {
+        match self {
+            Self::Light(inter) => {
+                if let Some(light) = inter.1.as_ref() {
+                    return light.is_delta();
+                }
+                return false;
+            }
+            _ => false,
+        }
+    }
+
     // Vertex::IsInfiniteLight
     pub fn is_infinite_light(&self) -> bool {
         match self {

@@ -274,10 +274,7 @@ impl Vertex {
         let interaction = self.interaction.value.read().unwrap();
         match interaction.deref() {
             VertexInteraction::EndPoint(ei) => {
-                if let EndpointInteraction::Light(_) = ei {
-                    return true;
-                }
-                return false;
+                return ei.is_light();
             }
             VertexInteraction::Surface(si) => {
                 let premitive = si.primitive.clone();
@@ -293,15 +290,17 @@ impl Vertex {
         }
     }
 
+    // Vertex::IsDeltaLight
     pub fn is_delta_light(&self) -> bool {
-        let t = self.get_type();
-        if t == VertexType::Light {
-            let interaction = self.interaction.value.read().unwrap();
-            if let Some(light) = interaction.get_light() {
-                return light.is_delta();
+        let interaction = self.interaction.value.read().unwrap();
+        match interaction.deref() {
+            VertexInteraction::EndPoint(ei) => {
+                return ei.is_delta_light();
+            }
+            _ => {
+                return false;
             }
         }
-        return false;
     }
 
     // Vertex::IsInfiniteLight

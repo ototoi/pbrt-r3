@@ -15,6 +15,8 @@ const CAMERA_STREAM_INDEX: u64 = 0;
 const LIGHT_STREAM_INDEX: u64 = 1;
 const CONNECTION_STREAM_INDEX: u64 = 2;
 const N_SAMPLE_STREAMS: u64 = 3;
+
+// MLT Constants
 const PROGRESS_FREQUENCY: u32 = 32768;
 const UPDATE_DISPLAY_INTERVAL: u128 = 1000;
 
@@ -50,7 +52,7 @@ pub struct MLTSampler {
     x: Vec<PrimarySample>,
     current_iteration: i64,
     large_step: bool,
-    last_large_iteration: i64,
+    last_large_step_iteration: i64,
     stream_index: u64,
     sample_index: u64,
 }
@@ -76,7 +78,7 @@ impl MLTSampler {
             x,
             current_iteration: 0,
             large_step: true,
-            last_large_iteration: 0,
+            last_large_step_iteration: 0,
             stream_index: 0,
             sample_index: 0,
         }
@@ -89,7 +91,7 @@ impl MLTSampler {
 
     pub fn accept(&mut self) {
         if self.large_step {
-            self.last_large_iteration = self.current_iteration;
+            self.last_large_step_iteration = self.current_iteration;
         }
     }
 
@@ -122,9 +124,9 @@ impl MLTSampler {
         let xi = &mut self.x[index];
 
         // Reset $\VEC{X}_i$ if a large step took place in the meantime
-        if xi.last_modification_iteration < self.last_large_iteration {
+        if xi.last_modification_iteration < self.last_large_step_iteration {
             xi.value = self.rng.uniform_float();
-            xi.last_modification_iteration = self.current_iteration;
+            xi.last_modification_iteration = self.last_large_step_iteration;
         }
 
         // Apply remaining sequence of mutations to _xi_
@@ -192,7 +194,7 @@ impl Sampler for MLTSampler {
             x: self.x.clone(),
             current_iteration: self.current_iteration,
             large_step: self.large_step,
-            last_large_iteration: self.last_large_iteration,
+            last_large_step_iteration: self.last_large_step_iteration,
             stream_index: self.stream_index,
             sample_index: self.sample_index,
         };

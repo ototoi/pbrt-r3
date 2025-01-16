@@ -26,6 +26,34 @@ impl EndpointInteraction {
         }
     }
 
+    pub fn is_delta_light(&self) -> bool {
+        match self {
+            Self::Light(inter) => {
+                if let Some(light) = inter.1.as_ref() {
+                    return light.is_delta();
+                }
+                return false;
+            }
+            _ => false,
+        }
+    }
+
+    // Vertex::IsInfiniteLight
+    pub fn is_infinite_light(&self) -> bool {
+        match self {
+            Self::Light(inter) => {
+                if let Some(light) = inter.1.as_ref() {
+                    let flags = light.get_light_flags();
+                    return ((flags & LightFlags::Infinite as u32) != 0)
+                        || ((flags & LightFlags::DeltaDirection as u32) != 0);
+                } else {
+                    return true;
+                }
+            }
+            _ => false,
+        }
+    }
+
     pub fn as_camera(&self) -> Option<&CameraInteraction> {
         match self {
             Self::Camera(inter) => Some(inter),

@@ -20,6 +20,12 @@ impl VisibilityTester {
 
     pub fn tr(&self, scene: &Scene, sampler: &mut dyn Sampler) -> Spectrum {
         let mut ray = self.p0.spawn_ray_to(&self.p1);
+        // pbrt-r3:
+        if !scene.intersect_p(&ray) {
+            return Spectrum::one();
+        }
+        // pbrt-r3:
+
         let mut tr = Spectrum::one();
         loop {
             //let t_max = ray.t_max.get();

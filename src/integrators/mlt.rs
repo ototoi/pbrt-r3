@@ -111,7 +111,7 @@ impl MLTSampler {
     }
 
     pub fn get_next_index(&mut self) -> u64 {
-        let index = self.stream_index * self.stream_count + self.sample_index;
+        let index = self.stream_index + self.stream_count * self.sample_index;
         self.sample_index += 1;
         return index;
     }
@@ -253,6 +253,8 @@ impl MLTIntegrator {
         light_distr: &Distribution1D,
         light_to_index: &LightIndexMap,
         sampler: &mut MLTSampler,
+        camera_vertices: &mut Vec<Arc<Vertex>>,
+        light_vertices: &mut Vec<Arc<Vertex>>,
         depth: u32,
     ) -> (Spectrum, Point2f) {
         let camera = self.camera.clone();
@@ -277,7 +279,8 @@ impl MLTIntegrator {
         );
         let p_raster = sample_bounds.lerp(&sampler.get_2d());
         // Generate a camera subpath with exactly _t_ vertices
-        let mut camera_vertices = Vec::with_capacity(t as usize);
+        //let mut camera_vertices = Vec::with_capacity(t as usize);
+        camera_vertices.clear();
         if generate_camera_subpath(
             scene,
             sampler,
@@ -285,7 +288,7 @@ impl MLTIntegrator {
             t as usize,
             &camera,
             &p_raster,
-            &mut camera_vertices,
+            camera_vertices,
         ) != t as usize
         {
             return (Spectrum::zero(), p_raster);
@@ -294,7 +297,8 @@ impl MLTIntegrator {
         // Generate a light subpath with exactly _s_ vertices
         sampler.start_stream(LIGHT_STREAM_INDEX);
         let time = camera_vertices[0].get_time();
-        let mut light_vertices = Vec::with_capacity(s as usize);
+        //let mut light_vertices = Vec::with_capacity(s as usize);
+        light_vertices.clear();
         if generate_light_subpath(
             scene,
             sampler,
@@ -303,7 +307,7 @@ impl MLTIntegrator {
             time,
             light_distr,
             light_to_index,
-            &mut light_vertices,
+            light_vertices,
         ) != s as usize
         {
             return (Spectrum::zero(), p_raster);
@@ -374,6 +378,9 @@ impl Integrator for MLTIntegrator {
             (0..n_bootstrap).into_par_iter().for_each(|i| {
                 // Generate _i_th bootstrap sample
                 let mut arena = MemoryArena::new();
+                let mut camera_vertices = Vec::new();
+                let mut light_vertices = Vec::new();
+
                 for depth in 0..=max_depth {
                     let rng_index = i * (max_depth + 1) + depth;
                     let mut sampler = MLTSampler::new(
@@ -389,6 +396,8 @@ impl Integrator for MLTIntegrator {
                         &light_distr,
                         &light_to_index,
                         &mut sampler,
+                        &mut camera_vertices,
+                        &mut light_vertices,
                         depth,
                     );
                     let y = l.y();
@@ -473,6 +482,8 @@ impl Integrator for MLTIntegrator {
 
                 // Follow {i}th Markov chain for _nChainMutations_
                 let mut arena = MemoryArena::new();
+                let mut camera_vertices = Vec::new();
+                let mut light_vertices = Vec::new();
 
                 // Select initial state from the set of bootstrap samples
                 let mut rng = RNG::new_sequence(i as u64);
@@ -494,6 +505,8 @@ impl Integrator for MLTIntegrator {
                     &light_distr,
                     &light_to_index,
                     &mut sampler,
+                    &mut camera_vertices,
+                    &mut light_vertices,
                     depth,
                 );
 
@@ -506,6 +519,8 @@ impl Integrator for MLTIntegrator {
                         &light_distr,
                         &light_to_index,
                         &mut sampler,
+                        &mut camera_vertices,
+                        &mut light_vertices,
                         depth,
                     );
                     // Compute acceptance probability for proposed sample

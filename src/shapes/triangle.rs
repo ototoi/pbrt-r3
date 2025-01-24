@@ -849,7 +849,6 @@ pub fn create_triangle_mesh_shape(
             params,
         );
 
-        /* 
         let alpha_mask_info = get_alpha_texture(params, float_textures);
         let shadow_alpha_mask_info = get_shadow_alpha_texture(params, float_textures);
         if alpha_mask_info.is_some() || shadow_alpha_mask_info.is_some() {
@@ -861,7 +860,6 @@ pub fn create_triangle_mesh_shape(
                 ));
             }
         }
-        */
 
         return Ok(mesh);
     } else {

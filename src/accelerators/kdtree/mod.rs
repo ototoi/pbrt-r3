@@ -1,3 +1,3 @@
-pub mod accel;
+pub mod kdtree;
 
-pub use accel::*;
+pub use kdtree::*;

@@ -1,8 +1,8 @@
 use crate::core::pbrt::*;
 use std::sync::Arc;
 
-thread_local!(pub static INTERIOR_NODES: StatCounter = StatCounter::new("BVH/Interior nodes"));
-thread_local!(pub static LEAF_NODES: StatCounter = StatCounter::new("BVH/Leaf nodes"));
+thread_local!(static INTERIOR_NODES: StatCounter = StatCounter::new("BVH/Interior nodes"));
+thread_local!(static LEAF_NODES: StatCounter = StatCounter::new("BVH/Leaf nodes"));
 
 #[derive(Copy, Clone, Debug)]
 pub enum SplitMethod {

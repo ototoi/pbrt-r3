@@ -1,3 +1,3 @@
-pub mod accel;
+pub mod exhaustive;
 
-pub use accel::*;
+pub use exhaustive::*;

@@ -341,6 +341,7 @@ pub fn create_ply_mesh(
             );
             //let mesh =
             //    create_bound_mesh(o2w, w2o, reverse_orientation, vertex_indices, p, s, n, uv);
+            /* 
             let alpha_mask_info = get_alpha_texture(params, float_textures);
             let shadow_alpha_mask_info = get_shadow_alpha_texture(params, float_textures);
             if alpha_mask_info.is_some() || shadow_alpha_mask_info.is_some() {
@@ -352,6 +353,7 @@ pub fn create_ply_mesh(
                     ));
                 }
             }
+            */
 
             return Ok(mesh);
         }

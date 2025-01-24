@@ -1,4 +1,6 @@
-use super::*;
+use super::bvh::*;
+use super::exhaustive::*;
+use super::kdtree::*;
 use crate::core::pbrt::*;
 
 use std::sync::Arc;
@@ -11,7 +13,7 @@ pub fn create_accelerator(
     if !prims.is_empty() {
         match name {
             "bvh" => create_bvh_accelerator(prims, params),
-            "kdtree" => create_bvh_accelerator(prims, params),
+            "kdtree" => create_kdtree_accelerator(prims, params),
             "exhaustive" => create_exhaustive_accelerator(prims, params),
             _ => {
                 return Err(PbrtError::warning(&format!(

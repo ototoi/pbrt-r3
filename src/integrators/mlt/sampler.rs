@@ -94,7 +94,7 @@ impl MLTSampler {
     }
 
     pub fn get_next_index(&mut self) -> u64 {
-        let index = self.stream_index * self.stream_count + self.sample_index;
+        let index = self.stream_index + self.stream_count * self.sample_index;
         self.sample_index += 1;
         return index;
     }
@@ -109,7 +109,7 @@ impl MLTSampler {
         // Reset $\VEC{X}_i$ if a large step took place in the meantime
         if xi.last_modification_iteration < self.last_large_iteration {
             xi.value = self.rng.uniform_float();
-            xi.last_modification_iteration = self.current_iteration;
+            xi.last_modification_iteration = self.last_large_iteration;
         }
 
         // Apply remaining sequence of mutations to _xi_

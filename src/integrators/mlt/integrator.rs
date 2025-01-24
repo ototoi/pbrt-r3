@@ -2,8 +2,7 @@ use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 
 use crate::core::pbrt::*;
-use crate::integrators::bdpt::subpath::*;
-use crate::integrators::bdpt::vertex::*;
+use super::super::subpath::*;
 
 use std::sync::atomic::*;
 use std::sync::Arc;

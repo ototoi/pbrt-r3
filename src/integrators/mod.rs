@@ -8,6 +8,7 @@ pub mod path;
 pub mod sppm;
 pub mod volpath;
 pub mod whitted;
+pub mod subpath;
 
 pub use ao::integrator::*;
 pub use aov::integrator::*;

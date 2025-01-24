@@ -1,11 +1,12 @@
 use crate::core::pbrt::*;
 
 use std::sync::Arc;
+use std::sync::Weak;
 
-pub type CameraInteraction = (Interaction, Option<Arc<dyn Camera>>);
-pub type LightInteraction = (Interaction, Option<Arc<dyn Light>>);
+pub type CameraInteraction = (Interaction, Option<Weak<dyn Camera>>);
+pub type LightInteraction = (Interaction, Option<Weak<dyn Light>>);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum EndpointInteraction {
     Camera(CameraInteraction),
     Light(LightInteraction),
@@ -22,34 +23,6 @@ impl EndpointInteraction {
     pub fn is_light(&self) -> bool {
         match self {
             Self::Light(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_delta_light(&self) -> bool {
-        match self {
-            Self::Light(inter) => {
-                if let Some(light) = inter.1.as_ref() {
-                    return light.is_delta();
-                }
-                return false;
-            }
-            _ => false,
-        }
-    }
-
-    // Vertex::IsInfiniteLight
-    pub fn is_infinite_light(&self) -> bool {
-        match self {
-            Self::Light(inter) => {
-                if let Some(light) = inter.1.as_ref() {
-                    let flags = light.get_light_flags();
-                    return ((flags & LightFlags::Infinite as u32) != 0)
-                        || ((flags & LightFlags::DeltaDirection as u32) != 0);
-                } else {
-                    return true;
-                }
-            }
             _ => false,
         }
     }
@@ -71,7 +44,12 @@ impl EndpointInteraction {
     pub fn get_camera(&self) -> Option<Arc<dyn Camera>> {
         match self {
             Self::Camera(inter) => {
-                return inter.1.clone();
+                if let Some(arc) = inter.1.as_ref() {
+                    if let Some(arc) = arc.upgrade() {
+                        return Some(arc);
+                    }
+                }
+                return None;
             }
             _ => None,
         }
@@ -80,48 +58,68 @@ impl EndpointInteraction {
     pub fn get_light(&self) -> Option<Arc<dyn Light>> {
         match self {
             Self::Light(inter) => {
-                return inter.1.clone();
+                if let Some(arc) = inter.1.as_ref() {
+                    if let Some(arc) = arc.upgrade() {
+                        return Some(arc);
+                    }
+                }
+                return None;
             }
             _ => None,
         }
     }
 
     pub fn from_camera_ray(camera: &Arc<dyn Camera>, ray: &Ray) -> Self {
-        let mut inter = BaseInteraction::default();
-        inter.p = ray.o;
-        inter.time = ray.time;
-        inter.medium_interface = MediumInterface::from(&ray.medium);
-        let inter = Interaction::Base(inter);
-        return Self::Camera((inter, Some(camera.clone())));
+        let weak = Arc::downgrade(camera);
+        let n = -ray.d;
+        let base = BaseInteraction {
+            p: ray.o,
+            time: ray.time,
+            p_error: Vector3f::default(),
+            n,
+            wo: n,
+            medium_interface: MediumInterface::from(&ray.medium),
+        };
+        let inter = Interaction::Base(base);
+        return Self::Camera((inter, Some(weak)));
     }
 
     pub fn from_camera_interaction(camera: &Arc<dyn Camera>, inter: &Interaction) -> Self {
-        return Self::Camera((inter.clone(), Some(camera.clone())));
+        let weak = Arc::downgrade(camera);
+        return Self::Camera((inter.clone(), Some(weak)));
     }
 
     pub fn from_light_ray(light: &Arc<dyn Light>, ray: &Ray, n_light: &Normal3f) -> Self {
-        let mut inter = BaseInteraction::default();
-        inter.p = ray.o;
-        inter.time = ray.time;
-        inter.n = *n_light;
-        inter.medium_interface = MediumInterface::from(&ray.medium);
-        let inter = Interaction::Base(inter);
-        return Self::Light((inter, Some(light.clone())));
+        let weak = Arc::downgrade(light);
+        let base = BaseInteraction {
+            p: ray.o,
+            time: ray.time,
+            p_error: Vector3f::default(),
+            n: *n_light,
+            wo: -ray.d,
+            medium_interface: MediumInterface::from(&ray.medium),
+        };
+        let inter = Interaction::Base(base);
+        return Self::Light((inter, Some(weak)));
     }
 
     pub fn from_light_interaction(light: &Arc<dyn Light>, inter: &Interaction) -> Self {
-        return Self::Light((inter.clone(), Some(light.clone())));
+        let weak = Arc::downgrade(light);
+        return Self::Light((inter.clone(), Some(weak)));
     }
 
     pub fn from_ray(ray: &Ray) -> Self {
         let p = ray.position(1.0);
         let n = -ray.d;
-        let mut inter = BaseInteraction::default();
-        inter.p = p;
-        inter.time = ray.time;
-        inter.n = n;
-        inter.medium_interface = MediumInterface::from(&ray.medium);
-        let inter = Interaction::Base(inter);
+        let base = BaseInteraction {
+            p,
+            time: ray.time,
+            p_error: Vector3f::default(),
+            n,
+            wo: n,
+            medium_interface: MediumInterface::from(&ray.medium),
+        };
+        let inter = Interaction::Base(base);
         return Self::Light((inter, None));
     }
 
@@ -149,7 +147,7 @@ impl EndpointInteraction {
 
 impl Default for EndpointInteraction {
     fn default() -> Self {
-        return Self::Camera((Interaction::default(), None));
+        return Self::Light((Interaction::default(), None));
     }
 }
 
@@ -161,17 +159,11 @@ pub enum VertexType {
     Medium,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum VertexInteraction {
     EndPoint(EndpointInteraction),
     Medium(MediumInteraction),
     Surface(SurfaceInteraction),
-}
-
-impl Default for VertexInteraction {
-    fn default() -> Self {
-        return Self::EndPoint(EndpointInteraction::default());
-    }
 }
 
 impl VertexInteraction {
@@ -271,13 +263,6 @@ impl VertexInteraction {
     pub fn get_light(&self) -> Option<Arc<dyn Light>> {
         match self {
             Self::EndPoint(inter) => inter.get_light(),
-            Self::Surface(si) => {
-                if let Some(primitive) = &si.primitive {
-                    let primitive = primitive.upgrade().unwrap();
-                    return primitive.get_area_light();
-                }
-                return None;
-            }
             _ => None,
         }
     }

@@ -265,8 +265,8 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
     stats::clear_stats();
 
     if !opts.quiet && !opts.no_profile {
-        profile::init_profiler();
-        profile::start_profiler();
+        //    profile::init_profiler();
+        //    profile::start_profiler();
     }
 
     if !opts.quiet {
@@ -335,7 +335,7 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
         }
     }
     if !opts.quiet && !opts.no_profile {
-        profile::stop_profiler();
+        //    profile::stop_profiler();
     }
     println!("\n");
 
@@ -344,9 +344,9 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
         stats::clear_stats();
     }
     if !opts.quiet && !opts.no_profile {
-        profile::print_profiler(); //profile::report_profiler_results();
-        profile::clear_profiler();
-        profile::cleanup_profiler();
+        //profile::print_profiler(); //profile::report_profiler_results();
+        //profile::clear_profiler();
+        //profile::cleanup_profiler();
     }
 
     return 0;

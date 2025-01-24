@@ -14,6 +14,11 @@ pub struct ProfilePhase {
 
 impl ProfilePhase {
     pub fn new(category: ProfileCategory) -> Self {
+        ProfilePhase {
+            reset: false,
+            category_bit: 0,
+        }
+        /*
         let options = PbrtOptions::get();
         if options.no_profile {
             ProfilePhase {
@@ -35,6 +40,7 @@ impl ProfilePhase {
                 category_bit,
             }
         }
+        */
     }
 }
 

@@ -33,23 +33,22 @@ pub fn generate_camera_subpath(
             &camera, &ray.ray, &beta,
         )));
         path.push(new_vertex);
-        let (_pdf_pos, pdf_dir) = camera.pdf_we(&ray.ray);
-        assert!(!path.is_empty());
-        return random_walk(
-            scene,
-            &ray,
-            sampler,
-            arena,
-            &beta,
-            pdf_dir,
-            max_depth - 1,
-            TransportMode::Radiance,
-            path,
-        ) + 1;
-    } else {
-        assert!(false);
-        return 0;
+        if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray.ray) {
+            assert!(!path.is_empty());
+            return random_walk(
+                scene,
+                &ray,
+                sampler,
+                arena,
+                &beta,
+                pdf_dir,
+                max_depth - 1,
+                TransportMode::Radiance,
+                path,
+            ) + 1;
+        }
     }
+    return path.len();
 }
 
 pub fn generate_light_subpath(
@@ -173,7 +172,7 @@ fn random_walk(
     loop {
         // println!("bounces: {}", bounces);
         // Attempt to create the next subpath vertex in _path_
-        let mut mi = MediumInteraction::default();
+        let mut mi = None;
 
         // vlog(2) << "Random walk. Path: " << *this << ", bounces: " << bounces << ", beta: " << beta << ", pdfFwd: " << pdfFwd << ", pdfRev: " << pdfRev;
 
@@ -183,7 +182,7 @@ fn random_walk(
             let (spec, m) = medium.sample(&ray.ray, sampler, arena);
             if let Some(mut m) = m {
                 m.medium_interface = MediumInterface::from(medium);
-                mi = m;
+                mi = Some(m);
             }
             beta *= spec;
         };
@@ -194,32 +193,31 @@ fn random_walk(
         assert!(cur_index < path.len());
         let mut vertex = None;
         let prev = path[cur_index].clone();
-        if mi.is_valid() {
-            if let Some(phase) = mi.phase.as_ref() {
-                // Record medium interaction in _path_ and compute forward density
-                let prev = prev.as_ref().read().unwrap();
-                let new_vertex = Arc::new(RwLock::new(Vertex::create_medium(
-                    &mi,
-                    &beta,
-                    pdf_fwd,
-                    prev.deref(),
-                )));
-                vertex = Some(new_vertex.clone());
-                path.push(new_vertex);
-                bounces += 1;
-                if bounces >= max_depth {
-                    break;
-                }
-
-                // Sample direction and compute reverse density at preceding vertex
-                let wo = -ray.ray.d;
-                let (pdf, wi) = phase.sample_p(&wo, &sampler.get_2d());
-                assert!(pdf >= 0.0);
-                pdf_fwd = pdf;
-                pdf_rev = pdf;
-
-                ray = mi.spawn_ray(&wi).into();
+        if let Some(mi) = mi {
+            let phase = mi.phase.as_ref();
+            // Record medium interaction in _path_ and compute forward density
+            let prev = prev.as_ref().read().unwrap();
+            let new_vertex = Arc::new(RwLock::new(Vertex::create_medium(
+                &mi,
+                &beta,
+                pdf_fwd,
+                prev.deref(),
+            )));
+            vertex = Some(new_vertex.clone());
+            path.push(new_vertex);
+            bounces += 1;
+            if bounces >= max_depth {
+                break;
             }
+
+            // Sample direction and compute reverse density at preceding vertex
+            let wo = -ray.ray.d;
+            let (pdf, wi) = phase.sample_p(&wo, &sampler.get_2d());
+            assert!(pdf >= 0.0);
+            pdf_fwd = pdf;
+            pdf_rev = pdf;
+
+            ray = mi.spawn_ray(&wi).into();
         } else {
             // Handle surface interaction for path generation
             if found_intersection.is_none() {
@@ -606,13 +604,13 @@ pub fn connect_bdpt(
     camera: &Arc<dyn Camera>,
     sampler: &mut dyn Sampler,
     p_raster: &Point2f,
-) -> (Spectrum, Float, Point2f) {
+) -> Option<(Spectrum, Float, Point2f)> {
     let mut p_raster = *p_raster;
     // Ignore invalid connections related to infinite area lights
     if t > 1 && s != 0 {
         let t = camera_vertices[(t - 1) as usize].read().unwrap().get_type();
         if t == VertexType::Light {
-            return (Spectrum::zero(), 0.0, p_raster);
+            return None;
         }
     }
 
@@ -722,7 +720,7 @@ pub fn connect_bdpt(
 
     // Compute MIS weight for connection strategy
     let mis_weight = if l.is_black() {
-        0.0
+        return None;
     } else {
         mis_weight(
             scene,
@@ -736,5 +734,5 @@ pub fn connect_bdpt(
         )
     };
     l *= mis_weight;
-    return (l, mis_weight, p_raster);
+    return Some((l, mis_weight, p_raster));
 }

@@ -53,7 +53,7 @@ pub fn infinite_light_density(
         if let Some(index) = light_to_index.get(&key) {
             let index = *index;
             if index < light_distr.func.len() {
-                let pdf_i = light.pdf_li(&Interaction::zero(), &-*w) * light_distr.func[index];
+                let pdf_i = light.pdf_li(&Interaction::default(), &-*w) * light_distr.func[index];
                 assert!(pdf_i >= 0.0);
                 pdf += pdf_i;
             }
@@ -163,11 +163,14 @@ impl Vertex {
             let ei = interaction.as_camera().unwrap();
             let ray = ei.0.spawn_ray(&wn);
             let camera = ei.1.as_ref().unwrap().upgrade().unwrap();
-            let (_pdf_pos, pdf_dir) = camera.pdf_we(&ray);
-            assert!(pdf_dir >= 0.0);
-            let pdf = self.convert_density(pdf_dir, next);
-            assert!(pdf >= 0.0);
-            return pdf;
+            if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray) {
+                assert!(pdf_dir >= 0.0);
+                let pdf = self.convert_density(pdf_dir, next);
+                assert!(pdf >= 0.0);
+                return pdf;
+            } else {
+                return 0.0;
+            }
         } else {
             assert!(prev.is_some());
             let prev = prev.as_ref().unwrap();
@@ -190,7 +193,7 @@ impl Vertex {
                 assert!(t == VertexType::Medium);
                 let interaction = &self.core.as_ref().read().unwrap().interaction;
                 let mi = interaction.as_medium().unwrap();
-                let phase = mi.phase.as_ref().unwrap();
+                let phase = mi.phase.as_ref();
                 let pdf = phase.p(&wp, &wn);
                 assert!(pdf >= 0.0);
                 let pdf = self.convert_density(pdf, next);
@@ -365,7 +368,7 @@ impl Vertex {
             VertexType::Medium => {
                 let core = self.core.as_ref().read().unwrap();
                 let mi = core.interaction.as_medium().unwrap();
-                let phase = mi.phase.as_ref().unwrap();
+                let phase = mi.phase.as_ref();
                 let p = phase.p(&mi.wo, &wi);
                 return Spectrum::from(p);
             }

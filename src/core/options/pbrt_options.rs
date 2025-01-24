@@ -1,3 +1,4 @@
+use std::cell::LazyCell;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 
@@ -25,6 +26,10 @@ impl Default for PbrtOptions {
 static PBRT_OPTIONS: LazyLock<Mutex<PbrtOptions>> =
     LazyLock::new(|| Mutex::new(PbrtOptions::new()));
 
+thread_local!(
+    static LOCAL_OPTIONS: LazyCell<PbrtOptions> = LazyCell::new(|| PbrtOptions::get_lock());
+);
+
 impl PbrtOptions {
     pub fn new() -> Self {
         PbrtOptions::default()
@@ -36,6 +41,10 @@ impl PbrtOptions {
     }
 
     pub fn get() -> PbrtOptions {
+        LOCAL_OPTIONS.with(|opt| **opt)
+    }
+
+    pub fn get_lock() -> PbrtOptions {
         let options = PBRT_OPTIONS.lock().unwrap();
         return *options;
     }

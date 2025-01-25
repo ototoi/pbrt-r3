@@ -240,7 +240,9 @@ fn generate_light_subpath_core(
             return path;
         }
 
-        let beta = le * n_light.abs_dot(&ray.d) * (1.0 / (light_pdf * pdf_pos * pdf_dir));
+        let le_pdf: f32 = n_light.abs_dot(&ray.d) * (1.0 / (light_pdf * pdf_pos * pdf_dir));
+        let le_pdf = le_pdf.min(1.0);
+        let beta = le * le_pdf;
 
         let ray = RayDifferential::from(&ray);
         let n_vertices = random_walk(

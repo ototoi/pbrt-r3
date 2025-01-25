@@ -89,6 +89,9 @@ pub fn generate_light_subpath(
             let cur_index = path.len() - 1;
 
             let le_pdf = n_light.abs_dot(&ray.d) / (light_pdf * pdf_pos * pdf_dir);
+            // pbrt-r3
+            let le_pdf = Float::min(le_pdf, 1.0);
+            // pbrt-r3
             let beta = le * le_pdf;
 
             let ray = RayDifferential::from(&ray);

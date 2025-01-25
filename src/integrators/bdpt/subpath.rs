@@ -28,24 +28,24 @@ pub fn generate_camera_subpath(
     };
     if let Some((beta, mut ray)) = camera.as_ref().generate_ray_differential(&camera_sample) {
         ray.scale_differentials(1.0 / Float::sqrt(sampler.get_samples_per_pixel() as Float));
-        if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray.ray) {
-            let beta = Spectrum::from(beta);
-            let new_vertex = Arc::new(RwLock::new(Vertex::create_camera_from_ray(
-                &camera, &ray.ray, &beta,
-            )));
-            path.push(new_vertex);
-            return random_walk(
-                scene,
-                &ray,
-                sampler,
-                arena,
-                &beta,
-                pdf_dir,
-                max_depth - 1,
-                TransportMode::Radiance,
-                path,
-            ) + 1;
-        }
+        let beta = Spectrum::from(beta);
+        let new_vertex = Arc::new(RwLock::new(Vertex::create_camera_from_ray(
+            &camera, &ray.ray, &beta,
+        )));
+        path.push(new_vertex);
+        let (_pdf_pos, pdf_dir) = camera.pdf_we(&ray.ray);
+        assert!(!path.is_empty());
+        return random_walk(
+            scene,
+            &ray,
+            sampler,
+            arena,
+            &beta,
+            pdf_dir,
+            max_depth - 1,
+            TransportMode::Radiance,
+            path,
+        ) + 1;
     }
     return 0;
 }

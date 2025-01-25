@@ -14,13 +14,13 @@ pub struct CameraSample {
 pub trait Camera: Sync + Send {
     fn generate_ray(&self, sample: &CameraSample) -> Option<(Float, Ray)>;
     fn generate_ray_differential(&self, sample: &CameraSample) -> Option<(Float, RayDifferential)>;
-    fn we(&self, _ray: &Ray) -> Option<(Spectrum, Point2f)> {
+    fn we(&self, _ray: &Ray) -> (Spectrum, Point2f) {
         error!("we() method is not implemented for this camera!"); //maybe panic?
-        return None;
+        return (Spectrum::default(), Point2f::default());
     }
-    fn pdf_we(&self, _ray: &Ray) -> Option<(Float, Float)> {
+    fn pdf_we(&self, _ray: &Ray) -> (Float, Float) {
         error!("pdf_we() method is not implemented for this camera!");
-        return None;
+        return (0.0, 0.0);
     }
     fn sample_wi(
         &self,

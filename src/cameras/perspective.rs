@@ -169,7 +169,7 @@ impl Camera for PerspectiveCamera {
         return Some((1.0, ray));
     }
 
-    fn we(&self, ray: &Ray) -> Option<(Spectrum, Point2f)> {
+    fn we(&self, ray: &Ray) -> (Spectrum, Point2f) {
         // Interpolate camera matrix and check if $\w{}$ is forward-facing
         let c2w = self.base.base.camera_to_world.interpolate(ray.time);
         let w2c = c2w.inverse();
@@ -177,7 +177,7 @@ impl Camera for PerspectiveCamera {
             .d
             .dot(&c2w.transform_vector(&Vector3f::new(0.0, 0.0, 1.0)));
         if cos_theta <= 0.0 {
-            return None;
+            return (Spectrum::zero(), Point2f::default());
         }
 
         // Map ray $(\w{}, t)$ onto the film plane
@@ -203,7 +203,7 @@ impl Camera for PerspectiveCamera {
                 || p_raster.y < sample_bounds.min.y as Float
                 || p_raster.y >= sample_bounds.max.y as Float
             {
-                return None;
+                return (Spectrum::zero(), p_raster);
             }
         }
 
@@ -218,10 +218,10 @@ impl Camera for PerspectiveCamera {
         let cos2_theta = cos_theta * cos_theta;
         let cos4_theta = cos2_theta * cos2_theta;
         let a = self.a;
-        return Some((Spectrum::from(1.0 / (a * lens_area * cos4_theta)), p_raster));
+        return (Spectrum::from(1.0 / (a * lens_area * cos4_theta)), p_raster);
     }
 
-    fn pdf_we(&self, ray: &Ray) -> Option<(Float, Float)> {
+    fn pdf_we(&self, ray: &Ray) -> (Float, Float) {
         // Interpolate camera matrix and check if $\w{}$ is forward-facing
         let c2w = self.base.base.camera_to_world.interpolate(ray.time);
         let w2c = c2w.inverse();
@@ -229,7 +229,7 @@ impl Camera for PerspectiveCamera {
             .d
             .dot(&c2w.transform_vector(&Vector3f::new(0.0, 0.0, 1.0)));
         if cos_theta <= 0.0 {
-            return None;
+            return (0.0, 0.0);
         }
 
         // Map ray $(\w{}, t)$ onto the film plane
@@ -255,7 +255,7 @@ impl Camera for PerspectiveCamera {
                 || p_raster.y < sample_bounds.min.y as Float
                 || p_raster.y >= sample_bounds.max.y as Float
             {
-                return None;
+                return (0.0, 0.0);
             }
         }
         // Compute lens area of perspective camera
@@ -267,7 +267,7 @@ impl Camera for PerspectiveCamera {
         let a = self.a;
         let pdf_pos = 1.0 / lens_area;
         let pdf_dir = 1.0 / (a * cos_theta * cos_theta * cos_theta);
-        return Some((pdf_pos, pdf_dir));
+        return (pdf_pos, pdf_dir);
     }
 
     fn sample_wi(
@@ -309,10 +309,11 @@ impl Camera for PerspectiveCamera {
         };
         let pdf = (dist * dist) / (n.abs_dot(&wi) * lens_area);
         let ray = lens_intr.spawn_ray(&-wi);
-        if let Some((spec, p_raster)) = self.we(&ray) {
-            return Some((spec, wi, pdf, p_raster, vis));
-        } else {
+        let (spec, p_raster) = self.we(&ray);
+        if spec.is_black() {
             return None;
+        } else {
+            return Some((spec, wi, pdf, p_raster, vis));
         }
     }
 

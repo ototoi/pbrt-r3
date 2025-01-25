@@ -191,7 +191,7 @@ impl Camera for PerspectiveCamera {
         let p_focus = ray.position(distance);
         let camera_to_raster = self.base.raster_to_camera.inverse();
         let p_raster = camera_to_raster.transform_point(&w2c.transform_point(&p_focus)); //world -> camera -> raster
-        let p_raster2 = Vector2f::new(p_raster.x, p_raster.y);
+        let p_raster = Vector2f::new(p_raster.x, p_raster.y);
 
         // Return zero importance for out of bounds points
         let film = self.get_film();
@@ -203,7 +203,7 @@ impl Camera for PerspectiveCamera {
                 || p_raster.y < sample_bounds.min.y as Float
                 || p_raster.y >= sample_bounds.max.y as Float
             {
-                return (Spectrum::zero(), p_raster2);
+                return (Spectrum::zero(), p_raster);
             }
         }
 
@@ -218,10 +218,7 @@ impl Camera for PerspectiveCamera {
         let cos2_theta = cos_theta * cos_theta;
         let cos4_theta = cos2_theta * cos2_theta;
         let a = self.a;
-        return (
-            Spectrum::from(1.0 / (a * lens_area * cos4_theta)),
-            p_raster2,
-        );
+        return (Spectrum::from(1.0 / (a * lens_area * cos4_theta)), p_raster);
     }
 
     fn pdf_we(&self, ray: &Ray) -> (Float, Float) {

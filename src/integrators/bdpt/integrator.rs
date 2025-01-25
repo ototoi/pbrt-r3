@@ -208,8 +208,8 @@ impl Integrator for BDPTIntegrator {
                                         // update _L_
                                         if let Some((l_path, mis_weight, p_film_new)) = connect_bdpt(
                                             scene,
-                                            &light_vertices[0..],
-                                            &camera_vertices[0..],
+                                            &light_vertices,
+                                            &camera_vertices,
                                             s,
                                             t,
                                             &light_distr,
@@ -229,25 +229,20 @@ impl Integrator for BDPTIntegrator {
                                                 } else {
                                                     l_path
                                                 };
-                                                let mut film = proxy_film.as_ref().lock().unwrap();
-                                                film.add_splat(&p_film_new, &value);
+                                                //let mut film = proxy_film.as_ref().lock().unwrap();
+                                                //film.add_splat(&p_film_new, &value);
                                             }
                                             if t != 1 {
                                                 l += l_path;
                                             } else {
-                                                if !visualize_info {
-                                                    //println!("l_path: {:?}", l_path);
-                                                    let mut film = proxy_film.as_ref().lock().unwrap();
-                                                    film.add_splat(&p_film_new, &l_path);
-                                                }
+                                                let mut film = proxy_film.as_ref().lock().unwrap();
+                                                film.add_splat(&p_film_new, &l_path);
                                             }
                                         }
                                     }
                                 }
 
-                                if !visualize_info {
-                                    film_tile.add_sample(&p_film, &l, 1.0);
-                                }
+                                film_tile.add_sample(&p_film, &l, 1.0);
                                 arena.reset();
 
                                 if !tile_sampler.start_next_sample() {

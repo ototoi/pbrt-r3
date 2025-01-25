@@ -46,10 +46,8 @@ pub fn generate_camera_subpath(
             TransportMode::Radiance,
             path,
         ) + 1;
-    } else {
-        assert!(false);
-        return 0;
     }
+    return 0;
 }
 
 pub fn generate_light_subpath(

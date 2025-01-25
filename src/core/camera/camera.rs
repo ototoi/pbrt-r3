@@ -16,7 +16,7 @@ pub trait Camera: Sync + Send {
     fn generate_ray_differential(&self, sample: &CameraSample) -> Option<(Float, RayDifferential)>;
     fn we(&self, _ray: &Ray) -> (Spectrum, Point2f) {
         error!("we() method is not implemented for this camera!"); //maybe panic?
-        return (Spectrum::zero(), Point2f::zero());
+        return (Spectrum::default(), Point2f::default());
     }
     fn pdf_we(&self, _ray: &Ray) -> (Float, Float) {
         error!("pdf_we() method is not implemented for this camera!");

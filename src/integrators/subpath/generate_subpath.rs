@@ -5,11 +5,8 @@ use crate::core::pbrt::*;
 
 use std::ops::Deref;
 use std::sync::Arc;
+use std::sync::RwLock;
 
-thread_local!(static PATHS: StatPercent = StatPercent::new("Integrator/Zero-radiance paths"));
-thread_local!(static PATH_LENGTH: StatIntDistribution = StatIntDistribution::new("Integrator/Path length"));
-
-// RandomWalk
 fn random_walk(
     scene: &Scene,
     ray: &RayDifferential,
@@ -17,19 +14,19 @@ fn random_walk(
     arena: &mut MemoryArena,
     beta: &Spectrum,
     pdf: Float,
-    max_depth: usize,
     mode: TransportMode,
-    path: &mut Vec<Arc<Vertex>>,
-) {
+    start_index: usize,
+    path: &mut Vec<Option<Arc<RwLock<Vertex>>>>,
+) -> usize {
+    let max_depth = path.len();
     assert!(!path.is_empty());
+    let path_offset = start_index - 1;
     let mut ray = ray.clone();
 
+    let mut bounces: usize = 0;
     // Declare variables for forward and reverse probability densities
     let mut beta = *beta;
-
-    #[allow(unused_assignments)]
     let mut pdf_fwd = pdf;
-    #[allow(unused_assignments)]
     let mut pdf_rev = 0.0;
     loop {
         // println!("bounces: {}", bounces);
@@ -51,23 +48,25 @@ fn random_walk(
         if beta.is_black() {
             break;
         }
-
-        let prev_index = path.len() - 1;
-        let curr_index = path.len();
-
+        let prv_index = path_offset + bounces;
+        let cur_index = prv_index + 1;
         if let Some(mi) = mi.as_ref() {
-            // mi.is_valid() && mi.phase.is_some() {
+            let phase = mi.phase.as_ref();
             // Record medium interaction in _path_ and compute forward density
-            let prev = path[prev_index].clone();
-            let vertex = Arc::new(Vertex::create_medium(&mi, &beta, pdf_fwd, &prev));
-            path.push(vertex);
-            if path.len() >= max_depth {
+            let prev = path[prv_index].as_ref().unwrap().clone();
+            let prev = prev.read().unwrap();
+            let vertex = Arc::new(RwLock::new(Vertex::create_medium(
+                &mi, &beta, pdf_fwd, &prev,
+            )));
+            path[cur_index] = Some(vertex.clone());
+            bounces += 1;
+            if cur_index + 1 >= max_depth {
                 break;
             }
 
             // Sample direction and compute reverse density at preceding vertex
             let wo = -ray.ray.d;
-            let (pdf, wi) = mi.phase.sample_p(&wo, &sampler.get_2d());
+            let (pdf, wi) = phase.sample_p(&wo, &sampler.get_2d());
             assert!(pdf >= 0.0);
             pdf_fwd = pdf;
             pdf_rev = pdf;
@@ -79,8 +78,11 @@ fn random_walk(
                 // Capture escaped rays when tracing from the camera
                 if mode == TransportMode::Radiance {
                     let ei = EndpointInteraction::from_ray(&ray.ray);
-                    let vertex = Arc::new(Vertex::create_light_from_endpoint(&ei, &beta, pdf_fwd));
-                    path.push(vertex);
+                    let vertex = Arc::new(RwLock::new(Vertex::create_light_from_endpoint(
+                        &ei, &beta, pdf_fwd,
+                    )));
+                    path[cur_index] = Some(vertex);
+                    bounces += 1;
                 }
                 break;
             }
@@ -97,17 +99,22 @@ fn random_walk(
             }
 
             // Initialize _vertex_ with surface intersection information
-            let prev = path[prev_index].clone();
-            let vertex = Arc::new(Vertex::create_surface(&isect, &beta, pdf_fwd, &prev));
-            path.push(vertex.clone());
-            if path.len() >= max_depth {
+            let prev = path[prv_index].as_ref().unwrap().clone();
+            let prev = prev.read().unwrap();
+            let vertex = Arc::new(RwLock::new(Vertex::create_surface(
+                &isect, &beta, pdf_fwd, &prev,
+            )));
+            path[cur_index] = Some(vertex.clone());
+            bounces += 1;
+            if cur_index + 1 >= max_depth {
                 break;
             }
 
             // Sample BSDF at current vertex and compute reverse probability
             {
                 let wo = isect.wo;
-                let bsdf = isect.bsdf.as_ref().unwrap();
+                let bsdf = isect.bsdf.as_ref().unwrap().clone();
+                let bsdf = bsdf.as_ref();
                 // Sample BSDF at current vertex and compute reverse probability
                 if let Some((f, wi, pdf, t)) = bsdf.sample_f(&wo, &sampler.get_2d(), BSDF_ALL) {
                     pdf_fwd = pdf;
@@ -118,7 +125,11 @@ fn random_walk(
                     pdf_rev = bsdf.pdf(&wi, &wo, BSDF_ALL);
                     assert!(pdf_rev >= 0.0);
                     if (t & BSDF_SPECULAR) != 0 {
-                        vertex.delta.set(true);
+                        let vertex = vertex.as_ref().read().unwrap();
+                        {
+                            let mut delta = vertex.delta.write().unwrap();
+                            *delta = true;
+                        }
                         pdf_rev = 0.0;
                         pdf_fwd = 0.0;
                     }
@@ -133,45 +144,47 @@ fn random_walk(
 
         // Compute reverse area density at preceding vertex
         {
-            let prev = path[prev_index].clone();
-            let vertex = path[curr_index].clone();
+            let prev = path[prv_index].as_ref().unwrap();
+            let vertex = path[cur_index].as_ref().unwrap();
+            let prev = prev.read().unwrap();
+            let vertex = vertex.read().unwrap();
             let pdf_rev = vertex.convert_density(pdf_rev, &prev);
             assert!(pdf_rev >= 0.0);
-            prev.pdf_rev.set(pdf_rev);
+            {
+                let mut prev_pdf_rev = prev.pdf_rev.write().unwrap();
+                *prev_pdf_rev = pdf_rev;
+            }
         }
     }
+    //println!("breaked!");
+    return bounces;
 }
 
-// GenerateLightSubpath
-
-pub fn generate_camera_subpath(
+// GenerateCameraSubpath
+fn generate_camera_subpath_core(
     scene: &Scene,
     sampler: &mut dyn Sampler,
     arena: &mut MemoryArena,
     max_depth: usize,
     camera: &Arc<dyn Camera>,
     p_film: &Point2f,
-    path: &mut Vec<Arc<Vertex>>,
-) -> usize {
-    let _p = ProfilePhase::new(Prof::BDPTGenerateSubpath);
-
-    if max_depth == 0 {
-        return path.len();
-    }
-
+) -> Vec<Option<Arc<RwLock<Vertex>>>> {
+    assert!(max_depth > 0);
+    let mut path = vec![None; max_depth];
     // Sample initial ray for camera subpath
     let camera_sample = CameraSample {
         p_film: *p_film,
         time: sampler.get_1d(),
         p_lens: sampler.get_2d(),
     };
-
     if let Some((beta, mut ray)) = camera.generate_ray_differential(&camera_sample) {
-        let beta = Spectrum::from(beta);
         ray.scale_differentials(1.0 / Float::sqrt(sampler.get_samples_per_pixel() as Float));
         if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray.ray) {
-            let new_vertex = Arc::new(Vertex::create_camera_from_ray(&camera, &ray.ray, &beta));
-            path.push(new_vertex);
+            let beta = Spectrum::from(beta);
+            let new_vertex = Arc::new(RwLock::new(Vertex::create_camera_from_ray(
+                &camera, &ray.ray, &beta,
+            )));
+            path[0] = Some(new_vertex);
             if max_depth > 1 {
                 random_walk(
                     scene,
@@ -180,14 +193,126 @@ pub fn generate_camera_subpath(
                     arena,
                     &beta,
                     pdf_dir,
-                    max_depth,
                     TransportMode::Radiance,
-                    path,
+                    1,
+                    &mut path,
                 );
             }
         }
     }
-    return path.len();
+    return path;
+}
+
+// GenerateLightSubpath
+fn generate_light_subpath_core(
+    scene: &Scene,
+    sampler: &mut dyn Sampler,
+    arena: &mut MemoryArena,
+    max_depth: usize,
+    time: Float,
+    light_distr: &Distribution1D,
+    light_to_index: &LightIndexMap,
+) -> Vec<Option<Arc<RwLock<Vertex>>>> {
+    assert!(max_depth > 0);
+    let mut path = vec![None; max_depth];
+    let (light_num, light_pdf, _remapped) = light_distr.sample_discrete(sampler.get_1d());
+    assert!(light_num < scene.lights.len());
+    assert!(light_pdf > 0.0);
+    let light = scene.lights[light_num].clone();
+
+    if let Some((le, ray, n_light, pdf_pos, pdf_dir)) =
+        light.sample_le(&sampler.get_2d(), &sampler.get_2d(), time)
+    {
+        if pdf_pos <= 0.0 || pdf_dir <= 0.0 || le.is_black() {
+            return path;
+        }
+
+        let vertex = Arc::new(RwLock::new(Vertex::create_light_from_ray(
+            &light,
+            &ray,
+            &n_light,
+            &le,
+            pdf_pos * light_pdf,
+        )));
+        path[0] = Some(vertex.clone());
+        if max_depth == 1 {
+            return path;
+        }
+
+        let le_pdf: f32 = n_light.abs_dot(&ray.d) * (1.0 / (light_pdf * pdf_pos * pdf_dir));
+        let le_pdf = le_pdf.min(1.0);
+        let beta = le * le_pdf;
+
+        let ray = RayDifferential::from(&ray);
+        let n_vertices = random_walk(
+            scene,
+            &ray,
+            sampler,
+            arena,
+            &beta,
+            pdf_dir,
+            TransportMode::Importance,
+            1,
+            &mut path,
+        );
+
+        let vertex = vertex.read().unwrap();
+        if vertex.is_infinite_light() {
+            // Set spatial density of _path[1]_ for infinite area light
+            if n_vertices > 0 {
+                let next = path[1].as_ref().unwrap();
+                let next = next.read().unwrap();
+                let mut pdf_fwd = pdf_pos;
+                if next.is_on_surface() {
+                    pdf_fwd *= Vector3f::abs_dot(&ray.ray.d, &next.get_ng());
+                }
+                let mut core = next.core.write().unwrap();
+                core.pdf_fwd = pdf_fwd;
+            }
+            // Set spatial density of _path[0]_ for infinite area light
+            {
+                let pdf_fwd =
+                    infinite_light_density(scene, light_distr, light_to_index, &ray.ray.d);
+                let mut core = vertex.core.write().unwrap();
+                core.pdf_fwd = pdf_fwd;
+            }
+        }
+    }
+
+    return path;
+}
+
+// PealSubpath
+fn peal_subpath(
+    opath: &mut Vec<Arc<RwLock<Vertex>>>,
+    ipath: &Vec<Option<Arc<RwLock<Vertex>>>>,
+) -> usize {
+    let mut actual_length = 0;
+    for i in 0..ipath.len() {
+        if let Some(vertex) = ipath[i].as_ref() {
+            opath.push(vertex.clone());
+            actual_length += 1;
+        } else {
+            break;
+        }
+    }
+    return actual_length;
+}
+
+pub fn generate_camera_subpath(
+    scene: &Scene,
+    sampler: &mut dyn Sampler,
+    arena: &mut MemoryArena,
+    max_depth: usize,
+    camera: &Arc<dyn Camera>,
+    p_film: &Point2f,
+    path: &mut Vec<Arc<RwLock<Vertex>>>,
+) -> usize {
+    if max_depth == 0 {
+        return 0;
+    }
+    let ipath = generate_camera_subpath_core(scene, sampler, arena, max_depth, camera, p_film);
+    return peal_subpath(path, &ipath);
 }
 
 pub fn generate_light_subpath(
@@ -198,69 +323,21 @@ pub fn generate_light_subpath(
     time: Float,
     light_distr: &Distribution1D,
     light_to_index: &LightIndexMap,
-    path: &mut Vec<Arc<Vertex>>,
+    path: &mut Vec<Arc<RwLock<Vertex>>>,
 ) -> usize {
-    let _p = ProfilePhase::new(Prof::BDPTGenerateSubpath);
-
     if max_depth == 0 {
-        return path.len();
+        return 0;
     }
-
-    let (light_num, light_pdf, _remapped) = light_distr.sample_discrete(sampler.get_1d());
-    let light = scene.lights[light_num].clone();
-    if let Some((le, ray, n_light, pdf_pos, pdf_dir)) =
-        light.sample_le(&sampler.get_2d(), &sampler.get_2d(), time)
-    {
-        if pdf_pos <= 0.0 || pdf_dir <= 0.0 || le.is_black() {
-            return path.len();
-        }
-
-        // Generate first vertex on light subpath and start random walk
-        let vertex = Arc::new(Vertex::create_light_from_ray(
-            &light,
-            &ray,
-            &n_light,
-            &le,
-            pdf_pos * light_pdf,
-        ));
-        path.push(vertex.clone());
-        if max_depth == 1 {
-            return path.len();
-        }
-
-        let beta = le * n_light.abs_dot(&ray.d) * (1.0 / (light_pdf * pdf_pos * pdf_dir));
-        let ray = RayDifferential::from(&ray);
-        assert!(max_depth > 1);
-
-        random_walk(
-            scene,
-            &ray,
-            sampler,
-            arena,
-            &beta,
-            pdf_dir,
-            max_depth,
-            TransportMode::Importance,
-            path,
-        );
-
-        // Correct subpath sampling densities for infinite area lights
-        if vertex.is_infinite_light() {
-            // Set spatial density of _path[1]_ for infinite area light
-            if path.len() > 1 {
-                let next = path[1].clone();
-                let mut pdf_fwd = pdf_pos;
-                if next.is_on_surface() {
-                    pdf_fwd *= Vector3f::abs_dot(&ray.ray.d, &next.get_ng());
-                }
-                next.pdf_fwd.set(pdf_fwd);
-            }
-            // Set spatial density of _path[0]_ for infinite area light
-            let pdf_fwd = infinite_light_density(scene, light_distr, light_to_index, &ray.ray.d);
-            vertex.pdf_fwd.set(pdf_fwd);
-        }
-    }
-    return path.len();
+    let ipath = generate_light_subpath_core(
+        scene,
+        sampler,
+        arena,
+        max_depth,
+        time,
+        light_distr,
+        light_to_index,
+    );
+    return peal_subpath(path, &ipath);
 }
 
 #[inline]
@@ -284,11 +361,22 @@ fn g(scene: &Scene, sampler: &mut dyn Sampler, v0: &Vertex, v1: &Vertex) -> Spec
     return g * vis.tr(scene, sampler);
 }
 
+/*
+#[inline]
+fn cushion_pdf(pdf: Float) -> Float {
+    if !pdf.is_finite() {
+        return 1.0;
+    } else {
+        return Float::max(0.0, pdf);
+    }
+}
+*/
+
 fn mis_weight(
     scene: &Scene,
-    light_vertices: &[Arc<Vertex>],
-    camera_vertices: &[Arc<Vertex>],
-    sampled: &Option<Arc<Vertex>>,
+    light_vertices: &[Arc<RwLock<Vertex>>],
+    camera_vertices: &[Arc<RwLock<Vertex>>],
+    sampled: &Arc<RwLock<Vertex>>,
     s: i32,
     t: i32,
     light_pdf: &Distribution1D,
@@ -328,42 +416,43 @@ fn mis_weight(
     let _a1 = if s == 1 {
         assert!(qs.is_some());
         let qs = qs.as_ref().unwrap();
+        let qs = qs.read().unwrap();
         let qs = qs.as_tuple();
-        let sampled = sampled.as_ref().unwrap();
+        let sampled = sampled.read().unwrap();
         let sampled = sampled.as_tuple();
         let v0 = ScopedAssignment::new(&qs.0, &sampled.0.read().unwrap());
         let v1 = ScopedAssignment::new(&qs.1, &sampled.1.read().unwrap());
         let v2 = ScopedAssignment::new(&qs.2, &sampled.2.read().unwrap());
-        let v3 = ScopedAssignment::new(&qs.3, &sampled.3.read().unwrap());
-        let v4 = ScopedAssignment::new(&qs.4, &sampled.4.read().unwrap());
-        Some((v0, v1, v2, v3, v4))
+        Some((v0, v1, v2))
     } else if t == 1 {
         assert!(pt.is_some());
         let pt = pt.as_ref().unwrap();
+        let pt = pt.read().unwrap();
         let pt = pt.as_tuple();
-        let sampled = sampled.as_ref().unwrap();
+        let sampled = sampled.read().unwrap();
         let sampled = sampled.as_tuple();
         let v0 = ScopedAssignment::new(&pt.0, &sampled.0.read().unwrap());
         let v1 = ScopedAssignment::new(&pt.1, &sampled.1.read().unwrap());
         let v2 = ScopedAssignment::new(&pt.2, &sampled.2.read().unwrap());
-        let v3 = ScopedAssignment::new(&pt.3, &sampled.3.read().unwrap());
-        let v4 = ScopedAssignment::new(&pt.4, &sampled.4.read().unwrap());
-        Some((v0, v1, v2, v3, v4))
+        Some((v0, v1, v2))
     } else {
         None
     };
 
-    // Mark connection vertices as non-degenerate
     let _a2 = if pt.is_some() {
         let pt = pt.as_ref().unwrap();
-        Some(ScopedAssignment::new(&pt.delta.value, &false))
+        let pt = pt.read().unwrap();
+        let delta = pt.delta.clone();
+        Some(ScopedAssignment::new(&delta, &false))
     } else {
         None
     };
 
     let _a3 = if qs.is_some() {
         let qs = qs.as_ref().unwrap();
-        Some(ScopedAssignment::new(&qs.delta.value, &false))
+        let qs = qs.read().unwrap();
+        let delta = qs.delta.clone();
+        Some(ScopedAssignment::new(&delta, &false))
     } else {
         None
     };
@@ -371,21 +460,27 @@ fn mis_weight(
     let _a4 = if pt.is_some() {
         assert!(t > 0);
         let pt = pt.as_ref().unwrap();
+        let pt = pt.read().unwrap();
+        let pdf_rev = pt.pdf_rev.clone();
         let pdf = if s > 0 {
             assert!(qs.is_some());
             let qs = qs.as_ref().unwrap();
+            let qs = qs.read().unwrap();
             let pdf = qs.pdf(scene, &qs_minus, pt.deref());
             assert!(pdf >= 0.0);
             pdf
-        } else {
+        } else if t > 1 {
             assert!(pt_minus.is_some());
             let pt_minus = pt_minus.as_ref().unwrap();
+            let pt_minus = pt_minus.read().unwrap();
             let pdf = pt.pdf_light_origin(scene, pt_minus.deref(), light_pdf, light_to_index);
             assert!(pdf >= 0.0);
             pdf
+        } else {
+            0.0
         };
         assert!(pdf >= 0.0);
-        Some(ScopedAssignment::new(&pt.pdf_rev.value, &pdf))
+        Some(ScopedAssignment::new(&pdf_rev, &pdf))
     } else {
         None
     };
@@ -393,26 +488,33 @@ fn mis_weight(
     let _a5 = if pt_minus.is_some() {
         assert!(pt.is_some());
         let pt_minus = pt_minus.as_ref().unwrap();
+        let pt_minus = pt_minus.read().unwrap();
+        let pdf_rev = pt_minus.pdf_rev.clone();
         let pdf = if s > 0 {
             assert!(qs.is_some());
             let pt = pt.as_ref().unwrap();
+            let pt = pt.read().unwrap();
             pt.pdf(scene, &qs, pt_minus.deref())
         } else {
             let pt = pt.as_ref().unwrap();
+            let pt = pt.read().unwrap();
             pt.pdf_light(scene, pt_minus.deref())
         };
         assert!(pdf >= 0.0);
-        Some(ScopedAssignment::new(&pt_minus.pdf_rev.value, &pdf))
+        Some(ScopedAssignment::new(&pdf_rev, &pdf))
     } else {
         None
     };
 
     let _a6 = if qs.is_some() && pt.is_some() {
         let qs = qs.as_ref().unwrap();
+        let qs = qs.read().unwrap();
         let pt = pt.as_ref().unwrap();
+        let pt = pt.read().unwrap();
+        let pdf_rev = qs.pdf_rev.clone();
         let pdf = pt.pdf(scene, &pt_minus, qs.deref());
         assert!(pdf >= 0.0);
-        Some(ScopedAssignment::new(&qs.pdf_rev.value, &pdf))
+        Some(ScopedAssignment::new(&pdf_rev, &pdf))
     } else {
         None
     };
@@ -420,10 +522,13 @@ fn mis_weight(
     let _a7 = if qs_minus.is_some() {
         assert!(qs.is_some());
         let qs_minus = qs_minus.unwrap();
+        let qs_minus = qs_minus.read().unwrap();
+        let pdf_rev = qs_minus.pdf_rev.clone();
         let qs = qs.unwrap();
+        let qs = qs.read().unwrap();
         let pdf = qs.pdf(scene, &pt, qs_minus.deref());
         assert!(pdf >= 0.0);
-        Some(ScopedAssignment::new(&qs_minus.pdf_rev.value, &pdf))
+        Some(ScopedAssignment::new(&pdf_rev, &pdf))
     } else {
         None
     };
@@ -436,21 +541,26 @@ fn mis_weight(
         let mut ri = 1.0;
         let mut i = t - 1; //0..
         while i > 0 {
-            let vert = &camera_vertices[i as usize];
-            let prev = &camera_vertices[i as usize - 1];
+            let vert = camera_vertices[i as usize].clone();
+            let prev = camera_vertices[i as usize - 1].clone();
+            let vert = vert.read().unwrap();
+            let prev = prev.read().unwrap();
 
-            let pdf_rev = vert.pdf_rev.get();
-            let pdf_fwd = vert.pdf_fwd.get();
+            let pdf_rev = *vert.pdf_rev.read().unwrap();
+            let pdf_fwd = vert.core.read().unwrap().pdf_fwd;
             assert!(pdf_fwd >= 0.0);
             assert!(pdf_rev >= 0.0);
 
             let pdf_delta = remap0(pdf_rev) / remap0(pdf_fwd);
             assert!(pdf_delta.is_finite());
             assert!(pdf_delta >= 0.0);
+            // pbrt-r3
+            // let pdf_delta = cushion_pdf(pdf_delta);
+            // pbrt-r3
             ri *= pdf_delta;
 
-            let cur_delta = vert.delta.get();
-            let prv_delta = prev.delta.get();
+            let cur_delta = *vert.delta.read().unwrap();
+            let prv_delta = *prev.delta.read().unwrap();
             if !cur_delta && !prv_delta {
                 sum_ri += ri;
             }
@@ -463,11 +573,12 @@ fn mis_weight(
         let mut ri = 1.0;
         let mut i = s - 1; //0..
         while i >= 0 {
-            let vert = &light_vertices[i as usize];
+            let vert = light_vertices[i as usize].clone();
             //let prev = &light_vertices[(i - 1) as usize];
+            let vert = vert.read().unwrap();
 
-            let pdf_rev = vert.pdf_rev.get();
-            let pdf_fwd = vert.pdf_fwd.get();
+            let pdf_rev = *vert.pdf_rev.read().unwrap();
+            let pdf_fwd = vert.core.read().unwrap().pdf_fwd;
             assert!(pdf_fwd >= 0.0);
             assert!(pdf_rev >= 0.0);
 
@@ -479,14 +590,16 @@ fn mis_weight(
             // pbrt-r3
             ri *= pdf_delta;
 
-            let cur_delta = vert.delta.get();
+            let cur_delta = *vert.delta.read().unwrap();
 
             let delta_light_vertex = if i > 0 {
-                let prev = &light_vertices[(i - 1) as usize];
-                let prev_delta = prev.delta.get();
+                let prev = light_vertices[(i - 1) as usize].clone();
+                let prev = prev.read().unwrap();
+                let prev_delta = *prev.delta.read().unwrap();
                 prev_delta
             } else {
-                let v0 = &light_vertices[0];
+                let v0 = light_vertices[0].clone();
+                let v0 = v0.read().unwrap();
                 let is_delta_light = v0.is_delta_light();
                 is_delta_light
             };
@@ -505,8 +618,8 @@ fn mis_weight(
 // ConnectBDPT
 pub fn connect_bdpt(
     scene: &Scene,
-    light_vertices: &[Arc<Vertex>],
-    camera_vertices: &[Arc<Vertex>],
+    light_vertices: &[Arc<RwLock<Vertex>>],
+    camera_vertices: &[Arc<RwLock<Vertex>>],
     s: i32,
     t: i32,
     light_distr: &Distribution1D,
@@ -515,34 +628,33 @@ pub fn connect_bdpt(
     sampler: &mut dyn Sampler,
     p_raster: &Point2f,
 ) -> Option<(Spectrum, Float, Point2f)> {
-    let _p = ProfilePhase::new(Prof::BDPTConnectSubpaths);
-
     let mut p_raster = *p_raster;
     // Ignore invalid connections related to infinite area lights
     if t > 1 && s != 0 {
-        let t = camera_vertices[(t - 1) as usize].get_type();
+        let t = camera_vertices[(t - 1) as usize].read().unwrap().get_type();
         if t == VertexType::Light {
             return None;
         }
     }
 
     let mut l = Spectrum::zero();
-    let mut sampled = None; //TODO;  = nullptr;
-                            // Perform connection and write contribution to _L_
+    let mut sampled = Arc::new(RwLock::new(Vertex::default()));
+    // Perform connection and write contribution to _L_
     if s == 0 {
         assert!(t >= 1);
         // Interpret the camera subpath as a complete path
-        let pt = camera_vertices[(t - 1) as usize].as_ref();
+        let pt = camera_vertices[(t - 1) as usize].read().unwrap();
         if pt.is_light() {
             assert!(t >= 2);
-            let target = camera_vertices[(t - 2) as usize].as_ref();
-            let pt_beta = pt.beta.get();
+            let target = camera_vertices[(t - 2) as usize].read().unwrap();
+            let pt_core = pt.core.read().unwrap();
+            let pt_beta = pt_core.beta;
             l = pt.le(scene, &target) * pt_beta;
         }
     } else if t == 1 {
         assert!(s >= 1);
         // Sample a point on the camera and connect it to the light subpath
-        let qs = light_vertices[(s - 1) as usize].as_ref();
+        let qs = light_vertices[(s - 1) as usize].read().unwrap();
         if qs.is_connectible() {
             let intersection = &qs.get_interaction();
             if let Some((spec, wi, pdf, pr, vis)) =
@@ -554,10 +666,12 @@ pub fn connect_bdpt(
                     let sampled_beta = spec * (1.0 / pdf);
                     let sampled_v =
                         Vertex::create_camera_from_interaction(camera, &vis.p1, &sampled_beta);
-                    let qs_beta = qs.beta.get();
-                    l = qs_beta * qs.f(&sampled_v, TransportMode::Importance) * sampled_beta;
-                    if qs.is_on_surface() {
-                        l *= Vector3f::abs_dot(&wi, &qs.get_ns());
+                    let qs_beta = qs.core.read().unwrap().beta;
+                    {
+                        l = qs_beta * qs.f(&sampled_v, TransportMode::Importance) * sampled_beta;
+                        if qs.is_on_surface() {
+                            l *= Vector3f::abs_dot(&wi, &qs.get_ns());
+                        }
                     }
                     assert!(l.is_valid());
                     // Only check visibility after we know that the path would
@@ -566,14 +680,14 @@ pub fn connect_bdpt(
                         l *= vis.tr(scene, sampler);
                     }
 
-                    sampled = Some(Arc::new(sampled_v));
+                    sampled = Arc::new(RwLock::new(sampled_v));
                 }
             }
         }
     } else if s == 1 {
         assert!(t >= 1);
         // Sample a point on a light and connect it to the camera subpath
-        let pt = camera_vertices[(t - 1) as usize].as_ref();
+        let pt = camera_vertices[(t - 1) as usize].read().unwrap();
         if pt.is_connectible() {
             let (light_num, light_pdf, _remapped) = light_distr.sample_discrete(sampler.get_1d());
             let light = scene.lights[light_num].clone();
@@ -583,22 +697,25 @@ pub fn connect_bdpt(
                     let ei = EndpointInteraction::from_light_interaction(&light, &vis.p1);
                     let sampled_beta = light_weight * (1.0 / (pdf * light_pdf));
                     let sampled_v = Vertex::create_light_from_endpoint(&ei, &sampled_beta, 0.0);
-                    let pdf_fwd =
-                        sampled_v.pdf_light_origin(scene, &pt, light_distr, light_to_index);
-                    assert!(pdf_fwd >= 0.0);
-                    sampled_v.pdf_fwd.set(pdf_fwd);
-                    let pt_beta = pt.beta.get();
-                    l = pt_beta * pt.f(&sampled_v, TransportMode::Radiance) * sampled_beta;
-
+                    {
+                        let pdf_fwd =
+                            sampled_v.pdf_light_origin(scene, &pt, light_distr, light_to_index);
+                        assert!(pdf_fwd >= 0.0);
+                        {
+                            let mut sampled_core = sampled_v.core.write().unwrap();
+                            sampled_core.pdf_fwd = pdf_fwd;
+                        }
+                        let pt_beta = pt.core.read().unwrap().beta;
+                        l = pt_beta * pt.f(&sampled_v, TransportMode::Radiance) * sampled_beta;
+                    }
                     if pt.is_on_surface() {
                         l *= Vector3f::abs_dot(&wi, &pt.get_ns());
                     }
-                    // Only check visibility if the path would carry radiance.
                     if !l.is_black() {
                         l *= vis.tr(scene, sampler);
                     }
 
-                    sampled = Some(Arc::new(sampled_v));
+                    sampled = Arc::new(RwLock::new(sampled_v));
                 }
             }
         }
@@ -606,11 +723,11 @@ pub fn connect_bdpt(
         assert!(s >= 1);
         assert!(t >= 1);
         // Handle all other bidirectional connection cases
-        let qs = light_vertices[(s - 1) as usize].as_ref();
-        let pt = camera_vertices[(t - 1) as usize].as_ref();
+        let qs = light_vertices[(s - 1) as usize].read().unwrap();
+        let pt = camera_vertices[(t - 1) as usize].read().unwrap();
         if qs.is_connectible() && pt.is_connectible() {
-            let qs_beta = qs.beta.get();
-            let pt_beta = pt.beta.get();
+            let qs_beta = qs.core.read().unwrap().beta;
+            let pt_beta = pt.core.read().unwrap().beta;
             l = qs_beta
                 * qs.f(&pt, TransportMode::Importance)
                 * pt_beta
@@ -621,26 +738,10 @@ pub fn connect_bdpt(
         }
     }
 
-    if l.is_black() {
-        PATHS.with(|stat| {
-            stat.add_num(1); //zeroRadiancePathså
-            stat.add_denom(1); //totalPaths
-        });
-    } else {
-        PATHS.with(|stat| {
-            stat.add_denom(1); //totalPaths
-        });
-    }
-
-    PATH_LENGTH.with(|stat| {
-        stat.add((s + t - 2).max(0) as u64);
-    });
-
     // Compute MIS weight for connection strategy
-    if l.is_black() || !l.is_valid() {
+    if l.is_black() {
         return None;
     } else {
-        assert!(l.is_valid() && !l.is_black());
         let mis_weight = mis_weight(
             scene,
             light_vertices,
@@ -651,16 +752,7 @@ pub fn connect_bdpt(
             light_distr,
             light_to_index,
         );
-        return if mis_weight <= 0.0 || !mis_weight.is_finite() {
-            None
-        } else {
-            assert!(mis_weight.is_finite() && mis_weight > 0.0);
-            let l = l * mis_weight;
-            if l.is_black() || !l.is_valid() {
-                None
-            } else {
-                Some((l, mis_weight, p_raster))
-            }
-        };
+        l *= mis_weight;
+        return Some((l, mis_weight, p_raster));
     }
 }

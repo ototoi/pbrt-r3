@@ -253,8 +253,8 @@ impl MLTIntegrator {
         light_distr: &Distribution1D,
         light_to_index: &LightIndexMap,
         sampler: &mut MLTSampler,
-        camera_vertices: &mut Vec<Arc<Vertex>>,
-        light_vertices: &mut Vec<Arc<Vertex>>,
+        camera_vertices: &mut Vec<Arc<RwLock<Vertex>>>,
+        light_vertices: &mut Vec<Arc<RwLock<Vertex>>>,
         depth: u32,
     ) -> (Spectrum, Point2f) {
         let camera = self.camera.clone();
@@ -296,7 +296,7 @@ impl MLTIntegrator {
 
         // Generate a light subpath with exactly _s_ vertices
         sampler.start_stream(LIGHT_STREAM_INDEX);
-        let time = camera_vertices[0].get_time();
+        let time = camera_vertices[0].as_ref().read().unwrap().get_time();
         //let mut light_vertices = Vec::with_capacity(s as usize);
         light_vertices.clear();
         if generate_light_subpath(

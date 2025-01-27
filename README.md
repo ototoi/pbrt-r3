@@ -18,13 +18,22 @@ You can render using pbrt-r3 with the following command.
 ```
 ./target/release/pbrt-r3 -i <exmaple.pbrt>
 ```
-### Tev display
+## Tev display
 pbrt-r3 supports the [tev](https://github.com/Tom94/tev) display implemented in pbrt-v4.
 After starting tev, you can display your rendering progress by adding the following option.
 ```
 ./target/release/pbrt-r3 -i <exmaple.pbrt> --display-server localhost:14158
 ```
-
+## Stats and Profile
+If you want to use the stats and profile features, please do as follows.
+### Build
+```
+cargo build --release --features stats --features profile
+```
+### Use
+```
+./target/release/pbrt-r3 -i <exmaple.pbrt> --stats --profile
+```
 
 ## Example scenes
 pbrt-r3 can take pbrt-v3 scene files as input.
@@ -32,6 +41,9 @@ See the official [pbrt-v3 scenes page](http://pbrt.org/scenes-v3.html) on the pb
 
 ![images](https://github.com/user-attachments/assets/ce1bebc6-8377-4da7-8b49-38e5073a397e)
 Rendered images are stored at [pbrt-r3-devkit](https://github.com/ototoi/pbrt-r3-devkit).
+
+
+
 
 ## Differences
 

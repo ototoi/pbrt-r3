@@ -265,8 +265,8 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
     stats::clear_stats();
 
     if !opts.quiet && !opts.no_profile {
-        //    profile::init_profiler();
-        //    profile::start_profiler();
+        profile::init_profiler();
+        profile::start_profiler();
     }
 
     if !opts.quiet {

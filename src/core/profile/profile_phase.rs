@@ -19,7 +19,7 @@ mod _impl {
     impl ProfilePhase {
         pub fn new(category: ProfileCategory) -> Self {
             let options = PbrtOptions::get();
-            if options.no_profile {
+            if !options.profile {
                 ProfilePhase {
                     reset: false,
                     category_bit: 0,

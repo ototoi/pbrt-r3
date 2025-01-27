@@ -16,9 +16,11 @@ mod _impl {
 
     static REGISTER_REPORTERS: Mutex<Vec<StatReporterRef>> = Mutex::new(Vec::new());
 
+    pub fn init_stats() {}
+
     pub fn register_stat_reporter(reporter: StatReporterRef) {
         let options = PbrtOptions::get();
-        if options.no_stats {
+        if !options.stats {
             return;
         }
         let mut reporters = REGISTER_REPORTERS.lock().unwrap();
@@ -27,7 +29,7 @@ mod _impl {
 
     pub fn print_stats() {
         let options = PbrtOptions::get();
-        if options.no_stats {
+        if !options.stats {
             return;
         }
         let mut accum = StatsAccumulator::new();
@@ -50,6 +52,9 @@ mod _impl {
 
 #[cfg(not(feature = "stats"))]
 mod _impl {
+    pub fn init_stats() {
+        log::warn!("Stats is not enabled.");
+    }
     pub fn print_stats() {}
     pub fn clear_stats() {}
 }

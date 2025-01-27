@@ -116,13 +116,13 @@ struct CommandOptions {
     #[arg(long, default_value = "false")]
     pub quick_full_resolution: bool,
 
-    /// No statistics.
-    #[arg(long = "no-stats", default_value = "false")]
-    pub no_stats: bool,
+    /// statistics.
+    #[arg(long = "stats", default_value = "false")]
+    pub stats: bool,
 
-    /// No profile.
-    #[arg(long = "no-profile", default_value = "false")]
-    pub no_profile: bool,
+    /// profile.
+    #[arg(long = "profile", default_value = "false")]
+    pub profile: bool,
 
     /// Sequential display.
     #[arg(short = 'k', long = "sequential-display", value_name = "dir")]
@@ -264,11 +264,6 @@ fn create_display(hostname: &str) -> Result<Arc<RwLock<dyn Display>>, PbrtError>
 fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
     stats::clear_stats();
 
-    if !opts.quiet && !opts.no_profile {
-        profile::init_profiler();
-        profile::start_profiler();
-    }
-
     if !opts.quiet {
         let nthreads = available_parallelism().unwrap().get();
         let version = env!("CARGO_PKG_VERSION");
@@ -288,6 +283,15 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
         println!("--------------------------------------------------------------------------------------");
         println!();
     }
+
+    if !opts.quiet && opts.stats {
+        stats::init_stats();
+    }
+    if !opts.quiet && opts.profile {
+        profile::init_profiler();
+        profile::start_profiler();
+    }
+
     let r = create_scene_and_integrator(input_path, opts);
     match r {
         Ok((scene, integrator)) => {
@@ -334,19 +338,19 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
             return -1;
         }
     }
-    if !opts.quiet && !opts.no_profile {
-        //    profile::stop_profiler();
+    if !opts.quiet && opts.profile {
+        profile::stop_profiler();
     }
     println!("\n");
 
-    if !opts.quiet && !opts.no_stats {
+    if !opts.quiet && opts.stats {
         stats::print_stats();
         stats::clear_stats();
     }
-    if !opts.quiet && !opts.no_profile {
-        //profile::print_profiler(); //profile::report_profiler_results();
-        //profile::clear_profiler();
-        //profile::cleanup_profiler();
+    if !opts.quiet && opts.profile {
+        profile::print_profiler(); //profile::report_profiler_results();
+        profile::clear_profiler();
+        profile::cleanup_profiler();
     }
 
     return 0;
@@ -358,11 +362,11 @@ pub fn main() {
         opts.quick = true;
     }
     {
-        let mut options = PbrtOptions::get();
+        let mut options = PbrtOptions::default();
         options.quick_render = opts.quick;
         options.quick_render_full_resolution = opts.quick_full_resolution;
-        options.no_stats = opts.no_stats;
-        options.no_profile = opts.no_profile;
+        options.stats = opts.stats;
+        options.profile = opts.profile;
         PbrtOptions::set(options);
     }
     init_logger(&opts);

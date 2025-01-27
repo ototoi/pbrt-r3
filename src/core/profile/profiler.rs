@@ -289,7 +289,9 @@ mod _impl {
     pub fn start_profiler() {}
     pub fn stop_profiler() {}
     pub fn clear_profiler() {}
-    pub fn init_profiler() {}
+    pub fn init_profiler() {
+        log::warn!("Profiling is not enabled.");
+    }
     pub fn cleanup_profiler() {}
     pub fn suspend_profiler() {}
     pub fn resume_profiler() {}

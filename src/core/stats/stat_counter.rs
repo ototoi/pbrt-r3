@@ -232,7 +232,7 @@ mod _impl {
                 Arc::new(RwLock::new(CountReporter::new(name)));
             register_stat_reporter(reporter.clone());
             let options = PbrtOptions::get();
-            let is_enabled = !options.no_stats;
+            let is_enabled = options.stats;
             StatCounter {
                 reporter,
                 is_enabled,
@@ -261,7 +261,7 @@ mod _impl {
                 Arc::new(RwLock::new(MemoryReporter::new(name)));
             register_stat_reporter(reporter.clone());
             let options = PbrtOptions::get();
-            let is_enabled = !options.no_stats;
+            let is_enabled = options.stats;
             StatMemoryCounter {
                 reporter,
                 is_enabled,
@@ -290,7 +290,7 @@ mod _impl {
                 Arc::new(RwLock::new(IntDistributionReporter::new(name)));
             register_stat_reporter(reporter.clone());
             let options = PbrtOptions::get();
-            let is_enabled = !options.no_stats;
+            let is_enabled = options.stats;
             StatIntDistribution {
                 reporter,
                 is_enabled,
@@ -316,7 +316,7 @@ mod _impl {
                 Arc::new(RwLock::new(FloatDistributionReporter::new(name)));
             register_stat_reporter(reporter.clone());
             let options = PbrtOptions::get();
-            let is_enabled = !options.no_stats;
+            let is_enabled = options.stats;
             StatFloatDistribution {
                 reporter,
                 is_enabled,
@@ -342,7 +342,7 @@ mod _impl {
                 Arc::new(RwLock::new(PercentageReporter::new(name)));
             register_stat_reporter(reporter.clone());
             let options = PbrtOptions::get();
-            let is_enabled = !options.no_stats;
+            let is_enabled = options.stats;
             StatPercent {
                 reporter,
                 is_enabled,
@@ -375,7 +375,7 @@ mod _impl {
                 Arc::new(RwLock::new(RatioReporter::new(name)));
             register_stat_reporter(reporter.clone());
             let options = PbrtOptions::get();
-            let is_enabled = !options.no_stats;
+            let is_enabled = options.stats;
             StatRatio {
                 reporter,
                 is_enabled,

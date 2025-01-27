@@ -10,7 +10,7 @@ use std::sync::RwLock;
 
 use log::*;
 
-thread_local!(pub static N_CAMERA_RAYS: StatCounter = StatCounter::new("Integrator/Camera rays traced"));
+thread_local!(static N_CAMERA_RAYS: StatCounter = StatCounter::new("Integrator/Camera rays traced"));
 
 pub trait SamplerIntegrator: Integrator + Sync {
     fn preprocess(&mut self, _scene: &Scene, _sampler: &mut dyn Sampler) {}
@@ -32,7 +32,7 @@ pub trait SamplerIntegrator: Integrator + Sync {
         arena: &mut MemoryArena,
         depth: i32,
     ) -> Spectrum {
-        if let Some(bsdf) = isect.get_bsdf() {
+        if let Some(bsdf) = isect.bsdf.as_ref() {
             let bsdf = bsdf.as_ref();
             let wo = isect.wo;
             let u = sampler.get_2d();
@@ -79,7 +79,7 @@ pub trait SamplerIntegrator: Integrator + Sync {
         arena: &mut MemoryArena,
         depth: i32,
     ) -> Spectrum {
-        if let Some(bsdf) = isect.get_bsdf().as_ref() {
+        if let Some(bsdf) = isect.bsdf.as_ref() {
             let bsdf = bsdf.as_ref();
             let wo = isect.wo;
             let u = sampler.get_2d();
@@ -146,7 +146,12 @@ fn validate_radiance_result(l: Spectrum, pixel: &Point2i) -> Spectrum {
         return Spectrum::zero();
     }
     if l.y() < -1e-5 {
-        error!("Negative luminance value, {}, returned for pixel ({}, {}). Setting to black.", l.y(), pixel.x, pixel.y);
+        error!(
+            "Negative luminance value, {}, returned for pixel ({}, {}). Setting to black.",
+            l.y(),
+            pixel.x,
+            pixel.y
+        );
         return Spectrum::zero();
     }
     if l.y().is_infinite() {
@@ -170,6 +175,7 @@ impl SampleIntegratorCore {
     pub fn merge_film_tile(film: &Arc<Mutex<ProxyFilm>>, tile: &FilmTile) {
         let mut film = film.lock().unwrap();
         film.merge_film_tile(tile);
+        film.update_display(&tile.get_pixel_bounds());
     }
 
     pub fn get_filename(film: &Arc<Mutex<ProxyFilm>>) -> String {
@@ -221,6 +227,8 @@ impl SampleIntegratorCore {
                         let l = integrator.li(&ray, scene, sampler.deref_mut(), &mut arena, 0);
                         let l = validate_radiance_result(l, &pixel);
                         film_tile.add_sample(&camera_sample.p_film, &l, ray_weight);
+                    } else {
+                        film_tile.add_sample(&camera_sample.p_film, &Spectrum::zero(), 0.0);
                     }
                     arena.reset();
 

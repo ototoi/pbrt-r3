@@ -7,6 +7,8 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use std::sync::RwLock;
 
+thread_local!(static RAYS: StatPercent = StatPercent::new("Camera/Rays vignetted by lens system"));
+
 #[derive(Debug, Clone, Copy)]
 pub struct LensElementInterface {
     curvature_radius: Float,
@@ -79,9 +81,8 @@ impl BaseRealisticCamera {
         // (e.g. 2 [mm] for `aperturediameter` with wide.22mm.dat),
         let mut found_ray: Option<Ray> = None;
         //const SCALE_FACTORS: [Float; 3] = [0.1, 0.01, 0.001];
-        let mut lu = 1.0;
         for scale in [0.1, 0.01, 0.001] {
-            lu = scale * bounds.max[0];
+            let lu = scale * bounds.max[0];
             let ro = Point3f::new(0.0, 0.0, self.lens_rear_z() - film_distance);
             let rd = Vector3f::new(lu, 0.0, film_distance);
             let r_camera = Ray::new(&ro, &rd, Float::INFINITY, 0.0);
@@ -524,6 +525,11 @@ impl Camera for RealisticCamera {
     fn generate_ray(&self, sample: &CameraSample) -> Option<(Float, Ray)> {
         let _p = ProfilePhase::new(Prof::GenerateCameraRay);
 
+        RAYS.with(|rays| {
+            //totalRays
+            rays.add_denom(1);
+        });
+
         let p_film = self.find_point_on_film(sample);
 
         // Trace ray from _pFilm_ through lens system
@@ -538,7 +544,15 @@ impl Camera for RealisticCamera {
 
         let r_film = Ray::new(&p_film, &(p_rear - p_film), Float::INFINITY, time);
         assert!(r_film.d.length_squared() > 0.0);
-        let ray = self.base.trace_lenses_from_film(&r_film)?;
+        let ray = if let Some(ray) = self.base.trace_lenses_from_film(&r_film) {
+            ray
+        } else {
+            RAYS.with(|rays| {
+                //vignettedRays
+                rays.add_num(1);
+            });
+            return None;
+        };
 
         // Finish initialization of _RealisticCamera_ ray
         let (mut ray, _, _) = self.base.base.camera_to_world.transform_ray(&ray);

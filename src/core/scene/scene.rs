@@ -1,8 +1,8 @@
 use crate::core::pbrt::*;
 use std::sync::Arc;
 
-thread_local!(pub static N_INTERSECTION_TESTS: StatCounter = StatCounter::new("Intersections/Regular ray intersection tests"));
-thread_local!(pub static N_SHADOW_TESTS: StatCounter = StatCounter::new("Intersections/Shadow ray intersection tests"));
+thread_local!(static N_INTERSECTION_TESTS: StatCounter = StatCounter::new("Intersections/Regular ray intersection tests"));
+thread_local!(static N_SHADOW_TESTS: StatCounter = StatCounter::new("Intersections/Shadow ray intersection tests"));
 
 pub struct Scene {
     pub lights: Vec<Arc<dyn Light>>,

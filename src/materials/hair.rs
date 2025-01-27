@@ -32,6 +32,11 @@ fn mp(
     };
     assert!(!mp.is_infinite());
     assert!(!mp.is_nan());
+
+    // pbrt-r3:
+    let mp = mp.max(0.0);
+    // pbrt-r3:
+
     return mp;
 }
 
@@ -70,6 +75,8 @@ fn ap(cos_theta_o: Float, eta: Float, h: Float, t: &Spectrum) -> [Spectrum; P_MA
     let cos_theta = cos_theta_o * cos_gamma_o;
     let f = fr_dielectric(cos_theta, 1.0, eta);
     let tf = *t * f;
+
+    ap[0] = Spectrum::from(f);
     // Compute $p=1$ attenuation term
     ap[1] = *t * sqr(1.0 - f);
     // Compute attenuation terms up to $p=_pMax_$
@@ -116,7 +123,11 @@ fn np(phi_: Float, p: usize, s: Float, gamma_o: Float, gamma_t: Float) -> Float 
     while dphi < -PI {
         dphi += 2.0 * PI;
     }
-    return trimmed_logistic_cdf(dphi, s, -PI, PI);
+    let np = trimmed_logistic_cdf(dphi, s, -PI, PI);
+    // pbrt-r3:
+    let np = np.max(0.0);
+    // pbrt-r3:
+    return np;
 }
 
 #[inline]
@@ -236,31 +247,25 @@ impl Material for HairMaterial {
         let mut b = arena.alloc_bsdf(si, e);
 
         let sig_a = if let Some(sigma_a) = self.sigma_a.as_ref() {
-            sigma_a.as_ref().evaluate(si)
+            sigma_a.as_ref().evaluate(si).clamp_zero()
         } else if let Some(color) = self.color.as_ref() {
-            let c = color.as_ref().evaluate(si);
+            let c = color.as_ref().evaluate(si).clamp_zero();
             HairBSDF::sigma_a_from_reflectance(&c, bn)
         } else {
             let eumelanin = self.eumelanin.as_ref();
             let pheomelanin = self.pheomelanin.as_ref();
             assert!(eumelanin.is_some() || pheomelanin.is_some());
             HairBSDF::sigma_a_from_concentration(
-                Float::max(
-                    0.0,
-                    if let Some(e) = eumelanin {
-                        e.as_ref().evaluate(si)
-                    } else {
-                        0.0
-                    },
-                ),
-                Float::max(
-                    0.0,
-                    if let Some(p) = pheomelanin {
-                        p.as_ref().evaluate(si)
-                    } else {
-                        0.0
-                    },
-                ),
+                if let Some(e) = eumelanin {
+                    e.as_ref().evaluate(si).max(0.0)
+                } else {
+                    0.0
+                },
+                if let Some(p) = pheomelanin {
+                    p.as_ref().evaluate(si).max(0.0)
+                } else {
+                    0.0
+                },
             )
         };
         {
@@ -320,6 +325,7 @@ impl HairBSDF {
         let s = SQRT_PI_OVER8
             * (0.265 * beta_n + 1.194 * sqr(beta_n) + 5.37 * Float::powf(beta_n, 22.0));
 
+        // Compute $\alpha$ terms for hair scales
         let sin0 = Float::sin(radians(alpha));
         let cos0 = safe_sqrt(1.0 - sqr(sin0));
         let mut sin2k_alpha = [sin0, 0.0, 0.0];
@@ -365,6 +371,7 @@ impl HairBSDF {
         let ap_pdf: Vec<_> = ap.iter().map(|s| s.y()).collect();
         let sum_y = ap_pdf.iter().sum::<Float>();
         let ap_pdf: Vec<_> = ap_pdf.iter().map(|c| c / sum_y).collect();
+        let ap_pdf = ap_pdf.iter().map(|x| x.max(0.0)).collect::<Vec<_>>(); //pbrt-r3
         let ap_pdf: [Float; P_MAX + 1] = ap_pdf.try_into().unwrap();
         return ap_pdf;
     }
@@ -447,6 +454,7 @@ impl BxDF for HairBSDF {
         // Compute PDF for $A_p$ terms
         let ap = ap(cos_theta_o, eta, h, &t);
 
+        // Evaluate hair BSDF
         let phi = phi_i - phi_o;
         let mut fsum = Spectrum::zero();
         for p in 0..P_MAX {
@@ -460,10 +468,10 @@ impl BxDF for HairBSDF {
         }
 
         // Compute contribution of remaining terms after _pMax_
-        fsum += mp(cos_theta_i, cos_theta_o, sin_theta_i, cos_theta_o, v[P_MAX])
+        fsum += mp(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, v[P_MAX])
             * ap[P_MAX]
             * (1.0 / (2.0 * PI));
-        let abs_cos_theta_wi = abs_cos_theta(&wi);
+        let abs_cos_theta_wi = abs_cos_theta(wi);
         if abs_cos_theta_wi > 0.0 {
             fsum *= 1.0 / abs_cos_theta_wi;
         }
@@ -574,7 +582,6 @@ impl BxDF for HairBSDF {
 
         // Compute PDF for $A_p$ terms
         let ap_pdf = self.compute_ap_pdf(cos_theta_o);
-
         // Compute PDF sum for hair scattering events
         let phi = phi_i - phi_o;
         let mut pdf = 0.0;
@@ -587,6 +594,9 @@ impl BxDF for HairBSDF {
                 * ap_pdf[p]
                 * np(phi, p, s, gamma_o, gamma_t);
         }
+        pdf += mp(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, v[P_MAX])
+            * ap_pdf[P_MAX]
+            * (1.0 / (2.0 * PI));
         return pdf;
     }
 

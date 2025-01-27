@@ -89,6 +89,11 @@ impl BxDF for FresnelBlend {
             return 0.0;
         }
         let wh = (*wo + *wi).normalize();
+        // pbrt-r3:
+        if Vector3f::dot(wo, &wh) < 0.0 {
+            return 0.0; // Should be rare
+        }
+        // pbrt-r3:
         let distribution = self.distribution.as_ref();
         let pdf_wh = distribution.pdf(wo, &wh);
         return 0.5 * (abs_cos_theta(wi) * INV_PI + pdf_wh / (4.0 * Vector3f::dot(wo, &wh)));

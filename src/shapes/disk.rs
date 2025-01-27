@@ -186,7 +186,7 @@ impl Shape for Disk {
             .object_to_world
             .transform_point_with_abs_error(&p_obj, &Point3f::new(0.0, 0.0, 0.0));
         let pdf = 1.0 / self.area();
-        let it = Interaction::from((p, p_error, n, 0.0));
+        let it = Interaction::from_surface_sample(&p, &p_error, &n);
         return Some((it, pdf));
     }
 }

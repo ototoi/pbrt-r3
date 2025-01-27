@@ -38,6 +38,11 @@ impl ProxyFilm {
         film.add_splat(p, v);
     }
 
+    pub fn update_display(&mut self, bounds: &Bounds2i) {
+        let mut film = self.film.as_ref().write().unwrap();
+        film.update_display(bounds);
+    }
+
     pub fn get_filename(&self) -> String {
         let film = self.film.as_ref().read().unwrap();
         return film.filename.clone();

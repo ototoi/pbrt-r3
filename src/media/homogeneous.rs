@@ -50,11 +50,12 @@ impl Medium for HomogeneousMedium {
         let sampled_medium = t < t_max;
 
         let mi = if sampled_medium {
+            let phase: Arc<dyn PhaseFunction> = Arc::new(HenyeyGreenstein::new(self.g));
             Some(MediumInteraction::new(
                 &ray.position(t),
                 &(-ray.d),
                 ray.time,
-                &Some(Arc::new(HenyeyGreenstein::new(self.g))),
+                &phase,
             ))
         } else {
             None

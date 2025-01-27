@@ -2,16 +2,61 @@ use crate::core::pbrt::*;
 
 use std::sync::Arc;
 
+#[derive(Clone)]
+pub enum AlphaMaskInfo {
+    Texture { texture: Arc<dyn Texture<Float>> },
+    Value { value: Float },
+}
+
 pub struct AlphaMaskShape {
     shape: Arc<dyn Shape>,
-    mask: Arc<dyn Texture<Float>>,
+    test_intersection: bool,
+    test_intersection_p: bool,
+    alpha_mask_texture: Option<Arc<dyn Texture<Float>>>,
+    shadow_alpha_mask_texture: Option<Arc<dyn Texture<Float>>>,
 }
 
 impl AlphaMaskShape {
-    pub fn new(shape: &Arc<dyn Shape>, mask: &Arc<dyn Texture<Float>>) -> Self {
+    pub fn new(
+        shape: &Arc<dyn Shape>,
+        alpha_mask_info: &Option<AlphaMaskInfo>,
+        shadow_alpha_mask_info: &Option<AlphaMaskInfo>,
+    ) -> Self {
+        let mut test_intersection = true;
+        let mut test_intersection_p = true;
+        let mut alpha_mask_texture = None;
+        let mut shadow_alpha_mask_texture = None;
+        if let Some(info) = alpha_mask_info.as_ref() {
+            match info {
+                AlphaMaskInfo::Texture { texture } => {
+                    alpha_mask_texture = Some(Arc::clone(texture));
+                }
+                AlphaMaskInfo::Value { value: alpha } => {
+                    if *alpha <= 0.0 {
+                        test_intersection = false;
+                        test_intersection_p = false;
+                    }
+                }
+            }
+        }
+        if let Some(info) = shadow_alpha_mask_info.as_ref() {
+            match info {
+                AlphaMaskInfo::Texture { texture } => {
+                    shadow_alpha_mask_texture = Some(Arc::clone(texture));
+                }
+                AlphaMaskInfo::Value { value: alpha } => {
+                    if *alpha <= 0.0 {
+                        test_intersection_p = false;
+                    }
+                }
+            }
+        }
         AlphaMaskShape {
             shape: Arc::clone(shape),
-            mask: Arc::clone(mask),
+            test_intersection,
+            test_intersection_p,
+            alpha_mask_texture,
+            shadow_alpha_mask_texture,
         }
     }
 }
@@ -26,39 +71,52 @@ impl Shape for AlphaMaskShape {
         return shape.world_bound();
     }
     fn intersect(&self, r: &Ray) -> Option<(Float, SurfaceInteraction)> {
-        let shape = self.shape.as_ref();
-        let t_max = r.t_max.get();
-        if let Some((t, si)) = shape.intersect(r) {
-            let mask = self.mask.as_ref();
-            let a = mask.evaluate(&si);
-            if a > 0.0 {
+        if self.test_intersection {
+            let shape = self.shape.as_ref();
+            let t_max = r.t_max.get();
+            if let Some((t, si)) = shape.intersect(r) {
+                if let Some(mask) = self.alpha_mask_texture.as_ref() {
+                    let a = mask.evaluate(&si);
+                    if a <= 0.0 {
+                        r.t_max.set(t_max);
+                        return None;
+                    }
+                }
                 return Some((t, si));
-            } else {
-                r.t_max.set(t_max);
-                return None;
             }
         }
         return None;
     }
+
     fn intersect_p(&self, r: &Ray) -> bool {
-        let shape = self.shape.as_ref();
-        let t_max = r.t_max.get();
-        if let Some((_, si)) = shape.intersect(r) {
-            let mask = self.mask.as_ref();
-            let a = mask.evaluate(&si);
-            if a > 0.0 {
-                return true;
-            } else {
+        if self.test_intersection_p {
+            let shape = self.shape.as_ref();
+            let t_max = r.t_max.get();
+            if let Some((_, si)) = shape.intersect(r) {
                 r.t_max.set(t_max);
-                return false;
+                if let Some(mask) = self.alpha_mask_texture.as_ref() {
+                    let a = mask.evaluate(&si);
+                    if a <= 0.0 {
+                        return false;
+                    }
+                }
+                if let Some(mask) = self.shadow_alpha_mask_texture.as_ref() {
+                    let a = mask.evaluate(&si);
+                    if a <= 0.0 {
+                        return false;
+                    }
+                }
+                return true;
             }
         }
         return false;
     }
+
     fn area(&self) -> Float {
         let shape = self.shape.as_ref();
         return shape.area();
     }
+
     fn pdf(&self, inter: &Interaction) -> Float {
         // Ignore any alpha textures used for trimming the shape when performing
         // this intersection. Hack for the "San Miguel" scene, where this is used
@@ -66,18 +124,22 @@ impl Shape for AlphaMaskShape {
         let shape = self.shape.as_ref();
         return shape.pdf(inter);
     }
+
     fn pdf_from(&self, inter: &Interaction, wi: &Vector3f) -> Float {
         let shape = self.shape.as_ref();
         return shape.pdf_from(inter, wi);
     }
+
     fn sample(&self, u: &Point2f) -> Option<(Interaction, Float)> {
         let shape = self.shape.as_ref();
         return shape.sample(u);
     }
+
     fn sample_from(&self, inter: &Interaction, u: &Point2f) -> Option<(Interaction, Float)> {
         let shape = self.shape.as_ref();
         return shape.sample_from(inter, u);
     }
+
     fn solid_angle(&self, p: &Point3f, n_samples: i32) -> Float {
         let shape = self.shape.as_ref();
         return shape.solid_angle(p, n_samples);

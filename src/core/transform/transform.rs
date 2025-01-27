@@ -386,6 +386,12 @@ impl From<Matrix4x4> for Transform {
     }
 }
 
+impl From<(Matrix4x4, Matrix4x4)> for Transform {
+    fn from(v: (Matrix4x4, Matrix4x4)) -> Self {
+        Transform { m: v.0, minv: v.1 }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

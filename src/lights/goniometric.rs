@@ -58,12 +58,10 @@ impl Light for GonioPhotometricLight {
             * self.scale(&-wi)
             * (1.0 / Vector3f::distance_squared(&self.p_light, &inter.get_p()));
         let pdf = 1.0;
-        let inter2 = Interaction::from((
-            self.p_light,
-            inter.get_time(),
-            self.base.medium_interface.clone(),
-        ));
-        let vis = VisibilityTester::from((inter, &inter2));
+        let p = self.p_light;
+        let inter_light =
+            Interaction::from_light_sample(&p, inter.get_time(), &self.base.medium_interface);
+        let vis = VisibilityTester::from((inter, &inter_light));
         return Some((f, wi, pdf, vis));
     }
 
@@ -93,12 +91,13 @@ impl Light for GonioPhotometricLight {
     ) -> Option<(Spectrum, Ray, Normal3f, Float, Float)> {
         let _p = ProfilePhase::new(Prof::LightSample);
 
+        let medium = self.base.medium_interface.get_inside();
         let ray = Ray::from((
             &self.p_light,
             &uniform_sample_sphere(u1),
             Float::INFINITY,
             time,
-            &self.base.medium_interface.inside,
+            &medium,
         ));
         let n_light = ray.d;
         let f = self.intensity * self.scale(&ray.d);
@@ -124,14 +123,12 @@ unsafe impl Sync for GonioPhotometricLight {}
 unsafe impl Send for GonioPhotometricLight {}
 
 fn make_mipmap(path: &str) -> Result<(MIPMap<RGBSpectrum>, Point2i), PbrtError> {
-    if let Ok((mut texels, resolution)) = read_image(path) {
-        //println!("make_mipmap {}", path);
+    if !path.is_empty() {
+        let (mut texels, resolution) = read_image(path)?;
         let total = (resolution.x * resolution.y) as usize;
         for i in 0..total {
             let cc = texels[i].to_rgb();
-            // pbrt-r3: Clamp negative values to zero
-            let cc = cc.iter().map(|x| x.max(0.0)).collect::<Vec<Float>>();
-            // pbrt-rs: Clamp negative values to zero
+            let cc = cc.iter().map(|x| x.max(0.0)).collect::<Vec<Float>>(); // pbrt-r3: Clamp negative values to zero
             texels[i] = RGBSpectrum::from(cc);
         }
         let mipmap = create_spectrum_mipmap(&resolution, texels.as_ref())?;

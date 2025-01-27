@@ -32,6 +32,8 @@ impl Primitive for GeometricPrimitive {
         return s.world_bound();
     }
     fn intersect(&self, r: &Ray) -> Option<SurfaceInteraction> {
+        let _p = ProfilePhase::new(Prof::GeometricPrimitiveIntersect);
+
         let s = self.shape.as_ref();
         if let Some((t_hit, mut isect)) = s.intersect(r) {
             r.t_max.set(t_hit);
@@ -49,6 +51,8 @@ impl Primitive for GeometricPrimitive {
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
+        let _p = ProfilePhase::new(Prof::GeometricPrimitiveIntersectP);
+
         let s = self.shape.as_ref();
         return s.intersect_p(r);
     }

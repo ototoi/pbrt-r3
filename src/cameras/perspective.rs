@@ -169,16 +169,15 @@ impl Camera for PerspectiveCamera {
         return Some((1.0, ray));
     }
 
-    fn we(&self, ray: &Ray) -> (Spectrum, Point2f) {
+    fn we(&self, ray: &Ray) -> Option<(Spectrum, Point2f)> {
         // Interpolate camera matrix and check if $\w{}$ is forward-facing
         let c2w = self.base.base.camera_to_world.interpolate(ray.time);
         let w2c = c2w.inverse();
         let cos_theta = ray
             .d
-            .normalize()
             .dot(&c2w.transform_vector(&Vector3f::new(0.0, 0.0, 1.0)));
         if cos_theta <= 0.0 {
-            return (Spectrum::zero(), Point2f::default());
+            return None;
         }
 
         // Map ray $(\w{}, t)$ onto the film plane
@@ -192,7 +191,7 @@ impl Camera for PerspectiveCamera {
         let p_focus = ray.position(distance);
         let camera_to_raster = self.base.raster_to_camera.inverse();
         let p_raster = camera_to_raster.transform_point(&w2c.transform_point(&p_focus)); //world -> camera -> raster
-        let p_raster2 = Vector2f::new(p_raster.x, p_raster.y);
+        let p_raster = Vector2f::new(p_raster.x, p_raster.y);
 
         // Return zero importance for out of bounds points
         let film = self.get_film();
@@ -204,7 +203,7 @@ impl Camera for PerspectiveCamera {
                 || p_raster.y < sample_bounds.min.y as Float
                 || p_raster.y >= sample_bounds.max.y as Float
             {
-                return (Spectrum::zero(), p_raster2);
+                return None;
             }
         }
 
@@ -219,22 +218,18 @@ impl Camera for PerspectiveCamera {
         let cos2_theta = cos_theta * cos_theta;
         let cos4_theta = cos2_theta * cos2_theta;
         let a = self.a;
-        return (
-            Spectrum::from(1.0 / (a * lens_area * cos4_theta)),
-            p_raster2,
-        );
+        return Some((Spectrum::from(1.0 / (a * lens_area * cos4_theta)), p_raster));
     }
 
-    fn pdf_we(&self, ray: &Ray) -> (Float, Float) {
+    fn pdf_we(&self, ray: &Ray) -> Option<(Float, Float)> {
         // Interpolate camera matrix and check if $\w{}$ is forward-facing
         let c2w = self.base.base.camera_to_world.interpolate(ray.time);
         let w2c = c2w.inverse();
         let cos_theta = ray
             .d
-            .normalize()
             .dot(&c2w.transform_vector(&Vector3f::new(0.0, 0.0, 1.0)));
         if cos_theta <= 0.0 {
-            return (0.0, 0.0);
+            return None;
         }
 
         // Map ray $(\w{}, t)$ onto the film plane
@@ -260,7 +255,7 @@ impl Camera for PerspectiveCamera {
                 || p_raster.y < sample_bounds.min.y as Float
                 || p_raster.y >= sample_bounds.max.y as Float
             {
-                return (0.0, 0.0);
+                return None;
             }
         }
         // Compute lens area of perspective camera
@@ -272,7 +267,7 @@ impl Camera for PerspectiveCamera {
         let a = self.a;
         let pdf_pos = 1.0 / lens_area;
         let pdf_dir = 1.0 / (a * cos_theta * cos_theta * cos_theta);
-        return (pdf_pos, pdf_dir);
+        return Some((pdf_pos, pdf_dir));
     }
 
     fn sample_wi(
@@ -280,15 +275,16 @@ impl Camera for PerspectiveCamera {
         inter: &Interaction,
         u: &Point2f,
     ) -> Option<(Spectrum, Vector3f, Float, Point2f, VisibilityTester)> {
-        // Uniformly sample a lens interaction _lensIntr_
         let lens_radius = self.base.lens_radius;
         let time = inter.get_time();
-        let camera_to_world = self.base.base.camera_to_world.interpolate(time);
+        let c2w = self.base.base.camera_to_world.interpolate(time);
+
+        // Uniformly sample a lens interaction _lensIntr_
         let p_lens = lens_radius * concentric_sample_disk(&u);
-        let p_lens_world = camera_to_world.transform_point(&Point3f::new(p_lens.x, p_lens.y, 0.0));
+        let p_lens_world = c2w.transform_point(&Point3f::new(p_lens.x, p_lens.y, 0.0));
         let medium = self.base.base.medium.clone();
         let mi = MediumInterface::from(&medium);
-        let n = Normal3f::from(camera_to_world.transform_normal(&Normal3f::new(0.0, 0.0, 1.0)));
+        let n = Normal3f::from(c2w.transform_vector(&Vector3f::new(0.0, 0.0, 1.0)));
         let lens_intr = Interaction::Base(BaseInteraction {
             p: p_lens_world,
             time: time,
@@ -313,8 +309,11 @@ impl Camera for PerspectiveCamera {
         };
         let pdf = (dist * dist) / (n.abs_dot(&wi) * lens_area);
         let ray = lens_intr.spawn_ray(&-wi);
-        let (spec, p_raster) = self.we(&ray);
-        return Some((spec, wi, pdf, p_raster, vis));
+        if let Some((spec, p_raster)) = self.we(&ray) {
+            return Some((spec, wi, pdf, p_raster, vis));
+        } else {
+            return None;
+        }
     }
 
     fn get_film(&self) -> Arc<RwLock<Film>> {

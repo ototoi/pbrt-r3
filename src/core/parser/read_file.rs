@@ -26,11 +26,32 @@ pub fn read_file_with_include(path: &str) -> Result<String, Error> {
     }
 }
 
+pub fn read_file_without_include(path: &str) -> Result<String, Error> {
+    let path = Path::new(path);
+    if path.exists() {
+        return read_file_without_include_core(path);
+    } else {
+        return Err(Error::new(ErrorKind::NotFound, "File is not found."));
+    }
+}
+
 fn read_file_with_include_core(path: &Path, dirs: &mut Vec<PathBuf>) -> Result<String, Error> {
     let string_result = fs::read_to_string(path);
     match string_result {
         Ok(s) => {
             return evaluate_include(&s, dirs);
+        }
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub fn read_file_without_include_core(path: &Path) -> Result<String, Error> {
+    let string_result = fs::read_to_string(path);
+    match string_result {
+        Ok(s) => {
+            return remove_comment_result(&s);
         }
         Err(e) => {
             return Err(e);
@@ -59,61 +80,64 @@ fn print_work_dir_end() -> String {
     return "WorkDirEnd\n".to_string();
 }
 
-fn evaluate_include(s: &str, dirs: &mut Vec<PathBuf>) -> Result<String, Error> {
+fn remove_comment_result(s: &str) -> Result<String, Error> {
     let r = remove_comment(s);
     match r {
         Ok((_, s)) => {
-            let s = nom::combinator::all_consuming(nom::multi::many0(parse_one))(&s);
-            match s {
-                Ok((_, vs)) => {
-                    let mut ss = String::new();
-                    //ss += &print_work_dir_begin(dirs);
-                    for s in vs {
-                        if s.starts_with("Include") {
-                            let vv: Vec<&str> = s.split('|').collect();
-                            let filename = Path::new(vv[1]);
-                            let path_opt = get_next_path(filename, dirs);
-                            match path_opt {
-                                Some(next_path) => {
-                                    dirs.push(PathBuf::from(next_path.parent().unwrap()));
-                                    ss += &print_work_dir_begin(dirs);
-
-                                    let rss =
-                                        read_file_with_include_core(next_path.as_path(), dirs)?;
-                                    ss += &rss;
-                                    if vv.len() > 2 {
-                                        for i in 2..vv.len() {
-                                            ss += &format!(" {}", vv[i]);
-                                        }
-                                        ss += "\n";
-                                    }
-                                    dirs.pop();
-                                    ss += &print_work_dir_end();
-                                }
-                                None => {
-                                    return Err(Error::new(
-                                        ErrorKind::NotFound,
-                                        "File is not found.",
-                                    ));
-                                }
-                            }
-                        } else {
-                            ss += &s;
-                        }
-                    }
-                    //ss += &print_work_dir_end();
-                    //print!("ss:{}", ss);
-                    return Ok(ss);
-                }
-                Err(e) => {
-                    return Err(Error::new(ErrorKind::Other, e.to_string()));
-                }
-            }
+            return Ok(s);
         }
         Err(e) => {
             return Err(Error::new(ErrorKind::Other, e.to_string()));
         }
     }
+}
+
+fn parse_tokens(s: &str) -> Result<Vec<String>, Error> {
+    let r = nom::combinator::all_consuming(nom::multi::many0(parse_one))(&s);
+    match r {
+        Ok((_, vs)) => {
+            return Ok(vs);
+        }
+        Err(e) => {
+            return Err(Error::new(ErrorKind::Other, e.to_string()));
+        }
+    }
+}
+
+fn evaluate_include(s: &str, dirs: &mut Vec<PathBuf>) -> Result<String, Error> {
+    let s = remove_comment_result(s)?;
+    let vs = parse_tokens(&s)?;
+
+    let mut ss = String::new();
+    //ss += &print_work_dir_begin(dirs);
+    for s in vs {
+        if s.starts_with("Include") {
+            let vv: Vec<&str> = s.split('|').collect();
+            let filename = Path::new(vv[1]);
+            if let Some(next_path) = get_next_path(filename, dirs) {
+                dirs.push(PathBuf::from(next_path.parent().unwrap()));
+                ss += &print_work_dir_begin(dirs);
+
+                let rss = read_file_with_include_core(next_path.as_path(), dirs)?;
+                ss += &rss;
+                if vv.len() > 2 {
+                    for i in 2..vv.len() {
+                        ss += &format!(" {}", vv[i]);
+                    }
+                    ss += "\n";
+                }
+                dirs.pop();
+                ss += &print_work_dir_end();
+            } else {
+                return Err(Error::new(ErrorKind::NotFound, "File is not found."));
+            }
+        } else {
+            ss += &s;
+        }
+    }
+    //ss += &print_work_dir_end();
+    //print!("ss:{}", ss);
+    return Ok(ss);
 }
 
 fn parse_one(s: &str) -> IResult<&str, String> {
@@ -128,69 +152,35 @@ fn parse_one(s: &str) -> IResult<&str, String> {
 }
 
 fn parse_token(s: &str) -> IResult<&str, String> {
-    let r = nom::branch::permutation((
+    let (s, (a, b)) = nom::branch::permutation((
         character::complete::alpha1,
         bytes::complete::take_while(|c: char| c.is_alphanumeric() || c == '_'),
-    ))(s);
-    match r {
-        Ok((s, (a, b))) => {
-            let ss = format!("{}{}", a, b);
-            return Ok((s, ss));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    ))(s)?;
+    return Ok((s, format!("{}{}", a, b)));
 }
 
 fn parse_float(s: &str) -> IResult<&str, String> {
-    let r = nom::number::complete::recognize_float(s);
-    match r {
-        Ok((s, a)) => {
-            let ss = String::from(a);
-            return Ok((s, ss));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let (s, a) = nom::number::complete::recognize_float(s)?;
+    return Ok((s, a.to_string()));
 }
 
 fn parse_any(s: &str) -> IResult<&str, String> {
-    let r = character::complete::anychar(s);
-    match r {
-        Ok((s, b)) => {
-            return Ok((s, String::from(b)));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let (s, a) = character::complete::anychar(s)?;
+    return Ok((s, a.to_string()));
 }
 
 fn parse_space1(s: &str) -> IResult<&str, String> {
-    let r = character::complete::multispace1(s);
-    match r {
-        Ok((s, b)) => {
-            return Ok((s, String::from(b)));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let (s, a) = character::complete::multispace1(s)?;
+    return Ok((s, a.to_string()));
 }
 
 fn parse_string_literal(s: &str) -> IResult<&str, String> {
-    let r = string_literal(s);
-    match r {
-        Ok((s, ss)) => {
-            let k = format!("{}{}{}", "\"", ss, "\"");
-            return Ok((s, k));
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let (s, a) = sequence::delimited(
+        character::complete::char('"'),
+        bytes::complete::take_until("\""),
+        character::complete::char('"'),
+    )(s)?;
+    return Ok((s, format!("{}{}{}", "\"", a, "\"")));
 }
 
 pub fn parse_params(s: &str) -> IResult<&str, String> {

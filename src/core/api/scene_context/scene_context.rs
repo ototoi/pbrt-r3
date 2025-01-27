@@ -24,12 +24,12 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-thread_local!(pub static N_SHAPES: StatCounter = StatCounter::new("Scene/Shapes")); //"Scene/Shapes created"
-thread_local!(pub static N_LIGHTS: StatCounter = StatCounter::new("Scene/Lights"));
-thread_local!(pub static N_AREA_LIGHTS: StatCounter = StatCounter::new("Scene/AreaLights"));
-thread_local!(pub static N_MATERIALS: StatCounter = StatCounter::new("Scene/Materials")); //"Scene/Materials created"
-thread_local!(pub static N_OBJECT_INSTANCES_CREATED: StatCounter = StatCounter::new("Scene/Object instances created")); //"Scene/Object instances created"
-thread_local!(pub static N_OBJECT_INSTANCES_USED: StatCounter = StatCounter::new("Scene/Object instances used")); //"Scene/Object instances created"
+thread_local!(static N_SHAPES: StatCounter = StatCounter::new("Scene/Shapes")); //"Scene/Shapes created"
+thread_local!(static N_LIGHTS: StatCounter = StatCounter::new("Scene/Lights"));
+thread_local!(static N_AREA_LIGHTS: StatCounter = StatCounter::new("Scene/AreaLights"));
+thread_local!(static N_MATERIALS: StatCounter = StatCounter::new("Scene/Materials")); //"Scene/Materials created"
+thread_local!(static N_OBJECT_INSTANCES_CREATED: StatCounter = StatCounter::new("Scene/Object instances created")); //"Scene/Object instances created"
+thread_local!(static N_OBJECT_INSTANCES_USED: StatCounter = StatCounter::new("Scene/Object instances used")); //"Scene/Object instances created"
 
 #[derive(Debug, PartialEq)]
 enum APIState {
@@ -168,6 +168,26 @@ impl SceneContext {
         }
     }
 
+    pub fn replace_params_string(
+        &mut self,
+        name: &str,
+        key: &str,
+        value: &str,
+    ) -> Result<(), PbrtError> {
+        match name {
+            "Film" => {
+                let mut opts = self.render_options.borrow_mut();
+                let params = &mut opts.film_params;
+                params.replace_one_string(key, value);
+                return Ok(());
+            }
+            _ => {
+                let msg = format!("\"{}\" is unknown params name.", name);
+                return Err(PbrtError::error(&msg));
+            }
+        }
+    }
+
     pub fn create_medium_interface(&self) -> MediumInterface {
         let attr = self.graphics_states[self.graphics_states.len() - 1].borrow();
         let opts = self.render_options.borrow();
@@ -176,11 +196,11 @@ impl SceneContext {
         let mut m = MediumInterface::new();
         if let Some(medium) = opts.named_media.get(&inside_name) {
             //println!("inside_name: {}", inside_name);
-            m.inside = Some(Arc::clone(medium));
+            m.set_inside(medium);
         }
         if let Some(medium) = opts.named_media.get(&outside_name) {
             //println!("outside_name: {}", outside_name);
-            m.outside = Some(Arc::clone(medium));
+            m.set_outside(medium);
         }
         return m;
     }
@@ -375,7 +395,7 @@ impl SceneContext {
     ) -> Vec<Arc<dyn Shape>> {
         let attr = self.graphics_states[self.graphics_states.len() - 1].borrow();
         if !attr.area_light_name.is_empty() {
-            let two_sided = attr.area_light_params.find_one_bool("twosided", false);
+            let two_sided = attr.area_light_params.find_one_bool("twosided", true);
             let two_sided = params.find_one_bool("twosided", two_sided);
             let mut params = params.clone();
             params.replace_one_bool("bool twosided", two_sided);
@@ -735,12 +755,9 @@ impl SceneContext {
                 .collect();
             for key in target_keys {
                 if let Some(values) = params.get_floats_ref(key) {
-                    let values = values.clone();
-                    if values.len() == 2 {
-                        let spc = SampledSpectrum::from_blackbody(values[0], values[1]);
-                        let spc = Spectrum::from(&spc);
-                        n_params.add_spectrum_no_key(key, &spc);
-                    }
+                    let spc = SampledSpectrum::from_blackbody(&values);
+                    let spc = Spectrum::from(&spc);
+                    n_params.add_spectrum_no_key(key, &spc);
                 }
             }
         }
@@ -839,23 +856,39 @@ impl ParseContext for SceneContext {
     fn pbrt_concat_transform(&mut self, t: &[Float]) {
         self.verify_initialized("ConcatTransform");
 
-        let t = Transform::from([
-            t[0], t[4], t[8], t[12], t[1], t[5], t[9], t[13], t[2], t[6], t[10], t[14], t[3], t[7],
-            t[11], t[15],
+        #[rustfmt::skip]
+        let m = Matrix4x4::from([
+            t[0], t[4], t[8], t[12],
+            t[1], t[5], t[9], t[13],
+            t[2], t[6], t[10], t[14],
+            t[3], t[7], t[11], t[15],
         ]);
-        let mut trns = self.transforms[self.transforms.len() - 1].borrow_mut();
-        trns.mul_transform(&t, self.transform_bits[self.transform_bits.len() - 1]);
+        if let Some(im) = m.inverse() {
+            let t = Transform::from((m, im));
+            let mut trns = self.transforms[self.transforms.len() - 1].borrow_mut();
+            trns.mul_transform(&t, self.transform_bits[self.transform_bits.len() - 1]);
+        } else {
+            error!("Singular matrix in MatrixInvert");
+        }
     }
 
     fn pbrt_transform(&mut self, t: &[Float]) {
         self.verify_initialized("Transform");
 
-        let t = Transform::from([
-            t[0], t[4], t[8], t[12], t[1], t[5], t[9], t[13], t[2], t[6], t[10], t[14], t[3], t[7],
-            t[11], t[15],
+        #[rustfmt::skip]
+        let m = Matrix4x4::from([
+            t[0], t[4], t[8], t[12],
+            t[1], t[5], t[9], t[13],
+            t[2], t[6], t[10], t[14],
+            t[3], t[7], t[11], t[15],
         ]);
-        let mut trns = self.transforms[self.transforms.len() - 1].borrow_mut();
-        trns.set_transform(&t, self.transform_bits[self.transform_bits.len() - 1]);
+        if let Some(im) = m.inverse() {
+            let t = Transform::from((m, im));
+            let mut trns = self.transforms[self.transforms.len() - 1].borrow_mut();
+            trns.set_transform(&t, self.transform_bits[self.transform_bits.len() - 1]);
+        } else {
+            error!("Singular matrix in MatrixInvert");
+        }
     }
 
     fn pbrt_coordinate_system(&mut self, name: &str) {
@@ -1030,6 +1063,17 @@ impl ParseContext for SceneContext {
 
         let params = self.make_absolute_path(params);
 
+        // Check for filename errors
+        if let Some(maps) = params.get_strings_ref("filename") {
+            if maps.len() == 1 {
+                let path = Path::new(&maps[0]);
+                if !path.exists() {
+                    warn!("Texture file \"{}\" does not exist.", path.display());
+                    return;
+                }
+            }
+        }
+
         let attr = self.graphics_states[self.graphics_states.len() - 1].borrow_mut();
 
         let mut f_tex = attr.float_textures.as_ref().borrow_mut();
@@ -1110,6 +1154,8 @@ impl ParseContext for SceneContext {
         if let Some(mtl) = self.get_named_material(name) {
             let mut attr = self.graphics_states[self.graphics_states.len() - 1].borrow_mut();
             attr.current_material = Some(mtl);
+        } else {
+            error!("NamedMaterial \"{}\" unknown.", name);
         }
     }
 

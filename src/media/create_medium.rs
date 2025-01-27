@@ -203,7 +203,7 @@ const SUBSURFACE_PARAMETER_TABLE: [(&str, [f32; 3], [f32; 3]); 47] = [
 ];
 
 pub fn get_medium_scattering_properties(name: &str) -> Option<(Spectrum, Spectrum)> {
-    if name != "" {
+    if !name.is_empty() {
         for mss in SUBSURFACE_PARAMETER_TABLE {
             if name == mss.0 {
                 return Some((Spectrum::from(mss.2), Spectrum::from(mss.1)));

@@ -35,12 +35,9 @@ impl BxDF for MicrofacetReflection {
         wh = wh.normalize();
 
         // pbrt-r3:
-        assert!(!Float::is_infinite(wh.x));
-        assert!(!Float::is_infinite(wh.y));
-        assert!(!Float::is_infinite(wh.z));
-        assert!(!Float::is_nan(wh.x));
-        assert!(!Float::is_nan(wh.y));
-        assert!(!Float::is_nan(wh.z));
+        debug_assert!(!Float::is_finite(wh.x));
+        debug_assert!(!Float::is_finite(wh.y));
+        debug_assert!(!Float::is_finite(wh.z));
         // pbrt-r3:
 
         // For the Fresnel call, make sure that wh is in the same hemisphere
@@ -90,6 +87,12 @@ impl BxDF for MicrofacetReflection {
             return 0.0;
         }
         let wh = (*wo + *wi).normalize();
+        // pbrt-r3:
+        if Vector3f::dot(wo, &wh) < 0.0 {
+            return 0.0; // Should be rare
+        }
+        // pbrt-r3:
+
         let distribution = self.distribution.as_ref();
         return distribution.pdf(wo, &wh) / (4.0 * Vector3f::dot(wo, &wh));
     }

@@ -1,6 +1,5 @@
 use crate::core::pbrt::*;
 use std::sync::Arc;
-use std::sync::RwLock;
 
 pub struct UniformLightDistribution {
     distrib: Arc<Distribution1D>,

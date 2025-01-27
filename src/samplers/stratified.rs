@@ -29,6 +29,8 @@ impl StratifiedSampler {
 
 impl Sampler for StratifiedSampler {
     fn start_pixel(&mut self, p: &Point2i) {
+        let _p = ProfilePhase::new(Prof::StartPixel);
+
         // Generate single stratified samples for the pixel
         let samples_per_pixel = (self.base.base.samples_per_pixel) as usize;
         for i in 0..self.base.samples1d.len() {
@@ -131,10 +133,16 @@ impl PixelSampler for StratifiedSampler {}
 
 pub fn create_stratified_sampler(params: &ParamSet) -> Result<Arc<RwLock<dyn Sampler>>, PbrtError> {
     let jitter = params.find_one_bool("jitter", true);
-    let xsamp = params.find_one_int("xsamples", 4) as u32;
-    let ysamp = params.find_one_int("ysamples", 4) as u32;
+    let mut xsamp = params.find_one_int("xsamples", 4) as u32;
+    let mut ysamp = params.find_one_int("ysamples", 4) as u32;
     let sd = params.find_one_int("dimensions", 4) as u32;
-
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            xsamp = 1;
+            ysamp = 1;
+        }
+    }
     return Ok(Arc::new(RwLock::new(StratifiedSampler::new(
         xsamp, ysamp, jitter, sd,
     ))));

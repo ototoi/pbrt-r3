@@ -95,12 +95,17 @@ impl RGBSpectrum {
     #[inline]
     pub fn is_black(&self) -> bool {
         let c = &self.c;
-        return c.iter().all(|x| -> bool { x.abs() <= 0.0 });
+        for i in 0..3 {
+            if c[i] != 0.0 {
+                return false;
+            }
+        }
+        return true;
     }
 
     pub fn is_valid(&self) -> bool {
         let c = &self.c;
-        return c.iter().all(|x| -> bool { x.is_finite() && !x.is_nan() });
+        return c.iter().all(|x| -> bool { x.is_finite() });
     }
 
     pub fn rgb_from_xyz(xyz: &[Float]) -> RGBSpectrum {

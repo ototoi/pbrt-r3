@@ -1,6 +1,7 @@
 use super::medium::Medium;
 
 use std::sync::Arc;
+//use std::sync::Weak;
 
 #[derive(Clone, Default, Debug)]
 pub struct MediumInterface {
@@ -16,38 +17,56 @@ impl MediumInterface {
         }
     }
 
-    pub fn is_medium_transition(&self) -> bool {
-        if let Some(inside) = self.inside.as_ref() {
-            if let Some(outside) = self.outside.as_ref() {
-                //print!("inside: {:p}\n", inside);
-                let inside = inside.as_ref();
-                let inside_ptr = inside as *const dyn Medium;
-                let outside = outside.as_ref();
-                let outside_ptr = outside as *const dyn Medium;
-                return !std::ptr::eq(inside_ptr, outside_ptr);
-                //return inside.as_ptr() != outside.as_ptr();
-            } else {
-                return true;
-            }
+    pub fn set_inside(&mut self, medium: &Arc<dyn Medium>) {
+        self.inside = Some(Arc::clone(medium));
+    }
+
+    pub fn set_outside(&mut self, medium: &Arc<dyn Medium>) {
+        self.outside = Some(Arc::clone(medium));
+    }
+
+    pub fn get_inside(&self) -> Option<Arc<dyn Medium>> {
+        match &self.inside {
+            Some(inside) => Some(inside.clone()),
+            None => None,
         }
-        return false;
+    }
+
+    pub fn get_outside(&self) -> Option<Arc<dyn Medium>> {
+        match &self.outside {
+            Some(outside) => Some(outside.clone()),
+            None => None,
+        }
+    }
+
+    pub fn is_medium_transition(&self) -> bool {
+        match (self.inside.as_ref(), self.outside.as_ref()) {
+            (Some(inside), Some(outside)) => {
+                return !std::ptr::eq(inside, outside);
+            }
+            (Some(_), None) => true,
+            (None, Some(_)) => true,
+            (None, None) => false,
+        }
     }
 }
 
 impl From<&Option<Arc<dyn Medium>>> for MediumInterface {
     fn from(medium: &Option<Arc<dyn Medium>>) -> Self {
-        MediumInterface {
-            inside: medium.clone(),
-            outside: medium.clone(),
+        match medium {
+            Some(medium) => MediumInterface::from(medium),
+            None => MediumInterface::new(),
         }
     }
 }
 
 impl From<&Arc<dyn Medium>> for MediumInterface {
     fn from(medium: &Arc<dyn Medium>) -> Self {
+        let inside = Arc::clone(medium);
+        let outside = Arc::clone(medium);
         MediumInterface {
-            inside: Some(Arc::clone(medium)),
-            outside: Some(Arc::clone(medium)),
+            inside: Some(inside),
+            outside: Some(outside),
         }
     }
 }

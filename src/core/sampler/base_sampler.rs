@@ -43,6 +43,8 @@ impl BaseSampler {
     }
 
     pub fn get_1d_array(&mut self, n: u32) -> Option<Vec<Float>> {
+        let _p = ProfilePhase::new(Prof::GetSample); //pbrt-r3
+
         let n = n as usize;
         if self.array1d_offset == self.sample_array1d.len() as u64 {
             return None;
@@ -54,6 +56,8 @@ impl BaseSampler {
     }
 
     pub fn get_2d_array(&mut self, n: u32) -> Option<Vec<Vector2f>> {
+        let _p = ProfilePhase::new(Prof::GetSample); //pbrt-r3
+
         let n = n as usize;
         if self.array2d_offset == self.sample_array2d.len() as u64 {
             return None;
@@ -65,6 +69,8 @@ impl BaseSampler {
     }
 
     pub fn start_pixel(&mut self, p: &Point2i) {
+        let _p = ProfilePhase::new(Prof::StartPixel);
+
         self.current_pixel = *p;
         self.current_pixel_sample_index = 0;
         self.array1d_offset = 0;

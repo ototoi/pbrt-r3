@@ -3,6 +3,12 @@ name = "pbrt-r3"
 version = "3.0.1"
 edition = "2021"
 build = "build/main.rs"
+default-run = "pbrt-r3"
+
+[features]
+default = []
+profile = []
+stats = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -37,3 +43,8 @@ bool_assert_comparison = "allow"
 [[bin]]
 name = "pbrt-r3"
 path = "src/bin/pbrt.rs"
+
+[[bin]]
+name = "cyhair2pbrt"
+path = "src/tools/cyhair2pbrt.rs"
+

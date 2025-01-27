@@ -5,6 +5,7 @@ pub struct PlasticMaterial {
     kd: Arc<dyn Texture<Spectrum>>,
     ks: Arc<dyn Texture<Spectrum>>,
     roughness: Arc<dyn Texture<Float>>,
+    bumpmap: Option<Arc<dyn Texture<Float>>>,
     remaproughness: bool,
 }
 
@@ -13,12 +14,14 @@ impl PlasticMaterial {
         kd: &Arc<dyn Texture<Spectrum>>,
         ks: &Arc<dyn Texture<Spectrum>>,
         roughness: &Arc<dyn Texture<Float>>,
+        bumpmap: Option<Arc<dyn Texture<Float>>>,
         remaproughness: bool,
     ) -> Self {
         PlasticMaterial {
             kd: kd.clone(),
             ks: ks.clone(),
             roughness: roughness.clone(),
+            bumpmap: bumpmap.clone(),
             remaproughness,
         }
     }
@@ -32,6 +35,10 @@ impl Material for PlasticMaterial {
         _mode: TransportMode,
         _allow_multiple_lobes: bool,
     ) {
+        if let Some(bump) = self.bumpmap.as_ref() {
+            self.bump(bump, si);
+        }
+
         let mut b = arena.alloc_bsdf(si, 1.0);
 
         let kd = self.kd.as_ref();
@@ -66,11 +73,13 @@ pub fn create_plastic_material(mp: &TextureParams) -> Result<Arc<dyn Material>, 
     let kd = mp.get_spectrum_texture("Kd", &Spectrum::from(0.25));
     let ks = mp.get_spectrum_texture("Ks", &Spectrum::from(0.25));
     let roughness = mp.get_float_texture("roughness", 0.1);
+    let bumpmap = mp.get_float_texture_or_null("bumpmap");
     let remaproughness = mp.find_bool("remaproughness", true);
     return Ok(Arc::new(PlasticMaterial::new(
         &kd,
         &ks,
         &roughness,
+        bumpmap,
         remaproughness,
     )));
 }

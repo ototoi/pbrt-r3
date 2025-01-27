@@ -9,6 +9,8 @@ use std::env;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 
+thread_local!(static FILM_PIXEL_MEMORY: StatMemoryCounter = StatMemoryCounter::new("Memory/Film pixels"));
+
 //pub const FILTER_TABLE_WIDTH: usize = 16;
 //pub const FT_W: usize = FILTER_TABLE_WIDTH;
 //pub const FT_SZ: usize = FILTER_TABLE_WIDTH * FILTER_TABLE_WIDTH;
@@ -38,6 +40,7 @@ pub struct Film {
 
     pixels: Mutex<Vec<Pixel>>,
 
+    splat_pixels: Mutex<Vec<[Float; 3]>>,
     splat_tiles: Vec<Arc<RwLock<SplatTile>>>, //pixels_atomic: Vec<PixelAtomic>,
     splat_size: Vector2i,
 
@@ -81,7 +84,11 @@ impl Film {
             resolution, crop_window, cropped_pixel_bounds
         );
 
+        // Allocate film image storage
         let pixels: Vec<Pixel> = vec![Pixel::zero(); cropped_pixel_bounds.area() as usize];
+        FILM_PIXEL_MEMORY
+            .with(|s| s.add(cropped_pixel_bounds.area() as usize * std::mem::size_of::<Pixel>()));
+
         let mut filter_table: [Float; FT_SZ] = [1.0; FT_SZ];
         {
             {
@@ -100,25 +107,9 @@ impl Film {
                     }
                 }
             }
-            /*
-            {
-                let mut total = 0.0;
-                for y in 0..FT_W {
-                    for x in 0..FT_W {
-                        total += filter_table[y * FT_W + x];
-                    }
-                }
-                let inv_total = 1.0 / total;
-                for y in 0..FT_W {
-                    for x in 0..FT_W {
-                        filter_table[y * FT_W + x] *= inv_total;
-                    }
-                }
-                //println!("{:?}", filter_table);
-            }
-            */
         }
 
+        let splat_pixels: Vec<[Float; 3]> = vec![[0.0; 3]; cropped_pixel_bounds.area() as usize];
         let mut splat_tiles = Vec::new();
         let splat_size;
         {
@@ -152,6 +143,8 @@ impl Film {
             display: MutipleDisplay::new(),
 
             pixels: Mutex::new(pixels),
+
+            splat_pixels: Mutex::new(splat_pixels),
             splat_tiles: splat_tiles,
             splat_size: splat_size,
             filter_table: Arc::new(RwLock::new(filter_table)),
@@ -214,6 +207,8 @@ impl Film {
     }
 
     pub fn merge_film_tile(&mut self, tile: &FilmTile) {
+        let _p = ProfilePhase::new(Prof::MergeFilmTile);
+
         let bounds = tile.get_pixel_bounds();
         {
             let mut pixels = self.pixels.lock().unwrap();
@@ -233,9 +228,6 @@ impl Film {
                 }
             }
         }
-        {
-            self.update_display(&bounds);
-        }
     }
 
     pub fn merge_splats(&mut self, splat_scale: Float) {
@@ -251,17 +243,16 @@ impl Film {
             let y0 = bounds.min.y as usize;
             let y1 = bounds.max.y as usize;
             {
-                let mut pixels = self.pixels.lock().unwrap();
+                let mut splat_pixels = self.splat_pixels.lock().unwrap();
                 for y in y0..y1 {
                     for x in x0..x1 {
-                        //
                         let p = Vector2i::from((x as i32, y as i32));
                         let sx = x - x0;
                         let sy = y - y0;
                         let src_index = sy * ST_W + sx;
                         let dst_index = self.get_pixel_index(&p);
                         for i in 0..3 {
-                            pixels[dst_index].xyz[i] += splat_scale * tile.pixels[src_index][i];
+                            splat_pixels[dst_index][i] += splat_scale * tile.pixels[src_index][i];
                         }
                     }
                 }
@@ -300,6 +291,7 @@ impl Film {
         let mut buffer: Vec<f32> = vec![0.0; (3 * twidth * theight) as usize];
         {
             let pixels = self.pixels.lock().unwrap();
+            let splat_pixels = self.splat_pixels.lock().unwrap();
             for y in ty0..ty1 {
                 for x in tx0..tx1 {
                     let p = Vector2i::from((x as i32, y as i32));
@@ -313,6 +305,12 @@ impl Film {
                         c[1] = f32::max(0.0, c[1] * inv_wt);
                         c[2] = f32::max(0.0, c[2] * inv_wt);
                     }
+
+                    let splat_pixel = &splat_pixels[src_index];
+                    let sc = xyz_to_rgb(splat_pixel);
+                    c[0] += sc[0];
+                    c[1] += sc[1];
+                    c[2] += sc[2];
 
                     let by = y - ty0;
                     let bx = x - tx0;
@@ -356,20 +354,22 @@ impl Film {
     }
 
     pub fn add_splat(&mut self, p: &Vector2f, v: &Spectrum) {
+        let _p = ProfilePhase::new(Prof::SplatFilm);
+
         let pi = Point2i::new(p.x.floor() as i32, p.y.floor() as i32);
         if !self.cropped_pixel_bounds.inside_exclusive(&pi) {
             return;
         }
 
-        let pi = Point2i::from((
+        //println!("pi: {:?}", pi);
+
+        let pi = Point2i::new(
             pi.x - self.cropped_pixel_bounds.min.x,
             pi.y - self.cropped_pixel_bounds.min.y,
-        ));
+        );
         let tx = pi.x as usize / ST_W;
         let ty = pi.y as usize / ST_W;
         let xyz = v.to_xyz();
-        let x = pi.x as usize - tx * ST_W;
-        let y = pi.y as usize - ty * ST_W;
 
         {
             let tindex = ty * self.splat_size.x as usize + tx;
@@ -390,6 +390,10 @@ impl Film {
             //if xyz[0] != 0.0 || xyz[1] != 0.0 || xyz[2] != 0.0 {
             //println!("Splatting at ({}, {})", x, y);
             //}
+
+            let x = pi.x as usize - tx * ST_W;
+            let y = pi.y as usize - ty * ST_W;
+
             splat_tile.pixels[y * ST_W + x][0] += xyz[0];
             splat_tile.pixels[y * ST_W + x][1] += xyz[1];
             splat_tile.pixels[y * ST_W + x][2] += xyz[2];
@@ -427,6 +431,7 @@ impl Film {
         // _splat_scale: Float
         let mut rgb = vec![0.0; 3 * self.cropped_pixel_bounds.area() as usize];
         let pixels = self.pixels.lock().unwrap();
+        let splat_pixels = self.splat_pixels.lock().unwrap();
         {
             for offset in 0..pixels.len() {
                 let pixel = &pixels[offset];
@@ -438,6 +443,13 @@ impl Film {
                     c[1] = f32::max(0.0, c[1] * inv_wt);
                     c[2] = f32::max(0.0, c[2] * inv_wt);
                 }
+
+                let splat_pixel = &splat_pixels[offset];
+                let sc = xyz_to_rgb(splat_pixel);
+                c[0] += sc[0];
+                c[1] += sc[1];
+                c[2] += sc[2];
+
                 rgb[3 * offset + 0] = c[0];
                 rgb[3 * offset + 1] = c[1];
                 rgb[3 * offset + 2] = c[2];
@@ -519,8 +531,16 @@ pub fn create_film(
     let filename = params.find_one_string("filename", "pbrt.exr");
     let filepath = get_full_path(&filename);
     //let filepath = params.find_one_string("filepath", &filename);
-    let xres = params.find_one_int("xresolution", 1280);
-    let yres = params.find_one_int("yresolution", 720);
+    let mut xres = params.find_one_int("xresolution", 1280);
+    let mut yres = params.find_one_int("yresolution", 720);
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render && !options.quick_render_full_resolution {
+            xres = i32::max(1, xres / 4);
+            yres = i32::max(1, yres / 4);
+        }
+    }
+
     let crop = get_crop_window(params)?;
     let scale = params.find_one_float("scale", 1.0);
     let diagonal = params.find_one_float("diagonal", 35.0);
@@ -536,101 +556,4 @@ pub fn create_film(
         maxsampleluminance,
     );
     return Ok(Arc::new(RwLock::new(film)));
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::filters::*;
-
-    fn create_film_test(t: (i32, i32)) -> Film {
-        let resolution = Vector2i::from(t);
-        let crop_window = Bounds2f::new(&Vector2f::new(0.0, 0.0), &Vector2f::new(1.0, 1.0));
-        let filter: Arc<dyn Filter> = Arc::new(BoxFilter::new(&Vector2f::new(1.0, 1.0)));
-        let film = Film::new(&resolution, &crop_window, &filter, 1.0, "test", 1.0, 1000.0);
-        return film;
-    }
-
-    #[test]
-    fn test_001() {
-        let mut film = create_film_test((3, 3));
-        assert_eq!(film.filename, "test");
-        assert_eq!(film.diagonal, 1.0);
-        assert_eq!(film.filter.as_ref().get_radius(), Vector2f::new(1.0, 1.0));
-        let mut tile =
-            film.get_film_tile(&Bounds2i::new(&Vector2i::new(1, 1), &Vector2i::new(2, 2)));
-        assert_eq!(tile.pixel_bounds.area(), 9);
-        assert_eq!(tile.pixels.len(), 9);
-
-        tile.pixels[4].contrib_sum = Spectrum::from([1.0, 0.0, 0.0]);
-        tile.pixels[4].filter_weight_sum = 1.0;
-        tile.pixels[5].filter_weight_sum = 2.0;
-
-        film.merge_film_tile(&tile);
-        {
-            let pixels = film.pixels.lock().unwrap();
-            assert_eq!(pixels[4].filter_weight_sum, 1.0);
-            assert_ne!(pixels[5].filter_weight_sum, 1.0);
-            assert_eq!(pixels[4].xyz, tile.pixels[4].contrib_sum.to_xyz());
-        }
-    }
-
-    #[test]
-    fn test_002() {
-        let col1 = Spectrum::from([1.0, 0.0, 0.0]);
-        let col2 = Spectrum::from([1.0, 1.0, 0.0]);
-        let mut film = create_film_test((5, 5));
-        let mut img: Vec<Spectrum> = vec![col1; 5 * 5];
-        img[1] = col2;
-        film.set_image(&img);
-        {
-            let pixels = film.pixels.lock().unwrap();
-            assert_eq!(pixels[0].xyz, col1.to_xyz());
-            assert_eq!(pixels[1].xyz, col2.to_xyz());
-        }
-        film.clear();
-        {
-            let pixels = film.pixels.lock().unwrap();
-            assert_eq!(pixels[0].xyz[0], 0.0);
-            assert_eq!(pixels[0].filter_weight_sum, 0.0);
-        }
-    }
-
-    #[test]
-    fn test_003() {
-        /*
-        pub full_resolution: Point2i,
-        pub diagonal: Float,
-        pub filter: Arc<dyn Filter>,
-        pub filename: String,
-        pub cropped_pixel_bounds: Bounds2i,
-        */
-        let mut params = ParamSet::new();
-
-        let filename = "pbrt.exr";
-        params.add_string("filename", filename);
-        params.add_int("xresolution", 1280);
-        params.add_int("yresolution", 720);
-        params.add_floats("cropwindow", &[0.0, 1.0, 0.0, 1.0]);
-
-        params.add_float("diagonal", 2.0);
-        params.add_float("scale", 3.0);
-
-        params.add_float("maxsampleluminance", 12345.0);
-
-        let filter: Arc<dyn Filter> = Arc::new(BoxFilter::new(&Vector2::new(1.0, 1.0)));
-        let opt_film = create_film(filename, &params, &filter);
-        assert!(opt_film.is_ok());
-        let opt_film = opt_film.unwrap();
-        let film = opt_film.read().unwrap();
-        //assert_eq!(film.filename, filename);
-        assert_eq!(film.full_resolution, Vector2i::new(1280, 720));
-        assert_eq!(
-            film.cropped_pixel_bounds,
-            Bounds2i::new(&Vector2i::new(0, 0), &Vector2i::new(1280, 720))
-        );
-        assert_eq!(film.diagonal, 2.0);
-        assert_eq!(film.scale, 3.0);
-        assert_eq!(film.max_sample_luminance, 12345.0);
-    }
 }

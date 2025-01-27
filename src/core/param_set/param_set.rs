@@ -473,6 +473,14 @@ impl ParamSet {
     pub fn get_keys(&self) -> Vec<String> {
         return self.keys.clone();
     }
+
+    pub fn get_key_name(&self, key: &str) -> String {
+        return get_key_name(key);
+    }
+
+    pub fn get_key_type(&self, key: &str) -> String {
+        return get_key_type(key);
+    }
 }
 
 impl Clone for ParamSet {

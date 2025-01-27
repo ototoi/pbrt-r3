@@ -1,5 +1,7 @@
 pub mod accel;
 pub mod build;
-pub mod bvh;
+pub mod create_bvh_accelerator;
 
-pub use bvh::*;
+pub use accel::*;
+pub use build::*;
+pub use create_bvh_accelerator::*;

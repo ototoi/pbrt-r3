@@ -116,12 +116,12 @@ impl SampledSpectrum {
 
     pub fn is_black(&self) -> bool {
         let c = &self.c;
-        return c.iter().all(|x| -> bool { x.abs() <= 0.0 });
+        return c.iter().all(|x| -> bool { *x <= 0.0 });
     }
 
     pub fn is_valid(&self) -> bool {
         let c = &self.c;
-        return c.iter().all(|x| -> bool { x.is_finite() && !x.is_nan() });
+        return c.iter().all(|x| -> bool { x.is_finite() });
     }
 
     pub fn sampled_from_sampled(lambda: &[Float], vals: &[Float]) -> SampledSpectrum {
@@ -228,10 +228,17 @@ impl SampledSpectrum {
     }
 
     //-----------------------------------------------
-    // ref. ParamSet::AddBlackbodySampledSpectrum
-    pub fn from_blackbody(t: Float, value: Float) -> SampledSpectrum {
-        let v = blackbody_normalized(&CIE_LAMBDA, t);
-        return Self::sampled_from_sampled(&CIE_LAMBDA, &v) * value;
+    // ref. ParamSet::AddBlackbodySpectrum
+    pub fn from_blackbody(values: &[Float]) -> SampledSpectrum {
+        let n_values = values.len();
+        debug_assert_eq!(n_values % 2, 0);
+        let n_values = n_values / 2;
+        let mut s = SampledSpectrum::zero();
+        for i in 0..n_values {
+            let v = blackbody_normalized(&CIE_LAMBDA, values[2 * i + 0]);
+            s += Self::sampled_from_sampled(&CIE_LAMBDA, &v) * values[2 * i + 1];
+        }
+        return s;
     }
 
     pub fn near_equal(a: &SampledSpectrum, b: &SampledSpectrum, eps: f32) -> bool {

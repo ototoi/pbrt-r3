@@ -27,6 +27,11 @@ impl Debug for BSDF {
     }
 }
 
+#[inline]
+fn is_finite(v: &Vector3f) -> bool {
+    return v.x.is_finite() && v.y.is_finite() && v.z.is_finite();
+}
+
 impl BSDF {
     pub fn new(si: &SurfaceInteraction, eta: Float) -> Self {
         let ns = si.shading.n;
@@ -74,6 +79,8 @@ impl BSDF {
         u: &Point2f,
         flags: BxDFType,
     ) -> Option<(Spectrum, Vector3f, Float, BxDFType)> {
+        let _p = ProfilePhase::new(Prof::BSDFSampling);
+
         let matching_comps = self.num_components(flags);
         if matching_comps == 0 {
             return None;
@@ -94,11 +101,13 @@ impl BSDF {
             let mut count = comp;
             for i in 0..n_bxdfs {
                 let bxdf = self.bxdfs[i].as_ref();
-                if bxdf.matches_flags(flags) && count == 0 {
-                    target_index = i as i32;
-                    break;
+                if bxdf.matches_flags(flags) {
+                    if count == 0 {
+                        target_index = i as i32;
+                        break;
+                    }
+                    count -= 1;
                 }
-                count -= 1;
             }
         }
         //assert!(target_index >= 0);
@@ -115,18 +124,16 @@ impl BSDF {
         ));
 
         let wo = self.world_to_local(wo_w);
-        if wo.z == 0.0 {
+        if wo.z == 0.0 || !is_finite(&wo) {
             return None;
         }
         let mut sampled_type = found_bxdf.get_type();
-        if let Some((f, wi, pdf, t)) = found_bxdf.sample_f(&wo, &remapped) {
+        if let Some((mut f, wi, mut pdf, t)) = found_bxdf.sample_f(&wo, &remapped) {
             assert!(Float::is_finite(f.y()));
-            if pdf == 0.0 {
+            if pdf <= 0.0 {
                 //t = 0;
                 return None;
             }
-            let mut f = f;
-            let mut pdf = pdf;
 
             if t != 0 {
                 sampled_type = t;
@@ -155,6 +162,7 @@ impl BSDF {
             // Compute value of BSDF for sampled direction
             if (bxdf_type & BSDF_SPECULAR) == 0 {
                 let ng = self.ng;
+                assert!(ng.length_squared() > 0.0);
                 let reflect = (Vector3f::dot(&wi_world, &ng) * Vector3f::dot(wo_w, &ng)) > 0.0;
                 f = self
                     .bxdfs
@@ -182,10 +190,12 @@ impl BSDF {
     }
 
     pub fn f(&self, wo_w: &Vector3f, wi_w: &Vector3f, flags: BxDFType) -> Spectrum {
+        let _p = ProfilePhase::new(Prof::BSDFEvaluation);
+
         let wi = self.world_to_local(wi_w);
         let wo = self.world_to_local(wo_w);
 
-        if wo.z == 0.0 {
+        if wo.z == 0.0 || !is_finite(&wo) {
             return Spectrum::zero();
         }
 
@@ -210,10 +220,12 @@ impl BSDF {
     }
 
     pub fn pdf(&self, wo_w: &Vector3f, wi_w: &Vector3f, flags: BxDFType) -> Float {
+        let _p = ProfilePhase::new(Prof::BSDFPdf);
+
         let wi = self.world_to_local(wi_w);
         let wo = self.world_to_local(wo_w);
 
-        if wo.z == 0.0 {
+        if wo.z == 0.0 || !is_finite(&wo) {
             return 0.0;
         }
 

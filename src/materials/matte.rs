@@ -4,13 +4,19 @@ use std::sync::Arc;
 pub struct MatteMaterial {
     kd: Arc<dyn Texture<Spectrum>>,
     sigma: Arc<dyn Texture<Float>>,
+    bumpmap: Option<Arc<dyn Texture<Float>>>,
 }
 
 impl MatteMaterial {
-    pub fn new(kd: &Arc<dyn Texture<Spectrum>>, sigma: &Arc<dyn Texture<Float>>) -> Self {
+    pub fn new(
+        kd: &Arc<dyn Texture<Spectrum>>,
+        sigma: &Arc<dyn Texture<Float>>,
+        bumpmap: &Option<Arc<dyn Texture<Float>>>,
+    ) -> Self {
         MatteMaterial {
             kd: kd.clone(),
             sigma: sigma.clone(),
+            bumpmap: bumpmap.clone(),
         }
     }
 }
@@ -23,6 +29,10 @@ impl Material for MatteMaterial {
         _: TransportMode,
         _: bool,
     ) {
+        if let Some(bump) = self.bumpmap.as_ref() {
+            self.bump(bump, si);
+        }
+
         let mut b = arena.alloc_bsdf(si, 1.0);
 
         let r = self.kd.as_ref().evaluate(si);
@@ -44,5 +54,6 @@ impl Material for MatteMaterial {
 pub fn create_matte_material(mp: &TextureParams) -> Result<Arc<dyn Material>, PbrtError> {
     let kd = mp.get_spectrum_texture("Kd", &Spectrum::from(0.5));
     let sigma = mp.get_float_texture("sigma", 0.0);
-    return Ok(Arc::new(MatteMaterial::new(&kd, &sigma)));
+    let bumpmap = mp.get_float_texture_or_null("bumpmap");
+    return Ok(Arc::new(MatteMaterial::new(&kd, &sigma, &bumpmap)));
 }

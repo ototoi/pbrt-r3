@@ -1,5 +1,5 @@
 use super::common::*;
-use super::read_file::read_file_with_include;
+use super::read_file::{read_file_with_include, read_file_without_include};
 use super::remove_comment::remove_comment;
 use crate::core::api::ParseContext;
 use crate::core::param_set::ParamSet;
@@ -20,6 +20,14 @@ pub fn pbrt_parse_file(filename: &str, context: &mut dyn ParseContext) -> Result
 pub fn pbrt_parse_string(s: &str, context: &mut dyn ParseContext) -> Result<(), PbrtError> {
     let ops = parse_opnodes(s)?;
     return evaluate_opnodes(&ops, context);
+}
+
+pub fn pbrt_parse_file_without_include(
+    filename: &str,
+    context: &mut dyn ParseContext,
+) -> Result<(), PbrtError> {
+    let s = read_file_without_include(filename)?;
+    return pbrt_parse_string_core(&s, context);
 }
 //-----------------------------------
 
@@ -149,13 +157,13 @@ fn evaluate_opnodes(ops: &[OPNode], context: &mut dyn ParseContext) -> Result<()
             "CoordinateSystem" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 context.pbrt_coordinate_system(name);
             }
             "CoordSysTransform" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 context.pbrt_coord_sys_transform(name);
             }
             "ActiveTransformAll" => {
@@ -173,49 +181,49 @@ fn evaluate_opnodes(ops: &[OPNode], context: &mut dyn ParseContext) -> Result<()
             "PixelFilter" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 let params = op.params.as_ref().unwrap();
                 context.pbrt_pixel_filter(name, params);
             }
             "Film" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 let params = op.params.as_ref().unwrap();
                 context.pbrt_film(name, params);
             }
             "Sampler" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 let params = op.params.as_ref().unwrap();
                 context.pbrt_sampler(name, params);
             }
             "Accelerator" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 let params = op.params.as_ref().unwrap();
                 context.pbrt_accelerator(name, params);
             }
             "Integrator" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 let params = op.params.as_ref().unwrap();
                 context.pbrt_integrator(name, params);
             }
             "Camera" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 let params = op.params.as_ref().unwrap();
                 context.pbrt_camera(name, params);
             }
             "MakeNamedMedium" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 let params = op.params.as_ref().unwrap();
                 context.pbrt_make_named_medium(name, params);
             }
@@ -223,8 +231,8 @@ fn evaluate_opnodes(ops: &[OPNode], context: &mut dyn ParseContext) -> Result<()
                 let args = op.args.as_ref().unwrap();
                 let vec1 = args.get_strings("arg1");
                 let vec2 = args.get_strings("arg2");
-                let inside_name = vec1.get(0).unwrap();
-                let outside_name = vec2.get(0).unwrap();
+                let inside_name = vec1.first().unwrap();
+                let outside_name = vec2.first().unwrap();
                 context.pbrt_medium_interface(inside_name, outside_name);
             }
             "WorldBegin" => {
@@ -244,23 +252,23 @@ fn evaluate_opnodes(ops: &[OPNode], context: &mut dyn ParseContext) -> Result<()
             }
             "Texture" => {
                 let args = op.args.as_ref().unwrap();
-                let name = String::from(args.get_strings("arg1").get(0).unwrap());
-                let _type = String::from(args.get_strings("arg2").get(0).unwrap());
-                let tex_name = String::from(args.get_strings("arg3").get(0).unwrap());
+                let name = String::from(args.get_strings("arg1").first().unwrap());
+                let tp = String::from(args.get_strings("arg2").first().unwrap());
+                let tex_name = String::from(args.get_strings("arg3").first().unwrap());
                 let params = op.params.as_ref().unwrap();
-                context.pbrt_texture(&name, &_type, &tex_name, params);
+                context.pbrt_texture(&name, &tp, &tex_name, params);
             }
             "Material" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 let params = op.params.as_ref().unwrap();
                 context.pbrt_material(name, params);
             }
             "MakeNamedMaterial" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 let params = op.params.as_ref().unwrap();
                 context.pbrt_make_named_material(name, params);
             }
@@ -297,7 +305,7 @@ fn evaluate_opnodes(ops: &[OPNode], context: &mut dyn ParseContext) -> Result<()
             "ObjectBegin" => {
                 let args = op.args.as_ref().unwrap();
                 let vec = args.get_strings("arg1");
-                let name: &str = vec.get(0).unwrap();
+                let name: &str = vec.first().unwrap();
                 context.pbrt_object_begin(name);
             }
             "ObjectEnd" => {
@@ -320,6 +328,13 @@ fn evaluate_opnodes(ops: &[OPNode], context: &mut dyn ParseContext) -> Result<()
             }
             "WorkDirEnd" => {
                 context.pbrt_work_dir_end();
+            }
+            "Include" => {
+                let args = op.args.as_ref().unwrap();
+                let vec = args.get_strings("arg1");
+                let filename: &str = vec.first().unwrap();
+                let params = op.params.as_ref().unwrap();
+                context.pbrt_include(filename, params);
             }
             _ => {
                 let msg = format!("Unexpected token: {}", opname);
@@ -401,6 +416,7 @@ fn parse_operation(s: &str) -> IResult<&str, OPNode> {
             parse_object_end,
             parse_object_instance,
             parse_world_end,
+            parse_include,
         )),
         nom::branch::alt((parse_work_dir_begin, parse_work_dir_end)),
     ))(s);
@@ -533,21 +549,17 @@ fn parse_coord_sys_transform(s: &str) -> IResult<&str, OPNode> {
     return parse_op_string(s, "CoordSysTransform");
 }
 
-fn parse_active_transform_token(s: &str) -> IResult<&str, &str> {
-    return sequence::terminated(
-        nom::branch::alt((
-            bytes::complete::tag("All"),
-            bytes::complete::tag("EndTime"),
-            bytes::complete::tag("StartTime"),
-        )),
-        space0,
-    )(s);
-}
-
 fn parse_active_transform(s: &str) -> IResult<&str, OPNode> {
     let (s, (op, t)) = nom::branch::permutation((
         sequence::terminated(bytes::complete::tag("ActiveTransform"), space1),
-        parse_active_transform_token,
+        sequence::terminated(
+            nom::branch::alt((
+                bytes::complete::tag("All"),
+                bytes::complete::tag("EndTime"),
+                bytes::complete::tag("StartTime"),
+            )),
+            space0,
+        ),
     ))(s)?;
 
     //fn pbrt_active_transform_all(&mut self);
@@ -668,6 +680,10 @@ fn parse_work_dir_begin(s: &str) -> IResult<&str, OPNode> {
 
 fn parse_work_dir_end(s: &str) -> IResult<&str, OPNode> {
     return parse_op_void(s, "WorkDirEnd");
+}
+
+fn parse_include(s: &str) -> IResult<&str, OPNode> {
+    return parse_op_string_params(s, "Include");
 }
 
 #[cfg(test)]

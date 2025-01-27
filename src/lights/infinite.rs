@@ -50,15 +50,13 @@ impl InfiniteAreaLight {
 }
 
 fn make_mipmap(path: &str, l: &Spectrum) -> Result<MIPMap<RGBSpectrum>, PbrtError> {
-    if let Ok((mut texels, resolution)) = read_image(path) {
-        //println!("make_mipmap {}", path);
+    if !path.is_empty() {
+        let (mut texels, resolution) = read_image(path)?;
         let total = (resolution.x * resolution.y) as usize;
         let c = RGBSpectrum::from(l.to_rgb());
         for i in 0..total {
             let cc = texels[i].to_rgb();
-            // pbrt-r3: Clamp negative values to zero
-            let cc = cc.iter().map(|x| x.max(0.0)).collect::<Vec<Float>>();
-            // pbrt-rs: Clamp negative values to zero
+            let cc = cc.iter().map(|x| x.max(0.0)).collect::<Vec<Float>>(); // pbrt-r3: Clamp negative values to zero
             texels[i] = RGBSpectrum::from(cc) * c;
 
             assert!(texels[i].y() >= 0.0);
@@ -88,9 +86,7 @@ fn make_distribution(lmap: &MIPMap<RGBSpectrum>) -> Result<Distribution2D, PbrtE
         for u in 0..width {
             let up = (u as Float + 0.5) / width as Float;
             let y = lmap.lookup(&Point2f::new(up, vp), fwidth).y();
-            // pbrt-r3: Clamp negative values to zero
-            let y = y.max(0.0);
-            // pbrt-rs: Clamp negative values to zero
+            let y = y.max(0.0); // pbrt-r3: Clamp negative values to zero
             let c = y * sin_theta;
             img[v * width + u] = c;
         }
@@ -148,6 +144,7 @@ impl Light for InfiniteAreaLight {
         let phi = uv[0] * 2.0 * PI;
         let cos_theta = Float::cos(theta);
         let sin_theta = Float::sin(theta);
+        let sin_theta = Float::clamp(sin_theta, 0.0, 1.0); // pbrt-r3: Clamp negative values to zero
         let cos_phi = Float::cos(phi);
         let sin_phi = Float::sin(phi);
         let wi = Vector3f::new(sin_theta * cos_phi, sin_theta * sin_phi, cos_theta);
@@ -159,8 +156,9 @@ impl Light for InfiniteAreaLight {
         };
         let world_radius = bound.radius;
         let p = inter.get_p() + wi * (2.0 * world_radius);
-        let inter2 = Interaction::from((p, inter.get_time(), self.base.medium_interface.clone()));
-        let vis = VisibilityTester::from((inter, &inter2));
+        let inter_light =
+            Interaction::from_light_sample(&p, inter.get_time(), &self.base.medium_interface);
+        let vis = VisibilityTester::from((inter, &inter_light));
         let rgb = self.lmap.lookup(&uv, 0.0);
         let spc = Spectrum::from_rgb(&rgb.to_rgb(), SpectrumType::Illuminant);
         return Some((spc, wi, pdf, vis));
@@ -173,6 +171,8 @@ impl Light for InfiniteAreaLight {
         let theta = spherical_theta(&wi);
         let phi = spherical_phi(&wi);
         let sin_theta = Float::sin(theta);
+        let sin_theta = Float::clamp(sin_theta, 0.0, 1.0); // pbrt-r3: Clamp negative values to zero
+        assert!(sin_theta >= 0.0);
         if sin_theta == 0.0 {
             return 0.0;
         } else {
@@ -203,6 +203,7 @@ impl Light for InfiniteAreaLight {
         let phi = uv[0] * 2.0 * PI;
         let cos_theta = Float::cos(theta);
         let sin_theta = Float::sin(theta);
+        let sin_theta = Float::clamp(sin_theta, 0.0, 1.0); // pbrt-r3: Clamp negative values to zero
         let sin_phi = Float::sin(phi);
         let cos_phi = Float::cos(phi);
         let d = -self.base.light_to_world.transform_vector(&Vector3f::new(
@@ -241,6 +242,7 @@ impl Light for InfiniteAreaLight {
         let theta = spherical_theta(&d);
         let phi = spherical_phi(&d);
         let sin_theta = Float::sin(theta);
+        let sin_theta = Float::clamp(sin_theta, 0.0, 1.0); // pbrt-r3: Clamp negative values to zero
 
         let bound = self.get_bound();
         //let world_center = bound.center;
@@ -281,9 +283,15 @@ pub fn create_infinite_light(
     let l = params.find_one_spectrum("L", &Spectrum::one());
     let sc = params.find_one_spectrum("scale", &Spectrum::one());
     let texmap = params.find_one_filename("mapname", "");
-    let n_samples = params.find_one_int("samples", params.find_one_int("nsamples", 1)) as u32;
+    let mut n_samples = params.find_one_int("samples", params.find_one_int("nsamples", 1)) as u32;
     let lmap = make_mipmap(&texmap, &(l * sc))?;
     let distribution = make_distribution(&lmap)?;
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            n_samples = (n_samples / 4).max(1);
+        }
+    }
     return Ok(Arc::new(InfiniteAreaLight::new(
         light2world,
         n_samples,

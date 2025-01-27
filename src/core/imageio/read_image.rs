@@ -1,5 +1,10 @@
+use super::read_image_pfm::*;
 use crate::core::pbrt::*;
+
 use image::*;
+use std::path::Path;
+
+type Rgb16Image = ImageBuffer<Rgb<u16>, Vec<u16>>;
 
 fn convert_from_luma8(img: &image::GrayImage, gamma: bool) -> (Vec<RGBSpectrum>, Point2i) {
     let (width, height) = img.dimensions();
@@ -86,6 +91,22 @@ fn convert_from_rgba8(img: &image::RgbaImage, gamma: bool) -> (Vec<RGBSpectrum>,
     return (spcs, Point2i::from((width as i32, height as i32)));
 }
 
+fn convert_from_rgb16(img: &Rgb16Image) -> (Vec<RGBSpectrum>, Point2i) {
+    let (width, height) = img.dimensions();
+    let mut spcs = vec![RGBSpectrum::zero(); (width * height) as usize];
+    for y in 0..height {
+        for x in 0..width {
+            let index = (y * width + x) as usize;
+            let pixel = img.get_pixel(x, y);
+            let r = pixel[0] as f32 / 65535.0;
+            let g = pixel[1] as f32 / 65535.0;
+            let b = pixel[2] as f32 / 65535.0;
+            spcs[index] = RGBSpectrum::new(r, g, b);
+        }
+    }
+    return (spcs, Point2i::from((width as i32, height as i32)));
+}
+
 fn convert_from_rgb32f(img: &image::Rgb32FImage) -> (Vec<RGBSpectrum>, Point2i) {
     let (width, height) = img.dimensions();
     let mut spcs = vec![RGBSpectrum::zero(); (width * height) as usize];
@@ -118,11 +139,12 @@ fn convert_from_rgba32f(img: &image::Rgba32FImage) -> (Vec<RGBSpectrum>, Point2i
     return (spcs, Point2i::from((width as i32, height as i32)));
 }
 
-pub fn read_image_gamma_correct(
-    name: &str,
+// use crate::image::*;
+pub fn read_image_common(
+    path: &Path,
     gamma: bool,
 ) -> Result<(Vec<RGBSpectrum>, Point2i), PbrtError> {
-    let r: Result<DynamicImage, ImageError> = image::open(name);
+    let r: Result<DynamicImage, ImageError> = image::open(path);
     match r {
         Ok(dimg) => match dimg {
             DynamicImage::ImageLuma8(img) => {
@@ -137,6 +159,9 @@ pub fn read_image_gamma_correct(
             DynamicImage::ImageRgba8(img) => {
                 return Ok(convert_from_rgba8(&img, gamma));
             }
+            DynamicImage::ImageRgb16(img) => {
+                return Ok(convert_from_rgb16(&img));
+            }
             DynamicImage::ImageRgb32F(img) => {
                 return Ok(convert_from_rgb32f(&img));
             }
@@ -144,13 +169,34 @@ pub fn read_image_gamma_correct(
                 return Ok(convert_from_rgba32f(&img));
             }
             _ => {
-                return Err(PbrtError::from("This file is not supported."));
+                let path = path.to_str().unwrap();
+                let msg = format!("This file is not supported: {}", path);
+                return Err(PbrtError::from(msg));
             }
         },
         Err(e) => {
             return Err(PbrtError::from(e.to_string()));
         }
     };
+}
+
+fn has_extension(path: &Path, ext: &str) -> bool {
+    return path.extension().unwrap_or_default() == ext;
+}
+
+pub fn read_image_gamma_correct(
+    name: &str,
+    gamma: bool,
+) -> Result<(Vec<RGBSpectrum>, Point2i), PbrtError> {
+    let path = Path::new(name);
+    if !path.exists() {
+        return Err(PbrtError::from(format!("File not found: {}", name)));
+    }
+    if has_extension(path, "pfm") {
+        return read_image_pfm(name);
+    } else {
+        return read_image_common(path, gamma);
+    }
 }
 
 pub fn read_image(name: &str) -> Result<(Vec<RGBSpectrum>, Point2i), PbrtError> {

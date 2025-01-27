@@ -55,6 +55,8 @@ pub struct RenderOptions {
 
 impl RenderOptions {
     pub fn new() -> Self {
+        let accelerator_name =
+            std::env::var("PBRT_ACCELERATOR").unwrap_or_else(|_| "bvh".to_string());
         RenderOptions {
             transform_start_time: 0.0,
             transform_end_time: 1.0,
@@ -64,7 +66,7 @@ impl RenderOptions {
             film_params: ParamSet::new(),
             sampler_name: String::from("halton"),
             sampler_params: ParamSet::new(),
-            accelerator_name: String::from("bvh"),
+            accelerator_name: accelerator_name,
             accelerator_params: ParamSet::new(),
             integrator_name: String::from("path"),
             integrator_params: ParamSet::new(),

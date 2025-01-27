@@ -1,6 +1,8 @@
 use crate::core::pbrt::*;
 use std::sync::Arc;
 
+thread_local!(static DENSITY_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/Volume density grid"));
+
 #[derive(Debug, Clone)]
 pub struct GridDensityMedium {
     #[allow(dead_code)]
@@ -45,6 +47,12 @@ impl GridDensityMedium {
             max_density, inv_max_density
         );
         */
+
+        DENSITY_BYTES.with(|s| {
+            s.add(
+                std::mem::size_of::<GridDensityMedium>() + std::mem::size_of::<f32>() * data.len(),
+            );
+        });
 
         GridDensityMedium {
             sigma_a,
@@ -153,15 +161,10 @@ impl Medium for GridDensityMedium {
                 let density = self.density(&p);
                 if density * inv_max_density > sampler.get_1d() {
                     // Populate _mi_ with medium interaction information and return
-                    let phase = HenyeyGreenstein::new(g);
+                    let phase: Arc<dyn PhaseFunction> = Arc::new(HenyeyGreenstein::new(g));
                     let p_world = r_world.position(t);
 
-                    let mi = MediumInteraction::new(
-                        &p_world,
-                        &(-r_world.d),
-                        r_world.time,
-                        &Some(Arc::new(phase)),
-                    );
+                    let mi = MediumInteraction::new(&p_world, &(-r_world.d), r_world.time, &phase);
                     return (sigma_s_t, Some(mi));
                 }
             }

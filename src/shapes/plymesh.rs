@@ -341,14 +341,15 @@ pub fn create_ply_mesh(
             );
             //let mesh =
             //    create_bound_mesh(o2w, w2o, reverse_orientation, vertex_indices, p, s, n, uv);
-            if let Some(textures) = params.get_textures_ref("alpha") {
-                if textures.len() >= 1 {
-                    let alpha_tex_name = textures[0].clone();
-                    if let Some(tex) = float_textures.get(&alpha_tex_name) {
-                        for i in 0..mesh.len() {
-                            mesh[i] = Arc::new(AlphaMaskShape::new(&mesh[i], tex));
-                        }
-                    }
+            let alpha_mask_info = get_alpha_texture(params, float_textures);
+            let shadow_alpha_mask_info = get_shadow_alpha_texture(params, float_textures);
+            if alpha_mask_info.is_some() || shadow_alpha_mask_info.is_some() {
+                for i in 0..mesh.len() {
+                    mesh[i] = Arc::new(AlphaMaskShape::new(
+                        &mesh[i],
+                        &alpha_mask_info,
+                        &shadow_alpha_mask_info,
+                    ));
                 }
             }
 

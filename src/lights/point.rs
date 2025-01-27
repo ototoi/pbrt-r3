@@ -41,12 +41,10 @@ impl Light for PointLight {
         let f = self.intensity * (1.0 / Vector3f::distance_squared(&self.p_light, &inter.get_p()));
         let wi = (self.p_light - inter.get_p()).normalize();
         let pdf = 1.0;
-        let inter_src = Interaction::from((
-            self.p_light,
-            inter.get_time(),
-            self.base.medium_interface.clone(),
-        ));
-        let vis = VisibilityTester::from((inter, &inter_src));
+        let p = self.p_light;
+        let inter_light =
+            Interaction::from_light_sample(&p, inter.get_time(), &self.base.medium_interface);
+        let vis = VisibilityTester::from((inter, &inter_light));
         return Some((f, wi, pdf, vis));
     }
 
@@ -66,13 +64,14 @@ impl Light for PointLight {
     ) -> Option<(Spectrum, Ray, Normal3f, Float, Float)> {
         let _p = ProfilePhase::new(Prof::LightSample);
 
+        let medium = self.base.medium_interface.get_inside();
         let f = self.intensity;
         let ray = Ray::from((
             &self.p_light,
             &uniform_sample_sphere(u1),
             f32::INFINITY,
             time,
-            &self.base.medium_interface.inside,
+            &medium,
         ));
         let n = ray.d;
         let pdf = 1.0;

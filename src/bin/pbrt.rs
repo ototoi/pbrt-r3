@@ -3,7 +3,9 @@ use clap::*;
 use pbrt_r3::core::api::*;
 use pbrt_r3::core::parser::*;
 use pbrt_r3::core::pbrt::*;
+use pbrt_r3::core::profile;
 use pbrt_r3::core::stats;
+use pbrt_r3::displays::SequentialDisplay;
 use pbrt_r3::displays::TevDisplay;
 use std::cell::RefCell;
 use std::env;
@@ -109,6 +111,23 @@ struct CommandOptions {
     #[arg(short = 's', long = "pixelsamples", value_name = "num")]
     pub pixelsamples: Option<i32>,
 
+    // Add with pbrt-r3
+    /// Quick full resolution.
+    #[arg(long, default_value = "false")]
+    pub quick_full_resolution: bool,
+
+    /// statistics.
+    #[arg(long = "stats", default_value = "false")]
+    pub stats: bool,
+
+    /// profile.
+    #[arg(long = "profile", default_value = "false")]
+    pub profile: bool,
+
+    /// Sequential display.
+    #[arg(short = 'k', long = "sequential-display", value_name = "dir")]
+    pub sequential_display: Option<PathBuf>,
+
     #[arg(value_name = "filename.pbrt")]
     pub pbrtfile: Option<Vec<PathBuf>>,
 }
@@ -131,16 +150,70 @@ fn init_logger(opts: &CommandOptions) {
         .init();
 }
 
-fn print_scene(input_path: &Path, _opts: &CommandOptions) -> i32 {
-    let mut context = MutipleContext::new();
-    context.add(Arc::new(RefCell::new(PrintContext::new_stdout(false))));
-
-    let input_path = String::from(input_path.to_str().unwrap());
-    //should
-    if pbrt_parse_file(&input_path, &mut context).is_ok() {
-        0
+fn create_print_context(outfile: Option<&PathBuf>) -> Result<PrintContext, PbrtError> {
+    if let Some(path) = outfile {
+        match std::fs::File::create(path) {
+            Ok(writer) => {
+                return Ok(PrintContext::new_with_params(
+                    Arc::new(RefCell::new(writer)),
+                    false,
+                ));
+            }
+            Err(e) => {
+                return Err(PbrtError::from(e));
+            }
+        }
     } else {
-        -1
+        Ok(PrintContext::new_stdout(false))
+    }
+}
+
+fn cat_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
+    let outfile = opts.outfile.as_ref();
+    let mut context = match create_print_context(outfile) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            error!("{}", e);
+            return -1;
+        }
+    };
+    let input_path = String::from(input_path.to_str().unwrap());
+    match pbrt_parse_file_without_include(&input_path, &mut context) {
+        Ok(_) => {
+            return 0;
+        }
+        Err(e) => {
+            error!("{}", e);
+            return -1;
+        }
+    }
+}
+
+fn toply_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
+    let dir = input_path.parent().unwrap();
+    let mut dir = dir.to_str().unwrap().to_string();
+    let outfile = opts.outfile.as_ref();
+    if outfile.is_some() {
+        let outfile = outfile.unwrap();
+        dir = outfile.parent().unwrap().to_str().unwrap().to_string();
+    }
+    let context = match create_print_context(outfile) {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            error!("{}", e);
+            return -1;
+        }
+    };
+    let mut context = ToPlyContext::new(&dir, Arc::new(RefCell::new(context)));
+    let input_path = String::from(input_path.to_str().unwrap());
+    match pbrt_parse_file_without_include(&input_path, &mut context) {
+        Ok(_) => {
+            return 0;
+        }
+        Err(e) => {
+            error!("{}", e);
+            return -1;
+        }
     }
 }
 
@@ -148,6 +221,8 @@ fn create_scene_and_integrator(
     input_path: &Path,
     opts: &CommandOptions,
 ) -> Result<(Arc<Scene>, Arc<RwLock<dyn Integrator>>), PbrtError> {
+    let _p = ProfilePhase::new(ProfileCategory::SceneConstruction);
+
     let mut context = MutipleContext::new();
 
     let scene_context = Arc::new(RefCell::new(SceneContext::new()));
@@ -161,6 +236,12 @@ fn create_scene_and_integrator(
         let pixelsamples = i32::max(1, pixelsamples);
         let mut sc = scene_context.borrow_mut();
         sc.replace_params_int("Sampler", "pixelsamples", pixelsamples)?;
+    }
+
+    if let Some(outfile) = opts.outfile.as_ref() {
+        let outfile = String::from(outfile.to_str().unwrap());
+        let mut sc = scene_context.borrow_mut();
+        sc.replace_params_string("Film", "filename", &outfile)?;
     }
 
     let sc = scene_context.borrow();
@@ -182,6 +263,7 @@ fn create_display(hostname: &str) -> Result<Arc<RwLock<dyn Display>>, PbrtError>
 
 fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
     stats::clear_stats();
+
     if !opts.quiet {
         let nthreads = available_parallelism().unwrap().get();
         let version = env!("CARGO_PKG_VERSION");
@@ -201,6 +283,15 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
         println!("--------------------------------------------------------------------------------------");
         println!();
     }
+
+    if !opts.quiet && opts.stats {
+        stats::init_stats();
+    }
+    if !opts.quiet && opts.profile {
+        profile::init_profiler();
+        profile::start_profiler();
+    }
+
     let r = create_scene_and_integrator(input_path, opts);
     match r {
         Ok((scene, integrator)) => {
@@ -218,12 +309,24 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
                     }
                 }
             }
-
-            if !opts.quiet {
-                stats::print_stats();
+            if let Some(out_dir) = opts.sequential_display.as_ref() {
+                std::fs::create_dir_all(out_dir).unwrap();
+                let display: Arc<RwLock<dyn Display>> = Arc::new(RwLock::new(
+                    SequentialDisplay::new(out_dir.to_str().unwrap()),
+                ));
+                let integrator = integrator.as_ref().read().unwrap();
+                let camera = integrator.get_camera();
+                let film = camera.as_ref().get_film();
+                let mut f = film.as_ref().write().unwrap();
+                f.add_display(&display);
             }
 
+            //if !opts.quiet && !opts.no_stats {
+            //    stats::print_stats();
+            //}
+
             {
+                let _p = ProfilePhase::new(ProfileCategory::IntegratorRender);
                 let mut integrator = integrator.as_ref().write().unwrap();
                 let scene = scene.as_ref();
                 integrator.render(scene);
@@ -235,18 +338,37 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
             return -1;
         }
     }
-
+    if !opts.quiet && opts.profile {
+        profile::stop_profiler();
+    }
     println!("\n");
-    if !opts.quiet {
+
+    if !opts.quiet && opts.stats {
         stats::print_stats();
         stats::clear_stats();
+    }
+    if !opts.quiet && opts.profile {
+        profile::print_profiler(); //profile::report_profiler_results();
+        profile::clear_profiler();
+        profile::cleanup_profiler();
     }
 
     return 0;
 }
 
 pub fn main() {
-    let opts = CommandOptions::parse();
+    let mut opts = CommandOptions::parse();
+    if opts.quick_full_resolution {
+        opts.quick = true;
+    }
+    {
+        let mut options = PbrtOptions::default();
+        options.quick_render = opts.quick;
+        options.quick_render_full_resolution = opts.quick_full_resolution;
+        options.stats = opts.stats;
+        options.profile = opts.profile;
+        PbrtOptions::set(options);
+    }
     init_logger(&opts);
     let input = if let Some(infiles) = opts.pbrtfile.as_ref() {
         Some(infiles[0].clone())
@@ -268,10 +390,11 @@ pub fn main() {
     let input_path = input_path.canonicalize().unwrap();
 
     if opts.cat {
-        let ret = print_scene(&input_path, &opts);
+        let ret = cat_scene(&input_path, &opts);
         process::exit(ret);
     } else if opts.toply {
-        //todo: implement toply
+        let ret = toply_scene(&input_path, &opts);
+        process::exit(ret);
     } else {
         let ret = render_scene(&input_path, &opts);
         process::exit(ret);

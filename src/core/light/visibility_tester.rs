@@ -9,8 +9,8 @@ pub struct VisibilityTester {
 impl VisibilityTester {
     pub fn new() -> Self {
         VisibilityTester {
-            p0: Interaction::zero(),
-            p1: Interaction::zero(),
+            p0: Interaction::default(),
+            p1: Interaction::default(),
         }
     }
 
@@ -20,12 +20,23 @@ impl VisibilityTester {
 
     pub fn tr(&self, scene: &Scene, sampler: &mut dyn Sampler) -> Spectrum {
         let mut ray = self.p0.spawn_ray_to(&self.p1);
+        // pbrt-r3:
+        //if !scene.intersect_p(&ray) {
+        //    return Spectrum::one();
+        //}
+        // pbrt-r3:
+
         let mut tr = Spectrum::one();
         loop {
+            //let t_max = ray.t_max.get();
             if let Some(isect) = scene.intersect(&ray) {
                 if let Some(primitive) = isect.get_primitive() {
                     if primitive.get_material().is_some() {
+                        //ray.t_max.set(t_max);
+                        //if primitive.intersect_p(&ray) {
+                        //check if the ray intersects the primitive
                         return Spectrum::zero();
+                        //}
                     }
                 }
 

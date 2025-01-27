@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::{ops::Deref, vec};
 
-thread_local!(pub static N_EWA_LOOKUPS: StatCounter = StatCounter::new("Texture/EWA lookups"));
-thread_local!(pub static N_TRILERP_LOOKUPS: StatCounter = StatCounter::new("Texture/Trilinear lookups"));
-thread_local!(pub static MIP_MAP_MEMORY: StatMemoryCounter = StatMemoryCounter::new("Memory/Texture MIP maps"));
+thread_local!(static N_EWA_LOOKUPS: StatCounter = StatCounter::new("Texture/EWA lookups"));
+thread_local!(static N_TRILERP_LOOKUPS: StatCounter = StatCounter::new("Texture/Trilinear lookups"));
+thread_local!(static MIP_MAP_MEMORY: StatMemoryCounter = StatMemoryCounter::new("Memory/Texture MIP maps"));
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ImageWrap {
@@ -324,7 +324,7 @@ fn make_pyramid<T>(
     }
 }
 
-pub fn log2int_(x: usize) -> usize {
+fn log2int_(x: usize) -> usize {
     return f32::ceil(f32::log(x as f32, 2.0)) as usize;
 }
 
@@ -438,6 +438,8 @@ where
         swrap_mode: ImageWrap,
         twrap_mode: ImageWrap,
     ) -> Self {
+        let _p = ProfilePhase::new(Prof::MIPMapCreation);
+
         let resolution = (resolution.x as usize, resolution.y as usize);
         let pyramid = make_mipimages(data, resolution, swrap_mode, twrap_mode);
         let mip = Self::make_from_pyramid(
@@ -458,10 +460,15 @@ where
         twrap_mode: ImageWrap,
     ) -> Self {
         {
-            let resolution = pyramid[0].as_data().resolution;
+            let total_consumption: usize = pyramid
+                .iter()
+                .map(|p| {
+                    let resolution = p.as_data().resolution;
+                    resolution.0 * resolution.1 * size_of::<T>()
+                })
+                .sum();
             MIP_MAP_MEMORY.with(|m| {
-                let val = (4 * resolution.0 * resolution.1 * size_of::<T>()) as u64 / 3;
-                m.add(val);
+                m.add(total_consumption);
             });
         }
 
@@ -495,6 +502,8 @@ where
 
     pub fn lookup(&self, st: &Point2f, width: Float) -> T {
         N_TRILERP_LOOKUPS.with(|n| n.inc());
+        let _p = ProfilePhase::new(Prof::TexFiltTrilerp);
+
         let max_level = (self.levels() - 1) as Float;
         let level = max_level + Float::log2(Float::max(width, 1e-8));
         if level < 0.0 {

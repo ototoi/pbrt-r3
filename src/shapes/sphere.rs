@@ -76,6 +76,11 @@ impl Shape for Sphere {
         let t_max = ray.t_max.get();
 
         let (t0, t1) = EFloat::quadratic(a, b, c)?;
+        // pbrt-r3:
+        if t0.v.is_infinite() || t1.v.is_infinite() {
+            return None;
+        }
+
         assert!(t0.v <= t1.v);
         // Check quadric shape _t0_ and _t1_ for nearest intersection
         if t0.upper_bound() > t_max || t1.lower_bound() <= 0.0 {
@@ -208,6 +213,11 @@ impl Shape for Sphere {
         let t_max = ray.t_max.get();
 
         if let Some((t0, t1)) = EFloat::quadratic(a, b, c) {
+            // pbrt-r3:
+            if t0.v.is_infinite() || t1.v.is_infinite() {
+                return false;
+            }
+
             if t0.upper_bound() > t_max || t1.lower_bound() <= 0.0 {
                 return false;
             }
@@ -280,7 +290,7 @@ impl Shape for Sphere {
             .base
             .object_to_world
             .transform_point_with_abs_error(&p_obj, &p_obj_error);
-        let it = Interaction::from((p, p_error, n, 0.0));
+        let it = Interaction::from_surface_sample(&p, &p_error, &n);
         let pdf = Float::recip(self.area());
         return Some((it, pdf));
     }
@@ -365,7 +375,7 @@ impl Shape for Sphere {
         if self.base.reverse_orientation {
             n *= -1.0;
         }
-        let it = Interaction::from((p, p_error, n, 0.0));
+        let it = Interaction::from_surface_sample(&p, &p_error, &n);
         return Some((it, pdf));
     }
 }

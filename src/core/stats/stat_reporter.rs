@@ -1,43 +1,62 @@
-use super::stats_accumlator::*;
+#[cfg(feature = "stats")]
+mod _impl {
+    use super::super::stats_accumlator::*;
+    use crate::core::options::PbrtOptions;
 
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::RwLock;
+    use std::sync::Arc;
+    use std::sync::Mutex;
+    use std::sync::RwLock;
 
-pub trait StatReporter: Send + Sync {
-    fn report(&self, accum: &mut StatsAccumulator);
-    fn clear(&mut self);
-    fn add_int(&mut self, _v: u64) {}
-    fn add_float(&mut self, _v: f64) {}
-}
+    pub trait StatReporter: Send + Sync {
+        fn report(&self, accum: &mut StatsAccumulator);
+        fn clear(&mut self);
+    }
 
-pub type StatReporterRef = Arc<RwLock<dyn StatReporter>>;
+    pub type StatReporterRef = Arc<RwLock<dyn StatReporter>>;
 
-static REGISTER_REPORTERS: Mutex<Vec<StatReporterRef>> = Mutex::new(Vec::new());
+    static REGISTER_REPORTERS: Mutex<Vec<StatReporterRef>> = Mutex::new(Vec::new());
 
-pub fn register_stat_reporter(reporter: StatReporterRef) {
-    let mut reporters = REGISTER_REPORTERS.lock().unwrap();
-    reporters.push(reporter);
-}
+    pub fn init_stats() {}
 
-pub fn report_stats(accum: &mut StatsAccumulator) {
-    let reporters = REGISTER_REPORTERS.lock().unwrap();
-    for reporter in reporters.iter() {
-        let reporter = reporter.read().unwrap();
-        reporter.report(accum);
+    pub fn register_stat_reporter(reporter: StatReporterRef) {
+        let options = PbrtOptions::get();
+        if !options.stats {
+            return;
+        }
+        let mut reporters = REGISTER_REPORTERS.lock().unwrap();
+        reporters.push(reporter);
+    }
+
+    pub fn print_stats() {
+        let options = PbrtOptions::get();
+        if !options.stats {
+            return;
+        }
+        let mut accum = StatsAccumulator::new();
+        let reporters = REGISTER_REPORTERS.lock().unwrap();
+        for reporter in reporters.iter() {
+            let reporter = reporter.read().unwrap();
+            reporter.report(&mut accum);
+        }
+        println!("{}", accum);
+    }
+
+    pub fn clear_stats() {
+        let reporters = REGISTER_REPORTERS.lock().unwrap();
+        for reporter in reporters.iter() {
+            let mut reporter = reporter.write().unwrap();
+            reporter.clear();
+        }
     }
 }
 
-pub fn print_stats() {
-    let mut accum = StatsAccumulator::new();
-    report_stats(&mut accum);
-    println!("{}", accum);
+#[cfg(not(feature = "stats"))]
+mod _impl {
+    pub fn init_stats() {
+        log::warn!("Stats is not enabled.");
+    }
+    pub fn print_stats() {}
+    pub fn clear_stats() {}
 }
 
-pub fn clear_stats() {
-    let reporters = REGISTER_REPORTERS.lock().unwrap();
-    for reporter in reporters.iter() {
-        let mut reporter = reporter.write().unwrap();
-        reporter.clear();
-    }
-}
+pub use _impl::*;

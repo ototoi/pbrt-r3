@@ -75,6 +75,11 @@ impl Shape for Cone {
         let t_max = ray.t_max.get();
 
         let (t0, t1) = EFloat::quadratic(a, b, c)?;
+        // pbrt-r3:
+        if t0.v.is_infinite() || t1.v.is_infinite() {
+            return None;
+        }
+
         assert!(t0.v.is_finite());
         assert!(t1.v.is_finite());
         assert!(t0.v <= t1.v);
@@ -206,6 +211,11 @@ impl Shape for Cone {
         let t_max = ray.t_max.get();
 
         if let Some((t0, t1)) = EFloat::quadratic(a, b, c) {
+            // pbrt-r3:
+            if t0.v.is_infinite() || t1.v.is_infinite() {
+                return false;
+            }
+
             assert!(t0.v.is_finite());
             assert!(t1.v.is_finite());
             assert!(t0.v <= t1.v);

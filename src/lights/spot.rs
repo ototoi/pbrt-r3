@@ -71,12 +71,10 @@ impl Light for SpotLight {
         let pdf: Float = 1.0;
         let intensity = self.intensity
             * (self.falloff(&-wi) / Vector3f::distance_squared(&self.p_light, &inter_p));
-        let inter2 = Interaction::from((
-            self.p_light,
-            inter.get_time(),
-            self.base.medium_interface.clone(),
-        ));
-        let vis = VisibilityTester::from((inter, &inter2));
+        let p = self.p_light;
+        let inter_light =
+            Interaction::from_light_sample(&p, inter.get_time(), &self.base.medium_interface);
+        let vis = VisibilityTester::from((inter, &inter_light));
         return Some((intensity, wi, pdf, vis));
     }
 
@@ -98,12 +96,13 @@ impl Light for SpotLight {
         let _p = ProfilePhase::new(Prof::LightSample);
 
         let w = uniform_sample_cone(u1, self.cos_total_width);
+        let medium = self.base.medium_interface.get_inside();
         let ray = Ray::from((
             &self.p_light,
             &self.base.light_to_world.transform_vector(&w),
             Float::INFINITY,
             time,
-            &self.base.medium_interface.inside,
+            &medium,
         ));
         let n_light = ray.d;
         let pdf_pos = 1.0;
@@ -142,7 +141,8 @@ pub fn create_spot_light(
     let intensity = params.find_one_spectrum("I", &Spectrum::one());
     let sc = params.find_one_spectrum("scale", &Spectrum::one());
     let coneangle = params.find_one_float("coneangle", 30.0);
-    let conedelta = params.find_one_float("conedelta", 5.0);
+    let conedelta = params.find_one_float("conedelta", 5.0); //5.0
+    let conedelta = params.find_one_float("conedeltaangle", conedelta);
     let from = params.find_one_point3f("from", &Point3f::new(0.0, 0.0, 0.0));
     let to = params.find_one_point3f("to", &Point3f::new(0.0, 0.0, 1.0));
     let dir = (to - from).normalize();

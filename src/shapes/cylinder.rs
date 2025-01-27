@@ -80,6 +80,11 @@ impl Shape for Cylinder {
         let t_max = ray.t_max.get();
 
         let (t0, t1) = EFloat::quadratic(a, b, c)?;
+        // pbrt-r3:
+        if t0.v.is_infinite() || t1.v.is_infinite() {
+            return None;
+        }
+
         assert!(t0.v.is_finite());
         assert!(t1.v.is_finite());
         assert!(t0.v <= t1.v);
@@ -215,6 +220,11 @@ impl Shape for Cylinder {
         let t_max = ray.t_max.get();
 
         if let Some((t0, t1)) = EFloat::quadratic(a, b, c) {
+            // pbrt-r3:
+            if t0.v.is_infinite() || t1.v.is_infinite() {
+                return false;
+            }
+
             assert!(t0.v.is_finite());
             assert!(t1.v.is_finite());
             assert!(t0.v <= t1.v);
@@ -290,7 +300,7 @@ impl Shape for Cylinder {
         let radius = self.radius;
         let z_min = self.z_min;
         let z_max = self.z_max;
-        let phi_max = self.phi_max;
+        //let phi_max = self.phi_max;
 
         let z = lerp(u[0], z_min, z_max);
         let phi = u[1] * z_max;
@@ -311,7 +321,7 @@ impl Shape for Cylinder {
             .base
             .object_to_world
             .transform_point_with_abs_error(&p_obj, &p_obj_error);
-        let it = Interaction::from((p, p_error, n, 0.0));
+        let it = Interaction::from_surface_sample(&p, &p_error, &n);
         let pdf = 1.0 / self.area();
         return Some((it, pdf));
     }

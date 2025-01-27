@@ -44,6 +44,8 @@ impl MaxMinDistSampler {
 
 impl Sampler for MaxMinDistSampler {
     fn start_pixel(&mut self, p: &Point2i) {
+        let _p = ProfilePhase::new(Prof::StartPixel);
+
         let samples_per_pixel = self.base.base.samples_per_pixel as usize;
         let inv_spp = 1.0 / samples_per_pixel as Float;
         for i in 0..samples_per_pixel {
@@ -149,7 +151,13 @@ impl Sampler for MaxMinDistSampler {
 impl PixelSampler for MaxMinDistSampler {}
 
 pub fn create_maxmindist_sampler(params: &ParamSet) -> Result<Arc<RwLock<dyn Sampler>>, PbrtError> {
-    let nsamp = params.find_one_int("pixelsamples", 16) as u32;
+    let mut nsamp = params.find_one_int("pixelsamples", 16) as u32;
     let sd = params.find_one_int("dimensions", 4) as u32;
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            nsamp = 1;
+        }
+    }
     return Ok(Arc::new(RwLock::new(MaxMinDistSampler::new(nsamp, sd))));
 }

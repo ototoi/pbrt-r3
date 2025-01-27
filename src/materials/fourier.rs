@@ -1,15 +1,14 @@
 use crate::core::pbrt::*;
 use std::sync::Arc;
-use std::sync::RwLock;
 
 pub struct FourierMaterial {
-    bsdf_table: Arc<RwLock<FourierBSDFTable>>,
+    bsdf_table: Arc<FourierBSDFTable>,
     bumpmap: Option<Arc<dyn Texture<Float>>>,
 }
 
 impl FourierMaterial {
     pub fn new(
-        bsdf_table: &Arc<RwLock<FourierBSDFTable>>,
+        bsdf_table: &Arc<FourierBSDFTable>,
         bumpmap: &Option<Arc<dyn Texture<Float>>>,
     ) -> Self {
         FourierMaterial {
@@ -27,11 +26,15 @@ impl Material for FourierMaterial {
         mode: TransportMode,
         _allow_multiple_lobes: bool,
     ) {
+        // Perform bump mapping with _bumpMap_, if present
         if let Some(bump) = self.bumpmap.as_ref() {
             self.bump(bump, si);
         }
         let mut b = arena.alloc_bsdf(si, 1.0);
-        {
+
+        // Checking for zero channels works as a proxy for checking whether the
+        // table was successfully read from the file.
+        if self.bsdf_table.as_ref().n_channels > 0 {
             let fourier: Arc<dyn BxDF> = Arc::new(FourierBSDF::new(&self.bsdf_table, mode));
             b.add(&fourier);
         }
@@ -42,6 +45,7 @@ impl Material for FourierMaterial {
 pub fn create_fourier_material(mp: &TextureParams) -> Result<Arc<dyn Material>, PbrtError> {
     let filename = mp.find_filename("bsdffile", "");
     let bsdf_table = FourierBSDFTable::read(&filename)?;
+    let bsdf_table = Arc::new(bsdf_table);
     let bumpmap = mp.get_float_texture_or_null("bumpmap");
     return Ok(Arc::new(FourierMaterial::new(&bsdf_table, &bumpmap)));
 }

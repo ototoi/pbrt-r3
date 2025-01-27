@@ -26,6 +26,8 @@ impl ZeroTwoSequenceSampler {
 
 impl Sampler for ZeroTwoSequenceSampler {
     fn start_pixel(&mut self, p: &Point2i) {
+        let _p = ProfilePhase::new(Prof::StartPixel);
+
         // Generate 1D and 2D pixel sample components using $(0,2)$-sequence
         for i in 0..self.base.samples1d.len() {
             van_der_corput(
@@ -108,8 +110,14 @@ impl PixelSampler for ZeroTwoSequenceSampler {}
 pub fn create_zerotwosequence_sampler(
     params: &ParamSet,
 ) -> Result<Arc<RwLock<dyn Sampler>>, PbrtError> {
-    let nsamp = params.find_one_int("pixelsamples", 16) as u32;
+    let mut nsamp = params.find_one_int("pixelsamples", 16) as u32;
     let sd = params.find_one_int("dimensions", 4) as u32;
+    {
+        let options = PbrtOptions::get();
+        if options.quick_render {
+            nsamp = 1;
+        }
+    }
     return Ok(Arc::new(RwLock::new(ZeroTwoSequenceSampler::new(
         nsamp, sd,
     ))));

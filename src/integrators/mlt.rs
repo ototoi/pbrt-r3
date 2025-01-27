@@ -1,8 +1,8 @@
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 
-use super::subpath::*;
 use crate::core::pbrt::*;
+use super::subpath::*;
 
 use std::sync::atomic::*;
 use std::sync::Arc;
@@ -15,10 +15,9 @@ const CAMERA_STREAM_INDEX: u64 = 0;
 const LIGHT_STREAM_INDEX: u64 = 1;
 const CONNECTION_STREAM_INDEX: u64 = 2;
 const N_SAMPLE_STREAMS: u64 = 3;
-
-// MLT Constants
 const PROGRESS_FREQUENCY: u32 = 32768;
 const UPDATE_DISPLAY_INTERVAL: u128 = 1000;
+
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct PrimarySample {
@@ -52,7 +51,7 @@ pub struct MLTSampler {
     x: Vec<PrimarySample>,
     current_iteration: i64,
     large_step: bool,
-    last_large_step_iteration: i64,
+    last_large_iteration: i64,
     stream_index: u64,
     sample_index: u64,
 }
@@ -78,7 +77,7 @@ impl MLTSampler {
             x,
             current_iteration: 0,
             large_step: true,
-            last_large_step_iteration: 0,
+            last_large_iteration: 0,
             stream_index: 0,
             sample_index: 0,
         }
@@ -91,7 +90,7 @@ impl MLTSampler {
 
     pub fn accept(&mut self) {
         if self.large_step {
-            self.last_large_step_iteration = self.current_iteration;
+            self.last_large_iteration = self.current_iteration;
         }
     }
 
@@ -124,9 +123,9 @@ impl MLTSampler {
         let xi = &mut self.x[index];
 
         // Reset $\VEC{X}_i$ if a large step took place in the meantime
-        if xi.last_modification_iteration < self.last_large_step_iteration {
+        if xi.last_modification_iteration < self.last_large_iteration {
             xi.value = self.rng.uniform_float();
-            xi.last_modification_iteration = self.last_large_step_iteration;
+            xi.last_modification_iteration = self.last_large_iteration;
         }
 
         // Apply remaining sequence of mutations to _xi_
@@ -184,10 +183,6 @@ impl Sampler for MLTSampler {
         return self.base.get_2d_array(n);
     }
 
-    fn start_next_sample(&mut self) -> bool {
-        return self.base.start_next_sample();
-    }
-
     fn clone_with_seed(&self, seed: u32) -> Arc<RwLock<dyn Sampler>> {
         let sampler = MLTSampler {
             base: self.base.clone(),
@@ -198,7 +193,7 @@ impl Sampler for MLTSampler {
             x: self.x.clone(),
             current_iteration: self.current_iteration,
             large_step: self.large_step,
-            last_large_step_iteration: self.last_large_step_iteration,
+            last_large_iteration: self.last_large_iteration,
             stream_index: self.stream_index,
             sample_index: self.sample_index,
         };
@@ -253,8 +248,6 @@ impl MLTIntegrator {
         light_distr: &Distribution1D,
         light_to_index: &LightIndexMap,
         sampler: &mut MLTSampler,
-        camera_vertices: &mut Vec<Arc<RwLock<Vertex>>>,
-        light_vertices: &mut Vec<Arc<RwLock<Vertex>>>,
         depth: u32,
     ) -> (Spectrum, Point2f) {
         let camera = self.camera.clone();
@@ -279,8 +272,7 @@ impl MLTIntegrator {
         );
         let p_raster = sample_bounds.lerp(&sampler.get_2d());
         // Generate a camera subpath with exactly _t_ vertices
-        //let mut camera_vertices = Vec::with_capacity(t as usize);
-        camera_vertices.clear();
+        let mut camera_vertices = Vec::with_capacity(t as usize);
         if generate_camera_subpath(
             scene,
             sampler,
@@ -288,7 +280,7 @@ impl MLTIntegrator {
             t as usize,
             &camera,
             &p_raster,
-            camera_vertices,
+            &mut camera_vertices,
         ) != t as usize
         {
             return (Spectrum::zero(), p_raster);
@@ -296,9 +288,8 @@ impl MLTIntegrator {
 
         // Generate a light subpath with exactly _s_ vertices
         sampler.start_stream(LIGHT_STREAM_INDEX);
-        let time = camera_vertices[0].as_ref().read().unwrap().get_time();
-        //let mut light_vertices = Vec::with_capacity(s as usize);
-        light_vertices.clear();
+        let time = camera_vertices[0].read().unwrap().get_time();
+        let mut light_vertices = Vec::with_capacity(s as usize);
         if generate_light_subpath(
             scene,
             sampler,
@@ -307,7 +298,7 @@ impl MLTIntegrator {
             time,
             light_distr,
             light_to_index,
-            light_vertices,
+            &mut light_vertices,
         ) != s as usize
         {
             return (Spectrum::zero(), p_raster);
@@ -378,9 +369,6 @@ impl Integrator for MLTIntegrator {
             (0..n_bootstrap).into_par_iter().for_each(|i| {
                 // Generate _i_th bootstrap sample
                 let mut arena = MemoryArena::new();
-                let mut camera_vertices = Vec::new();
-                let mut light_vertices = Vec::new();
-
                 for depth in 0..=max_depth {
                     let rng_index = i * (max_depth + 1) + depth;
                     let mut sampler = MLTSampler::new(
@@ -396,8 +384,6 @@ impl Integrator for MLTIntegrator {
                         &light_distr,
                         &light_to_index,
                         &mut sampler,
-                        &mut camera_vertices,
-                        &mut light_vertices,
                         depth,
                     );
                     let y = l.y();
@@ -429,45 +415,35 @@ impl Integrator for MLTIntegrator {
         if scene.lights.len() > 0 {
             let camera = self.camera.clone();
             let film = camera.get_film();
-            let pixel_bounds: Bounds2<i32> = film.read().unwrap().cropped_pixel_bounds;
-            let n_total_mutations = (self.mutations_per_pixel as i64)
-                * (film.read().unwrap().get_sample_bounds().area() as i64);
+            let pixel_bounds = film.read().unwrap().cropped_pixel_bounds;
+            let n_total_mutations =
+                self.mutations_per_pixel * film.read().unwrap().get_sample_bounds().area() as u32;
             let progress_frequency = PROGRESS_FREQUENCY as usize;
-            let n_chains = self.n_chains as i64;
+            let n_chains = self.n_chains;
             let mutations_per_pixel = self.mutations_per_pixel;
             let sigma = self.sigma;
             let large_step_probability = self.large_step_probability;
             let n_sample_streams = N_SAMPLE_STREAMS;
 
             //let n_total_work = (n_total_mutations / progress_frequency) as usize;
-            let permutations_per_chain = n_total_mutations / n_chains;
-            //println!("n_total_mutations: {}", n_total_mutations);
-            //println!("n_chains: {}", n_chains);
-            //println!("permutations_per_chain: {}", permutations_per_chain);
-
-            let mut n_chain_mutations_list: Vec<usize> = (0..n_chains)
+            let n_chain_mutations_list: Vec<usize> = (0..n_chains)
                 .map(|i| {
-                    (i64::min((i + 1) * permutations_per_chain, n_total_mutations)
-                        - (i * permutations_per_chain)) as usize
+                    i64::max(
+                        1,
+                        i64::min(
+                            ((i + 1) * n_total_mutations / n_chains) as i64,
+                            n_total_mutations as i64,
+                        ) - (i * n_total_mutations / n_chains) as i64,
+                    ) as usize
                 })
                 .collect();
             let n_total_iterations = n_chain_mutations_list.iter().sum::<usize>();
-            //let l = n_chain_mutations_list.len();
-            //let nn = &n_chain_mutations_list[l-20..];
-            //println!("n_chain_mutations_list: {:?}", nn);
-            assert!(n_total_iterations <= n_total_mutations as usize);
-            let last = n_chain_mutations_list.len() - 1;
-            n_chain_mutations_list[last] +=
-                usize::max(0, n_total_mutations as usize - n_total_iterations); //pbrt-r3
-            let n_total_iterations = n_chain_mutations_list.iter().sum::<usize>();
-            assert!(n_total_iterations == n_total_mutations as usize);
             //println!(
             //    "total mutations: {}, n_total_iterations: {}",
             //    n_total_mutations,
             //    n_total_iterations
             //);
-
-            //let n_total_mutations = n_total_iterations;
+            assert!(n_total_iterations <= n_total_mutations as usize);
             let reporter = Arc::new(RwLock::new(ProgressReporter::new(
                 n_total_iterations,
                 "Rendering",
@@ -475,15 +451,12 @@ impl Integrator for MLTIntegrator {
             let count_iteration = AtomicUsize::new(0);
             let prev_time = Arc::new(Mutex::new(Instant::now()));
             //let count_iteration = Arc::new(RwLock::new(0 as usize));
-            let n_chains = self.n_chains as usize;
             (0..n_chains).into_par_iter().for_each(|i| {
                 let reporter = reporter.clone();
-                let n_chain_mutations = n_chain_mutations_list[i];
+                let n_chain_mutations = n_chain_mutations_list[i as usize];
 
                 // Follow {i}th Markov chain for _nChainMutations_
                 let mut arena = MemoryArena::new();
-                let mut camera_vertices = Vec::new();
-                let mut light_vertices = Vec::new();
 
                 // Select initial state from the set of bootstrap samples
                 let mut rng = RNG::new_sequence(i as u64);
@@ -505,8 +478,6 @@ impl Integrator for MLTIntegrator {
                     &light_distr,
                     &light_to_index,
                     &mut sampler,
-                    &mut camera_vertices,
-                    &mut light_vertices,
                     depth,
                 );
 
@@ -519,8 +490,6 @@ impl Integrator for MLTIntegrator {
                         &light_distr,
                         &light_to_index,
                         &mut sampler,
-                        &mut camera_vertices,
-                        &mut light_vertices,
                         depth,
                     );
                     // Compute acceptance probability for proposed sample

@@ -287,20 +287,13 @@ mod _impl {
 #[cfg(not(feature = "profile"))]
 mod _impl {
     pub fn start_profiler() {}
-
     pub fn stop_profiler() {}
-
     pub fn clear_profiler() {}
-
     pub fn init_profiler() {}
     pub fn cleanup_profiler() {}
-
     pub fn suspend_profiler() {}
-
     pub fn resume_profiler() {}
-
     pub fn print_profiler() {}
-
     pub fn report_profiler_results() {}
 }
 

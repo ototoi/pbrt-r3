@@ -4,4 +4,3 @@ pub mod stats_accumlator;
 
 pub use stat_counter::*;
 pub use stat_reporter::*;
-pub use stats_accumlator::*;

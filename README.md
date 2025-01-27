@@ -1,6 +1,9 @@
 # pbrt-r3
 [![Rust](https://github.com/ototoi/pbrt-r3/actions/workflows/rust.yml/badge.svg)](https://github.com/ototoi/pbrt-r3/actions/workflows/rust.yml)
 ![License](https://img.shields.io/github/license/ototoi/pbrt-r3)
+![GitHub Release](https://img.shields.io/github/v/release/ototoi/pbrt-r3)
+
+
 
 ## What is pbrt-r3
 pbrt-r3 is a rust implementation version of the [pbrt-v3](https://github.com/mmp/pbrt-v3).

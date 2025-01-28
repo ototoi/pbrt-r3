@@ -217,12 +217,10 @@ impl Vertex {
             pdf = 1.0 / (PI * world_radius * world_radius);
         } else {
             if let Some(light) = self.get_light() {
-                let ray = Ray::new(&self.get_p(), &w, Float::INFINITY, 0.0);
+                let ray = Ray::new(&self.get_p(), &w, Float::INFINITY, self.get_time());
                 if let Some((_pdf_pos, pdf_dir)) = light.pdf_le(&ray, &self.get_ng()) {
                     assert!(pdf_dir >= 0.0);
                     pdf = pdf_dir * inv_dist2;
-                } else {
-                    pdf = 0.0;
                 }
             }
         }
@@ -261,7 +259,7 @@ impl Vertex {
                 let index = *index;
                 assert!(index < light_distr.func.len());
                 let pdf_choice = light_distr.discrete_pdf(index);
-                let ray = Ray::new(&self.get_p(), &w, Float::INFINITY, 0.0);
+                let ray = Ray::new(&self.get_p(), &w, Float::INFINITY, self.get_time());
                 if let Some((pdf_pos, _pdf_dir)) = light.pdf_le(&ray, &self.get_ng()) {
                     return pdf_choice * pdf_pos;
                 }
@@ -327,7 +325,6 @@ impl Vertex {
                 if let Some(light) = interaction.get_light() {
                     return !light.is_delta_direction();
                 }
-                assert!(false);
                 return false;
             }
             VertexType::Camera => {

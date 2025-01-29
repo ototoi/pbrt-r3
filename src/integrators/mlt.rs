@@ -157,6 +157,7 @@ impl Sampler for MLTSampler {
     }
 
     fn get_1d(&mut self) -> Float {
+        let _p = ProfilePhase::new(Prof::GetSample);
         let index = self.get_next_index() as usize;
         self.ensure_ready(index);
         return self.x[index].value;
@@ -378,8 +379,8 @@ impl Integrator for MLTIntegrator {
             (0..n_bootstrap).into_par_iter().for_each(|i| {
                 // Generate _i_th bootstrap sample
                 let mut arena = MemoryArena::new();
-                let mut camera_vertices = Vec::new();
-                let mut light_vertices = Vec::new();
+                let mut camera_vertices = Vec::with_capacity(max_depth as usize + 2);
+                let mut light_vertices = Vec::with_capacity(max_depth as usize + 1);
 
                 for depth in 0..=max_depth {
                     let rng_index = i * (max_depth + 1) + depth;
@@ -482,8 +483,8 @@ impl Integrator for MLTIntegrator {
 
                 // Follow {i}th Markov chain for _nChainMutations_
                 let mut arena = MemoryArena::new();
-                let mut camera_vertices = Vec::new();
-                let mut light_vertices = Vec::new();
+                let mut camera_vertices = Vec::with_capacity(max_depth as usize + 2);
+                let mut light_vertices = Vec::with_capacity(max_depth as usize + 1);
 
                 // Select initial state from the set of bootstrap samples
                 let mut rng = RNG::new_sequence(i as u64);
@@ -617,7 +618,7 @@ pub fn create_mlt_integrator(
     }
 
     return Ok(Arc::new(RwLock::new(MLTIntegrator::new(
-        &camera,
+        camera,
         max_depth as u32,
         n_bootstrap as u32,
         n_chains as u32,

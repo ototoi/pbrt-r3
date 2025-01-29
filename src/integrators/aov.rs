@@ -199,8 +199,8 @@ pub fn create_aov_integrator(
     let target = get_aov_target(&target)?;
 
     return Ok(Arc::new(RwLock::new(AOVIntegrator::new(
-        &camera,
-        &sampler,
+        camera,
+        sampler,
         &pixel_bounds,
         target,
         scale,

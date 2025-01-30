@@ -533,4 +533,9 @@ impl Vertex {
         let interaction = self.interaction.value.read().unwrap();
         return interaction.get_light();
     }
+
+    pub fn get_camera(&self) -> Option<Arc<dyn Camera>> {
+        let interaction = self.interaction.value.read().unwrap();
+        return interaction.get_camera();
+    }
 }

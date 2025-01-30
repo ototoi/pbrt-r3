@@ -1,3 +1,4 @@
+use super::scoped_assignment::*;
 use super::vertex_interaction::*;
 use crate::core::pbrt::*;
 use std::collections::HashMap;
@@ -61,28 +62,28 @@ pub fn infinite_light_density(
     return pdf / (light_distr.func_int * light_distr.count() as Float);
 }
 
-#[derive(Clone, Debug)]
 pub struct VertexValue<T: Clone> {
-    pub value: Arc<RwLock<T>>,
+    pub value: Arc<RwLock<ScopedValue<T>>>,
 }
 
 impl<T: Clone> VertexValue<T> {
     pub fn new(value: T) -> Self {
-        VertexValue {
-            value: Arc::new(RwLock::new(value)),
+        Self {
+            value: Arc::new(RwLock::new(ScopedValue::new(value))),
         }
     }
 
-    pub fn get(&self) -> T {
-        return self.value.read().unwrap().clone();
+    pub fn set(&self, value: T) {
+        let target = self.value.write().unwrap();
+        target.set(value);
     }
 
-    pub fn set(&self, value: T) {
-        *self.value.write().unwrap() = value;
+    pub fn get(&self) -> T {
+        let value = self.value.read().unwrap();
+        return value.get();
     }
 }
 
-#[derive(Clone)]
 pub struct Vertex {
     pub beta: VertexValue<Spectrum>,
     pub interaction: VertexValue<VertexInteraction>,
@@ -108,27 +109,9 @@ impl Vertex {
         }
     }
 
-    pub fn as_tuple(
-        &self,
-    ) -> (
-        Arc<RwLock<Spectrum>>,
-        Arc<RwLock<VertexInteraction>>,
-        Arc<RwLock<bool>>,
-        Arc<RwLock<Float>>,
-        Arc<RwLock<Float>>,
-    ) {
-        return (
-            self.beta.value.clone(),
-            self.interaction.value.clone(),
-            self.delta.value.clone(),
-            self.pdf_fwd.value.clone(),
-            self.pdf_rev.value.clone(),
-        );
-    }
-
     pub fn get_type(&self) -> VertexType {
         let interaction = self.interaction.value.read().unwrap();
-        return interaction.get_type();
+        return interaction.value.read().unwrap().get_type();
     }
 
     pub fn convert_density(&self, pdf: Float, next: &Vertex) -> Float {
@@ -162,6 +145,7 @@ impl Vertex {
         assert!(t != VertexType::Light);
         // Compute directional density depending on the vertex types
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         match interaction.deref() {
             VertexInteraction::EndPoint(ei) => {
                 if let EndpointInteraction::Camera(ei) = ei {
@@ -270,6 +254,7 @@ impl Vertex {
 
     pub fn is_light(&self) -> bool {
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         match interaction.deref() {
             VertexInteraction::EndPoint(ei) => {
                 return ei.is_light();
@@ -291,6 +276,7 @@ impl Vertex {
     // Vertex::IsDeltaLight
     pub fn is_delta_light(&self) -> bool {
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         match interaction.deref() {
             VertexInteraction::EndPoint(ei) => {
                 return ei.is_delta_light();
@@ -304,6 +290,7 @@ impl Vertex {
     // Vertex::IsInfiniteLight
     pub fn is_infinite_light(&self) -> bool {
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         match interaction.deref() {
             VertexInteraction::EndPoint(ei) => {
                 return ei.is_infinite_light();
@@ -322,6 +309,7 @@ impl Vertex {
             }
             VertexType::Light => {
                 let interaction = self.interaction.value.read().unwrap();
+                let interaction = interaction.value.read().unwrap();
                 if let Some(light) = interaction.get_light() {
                     return !light.is_delta_direction();
                 }
@@ -332,6 +320,7 @@ impl Vertex {
             }
             VertexType::Surface => {
                 let interaction = self.interaction.value.read().unwrap();
+                let interaction = interaction.value.read().unwrap();
                 let si = interaction.as_surface().unwrap();
                 let bsdf = si.bsdf.as_ref().unwrap();
                 return bsdf.num_components(
@@ -353,6 +342,7 @@ impl Vertex {
         }
         let wi = wi.normalize();
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         match interaction.deref() {
             VertexInteraction::Surface(si) => {
                 let bsdf = si.bsdf.as_ref().unwrap();
@@ -381,6 +371,7 @@ impl Vertex {
         let w = w.normalize();
 
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         match interaction.deref() {
             VertexInteraction::EndPoint(ei) => {
                 let mut le = Spectrum::zero();
@@ -506,36 +497,43 @@ impl Vertex {
 
     pub fn get_interaction(&self) -> Interaction {
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         return interaction.get_interaction();
     }
 
     pub fn get_p(&self) -> Point3f {
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         return interaction.get_p();
     }
 
     pub fn get_time(&self) -> Float {
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         return interaction.get_time();
     }
 
     pub fn get_ng(&self) -> Normal3f {
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         return interaction.get_ng();
     }
 
     pub fn get_ns(&self) -> Normal3f {
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         return interaction.get_ns();
     }
 
     pub fn get_light(&self) -> Option<Arc<dyn Light>> {
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         return interaction.get_light();
     }
 
     pub fn get_camera(&self) -> Option<Arc<dyn Camera>> {
         let interaction = self.interaction.value.read().unwrap();
+        let interaction = interaction.value.read().unwrap();
         return interaction.get_camera();
     }
 }

@@ -37,6 +37,7 @@ fn is_vertex_class(vc: VertexClass, vertex: &Vertex) -> bool {
         }
         VertexClass::Surface => {
             let interaction = vertex.interaction.value.read().unwrap();
+            let interaction = interaction.value.read().unwrap();
             if let VertexInteraction::Surface(_si) = interaction.deref() {
                 return true;
             }
@@ -44,6 +45,7 @@ fn is_vertex_class(vc: VertexClass, vertex: &Vertex) -> bool {
         }
         VertexClass::TransmissionSurface => {
             let interaction = vertex.interaction.value.read().unwrap();
+            let interaction = interaction.value.read().unwrap();
             if let VertexInteraction::Surface(si) = interaction.deref() {
                 if let Some(bsdf) = si.bsdf.as_ref() {
                     return bsdf.has_components(BSDF_TRANSMISSION);
@@ -53,6 +55,7 @@ fn is_vertex_class(vc: VertexClass, vertex: &Vertex) -> bool {
         }
         VertexClass::SpecularSurface => {
             let interaction = vertex.interaction.value.read().unwrap();
+            let interaction = interaction.value.read().unwrap();
             if let VertexInteraction::Surface(si) = interaction.deref() {
                 if let Some(bsdf) = si.bsdf.as_ref() {
                     return bsdf.has_components(BSDF_SPECULAR);

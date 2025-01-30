@@ -324,30 +324,39 @@ fn mis_weight(
         None
     };
 
+    /*
+    pub beta: ScopedValue<Spectrum>,
+    pub interaction: ScopedValue<VertexInteraction>,
+    pub delta: ScopedValue<bool>,
+    pub pdf_fwd: ScopedValue<Float>,
+    pub pdf_rev: ScopedValue<Float>,
+    */
     // Update sampled vertex for $s=1$ or $t=1$ strategy
     let _a1 = if s == 1 {
         assert!(qs.is_some());
         let qs = qs.as_ref().unwrap();
-        let qs = qs.as_tuple();
         let sampled = sampled.as_ref().unwrap();
-        let sampled = sampled.as_tuple();
-        let v0 = ScopedAssignment::new(&qs.0, &sampled.0.read().unwrap());
-        let v1 = ScopedAssignment::new(&qs.1, &sampled.1.read().unwrap());
-        let v2 = ScopedAssignment::new(&qs.2, &sampled.2.read().unwrap());
-        let v3 = ScopedAssignment::new(&qs.3, &sampled.3.read().unwrap());
-        let v4 = ScopedAssignment::new(&qs.4, &sampled.4.read().unwrap());
+        let v0 = ScopedAssignment::new_value(&qs.beta.value, sampled.beta.get());
+        let v1 = ScopedAssignment::new(
+            &qs.interaction.value,
+            &sampled.interaction.value.read().unwrap(),
+        );
+        let v2 = ScopedAssignment::new_value(&qs.delta.value, sampled.delta.get());
+        let v3 = ScopedAssignment::new_value(&qs.pdf_fwd.value, sampled.pdf_fwd.get());
+        let v4 = ScopedAssignment::new_value(&qs.pdf_rev.value, sampled.pdf_rev.get());
         Some((v0, v1, v2, v3, v4))
     } else if t == 1 {
         assert!(pt.is_some());
         let pt = pt.as_ref().unwrap();
-        let pt = pt.as_tuple();
         let sampled = sampled.as_ref().unwrap();
-        let sampled = sampled.as_tuple();
-        let v0 = ScopedAssignment::new(&pt.0, &sampled.0.read().unwrap());
-        let v1 = ScopedAssignment::new(&pt.1, &sampled.1.read().unwrap());
-        let v2 = ScopedAssignment::new(&pt.2, &sampled.2.read().unwrap());
-        let v3 = ScopedAssignment::new(&pt.3, &sampled.3.read().unwrap());
-        let v4 = ScopedAssignment::new(&pt.4, &sampled.4.read().unwrap());
+        let v0 = ScopedAssignment::new_value(&pt.beta.value, sampled.beta.get());
+        let v1 = ScopedAssignment::new(
+            &pt.interaction.value,
+            &sampled.interaction.value.read().unwrap(),
+        );
+        let v2 = ScopedAssignment::new_value(&pt.delta.value, sampled.delta.get());
+        let v3 = ScopedAssignment::new_value(&pt.pdf_fwd.value, sampled.pdf_fwd.get());
+        let v4 = ScopedAssignment::new_value(&pt.pdf_rev.value, sampled.pdf_rev.get());
         Some((v0, v1, v2, v3, v4))
     } else {
         None
@@ -356,14 +365,14 @@ fn mis_weight(
     // Mark connection vertices as non-degenerate
     let _a2 = if pt.is_some() {
         let pt = pt.as_ref().unwrap();
-        Some(ScopedAssignment::new(&pt.delta.value, &false))
+        Some(ScopedAssignment::new_value(&pt.delta.value, false))
     } else {
         None
     };
 
     let _a3 = if qs.is_some() {
         let qs = qs.as_ref().unwrap();
-        Some(ScopedAssignment::new(&qs.delta.value, &false))
+        Some(ScopedAssignment::new_value(&qs.delta.value, false))
     } else {
         None
     };
@@ -385,7 +394,7 @@ fn mis_weight(
             pdf
         };
         assert!(pdf >= 0.0);
-        Some(ScopedAssignment::new(&pt.pdf_rev.value, &pdf))
+        Some(ScopedAssignment::new_value(&pt.pdf_rev.value, pdf))
     } else {
         None
     };
@@ -402,7 +411,7 @@ fn mis_weight(
             pt.pdf_light(scene, pt_minus.deref())
         };
         assert!(pdf >= 0.0);
-        Some(ScopedAssignment::new(&pt_minus.pdf_rev.value, &pdf))
+        Some(ScopedAssignment::new_value(&pt_minus.pdf_rev.value, pdf))
     } else {
         None
     };
@@ -412,18 +421,18 @@ fn mis_weight(
         let pt = pt.as_ref().unwrap();
         let pdf = pt.pdf(scene, &pt_minus, qs.deref());
         assert!(pdf >= 0.0);
-        Some(ScopedAssignment::new(&qs.pdf_rev.value, &pdf))
+        Some(ScopedAssignment::new_value(&qs.pdf_rev.value, pdf))
     } else {
         None
     };
 
     let _a7 = if qs_minus.is_some() {
         assert!(qs.is_some());
-        let qs_minus = qs_minus.unwrap();
+        let qs_minus = qs_minus.as_ref().unwrap();
         let qs = qs.unwrap();
         let pdf = qs.pdf(scene, &pt, qs_minus.deref());
         assert!(pdf >= 0.0);
-        Some(ScopedAssignment::new(&qs_minus.pdf_rev.value, &pdf))
+        Some(ScopedAssignment::new_value(&qs_minus.pdf_rev.value, pdf))
     } else {
         None
     };

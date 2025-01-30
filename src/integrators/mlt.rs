@@ -321,6 +321,8 @@ impl MLTIntegrator {
 
         let mut l = Spectrum::zero();
 
+        /* 
+        // Debugging code for classifying subpaths
         if false {
             use VertexClass as VC;
             if classify_subpath(
@@ -329,9 +331,10 @@ impl MLTIntegrator {
                 camera_vertices,
                 light_vertices,
             ) {
-                l += Spectrum::from(&[0.5, 0.01, 0.5]);
+                l += Spectrum::from(&[1.0, 0.2, 1.0]);
             }
         }
+        */
 
         if let Some((spec, _, p_raster_new)) = connect_bdpt(
             scene,
@@ -349,6 +352,17 @@ impl MLTIntegrator {
         } else {
             return (Spectrum::zero(), p_raster);
         }
+    }
+}
+
+#[inline]
+fn safe_div(x: Float, y: Float) -> Float {
+    if x == 0.0 && y == 0.0 {
+        return 0.0;
+    } else if y == 0.0 {
+        return Float::INFINITY;
+    } else {
+        return x / y;
     }
 }
 
@@ -417,7 +431,7 @@ impl Integrator for MLTIntegrator {
                         depth,
                     );
                     let y = l.y();
-                    {
+                    if y > 0.0 {
                         let mut bootstrap_weights = bootstrap_weights.lock().unwrap();
                         bootstrap_weights[rng_index as usize] = y;
                     }
@@ -540,7 +554,7 @@ impl Integrator for MLTIntegrator {
                         depth,
                     );
                     // Compute acceptance probability for proposed sample
-                    let accept = Float::min(1.0, l_proposed.y() / l_current.y());
+                    let accept = Float::min(1.0, safe_div(l_proposed.y(), l_current.y()));
                     //assert!(accept >= 0.0);
 
                     // Splat both current and proposed samples to _film_

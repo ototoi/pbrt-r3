@@ -59,6 +59,18 @@ impl BSDF {
         return num;
     }
 
+    // pbrt-r3
+    pub fn has_components(&self, t: BxDFType) -> bool {
+        for it in self.bxdfs.iter() {
+            let bxdf = it.as_ref();
+            if (bxdf.get_type() & t) != 0 {
+                return true;
+            }
+        }
+        return false;
+    }
+    // pbrt-r3
+
     pub fn world_to_local(&self, v: &Vector3f) -> Vector3f {
         let x = Vector3f::dot(v, &self.ss);
         let y = Vector3f::dot(v, &self.ts);

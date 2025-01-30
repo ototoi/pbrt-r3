@@ -319,23 +319,6 @@ impl MLTIntegrator {
         // Execute connection strategy and return the radiance estimate
         sampler.start_stream(CONNECTION_STREAM_INDEX);
 
-        let mut l = Spectrum::zero();
-
-        /* 
-        // Debugging code for classifying subpaths
-        if false {
-            use VertexClass as VC;
-            if classify_subpath(
-                &[VC::Camera, VC::TransmissionSurface, VC::Any],
-                &[VC::DistantLight, VC::Any, VC::Any],
-                camera_vertices,
-                light_vertices,
-            ) {
-                l += Spectrum::from(&[1.0, 0.2, 1.0]);
-            }
-        }
-        */
-
         if let Some((spec, _, p_raster_new)) = connect_bdpt(
             scene,
             &light_vertices,
@@ -348,7 +331,7 @@ impl MLTIntegrator {
             sampler,
             &p_raster,
         ) {
-            return (l + spec * n_strategies as Float, p_raster_new);
+            return (spec * n_strategies as Float, p_raster_new);
         } else {
             return (Spectrum::zero(), p_raster);
         }

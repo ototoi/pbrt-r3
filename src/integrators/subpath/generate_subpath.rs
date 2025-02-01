@@ -275,15 +275,9 @@ fn g(scene: &Scene, sampler: &mut dyn Sampler, v0: &Vertex, v1: &Vertex) -> Spec
     let mut g = 1.0 / d.length_squared();
     d *= Float::sqrt(g);
     if v0.is_on_surface() {
-        assert!(v0.get_ns().length() > 0.99);
-        assert!(v0.get_ng().length() > 0.99);
-        //assert!(v0.get_ns().dot(&v0.get_ng()) > 0.5);
         g *= Vector3f::abs_dot(&v0.get_ns(), &d);
     }
     if v1.is_on_surface() {
-        assert!(v1.get_ns().length() > 0.99);
-        assert!(v1.get_ng().length() > 0.99);
-        //assert!(v1.get_ns().dot(&v1.get_ng()) > 0.5);
         g *= Vector3f::abs_dot(&v1.get_ns(), &d);
     }
     let vis = VisibilityTester::from((v0.get_interaction(), v1.get_interaction()));

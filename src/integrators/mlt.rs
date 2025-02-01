@@ -318,7 +318,6 @@ impl MLTIntegrator {
 
         // Execute connection strategy and return the radiance estimate
         sampler.start_stream(CONNECTION_STREAM_INDEX);
-
         if let Some((spec, _, p_raster_new)) = connect_bdpt(
             scene,
             &light_vertices,

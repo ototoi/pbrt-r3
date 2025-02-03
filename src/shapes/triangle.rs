@@ -137,9 +137,9 @@ impl Triangle {
     ) -> Option<([Vector2f; 3], Vector3f, Vector3f)> {
         // Handle the case where there are no UVs
         // pbrt-r3
-        if self.mesh.uv.is_empty() {
-            return None;
-        }
+        //if self.mesh.uv.is_empty() {
+        //    return None;
+        //}
         // pbrt-r3
         let uv = self.get_uvs();
         // Compute deltas for triangle partial derivatives

@@ -24,8 +24,8 @@ impl MediumInteraction {
         let phase = phase.clone();
         MediumInteraction {
             p,
-            p_error: Vector3f::default(),
-            n: Normal3f::default(),
+            p_error: Vector3f::zero(),
+            n: Normal3f::zero(),
             time,
             wo,
             medium_interface,

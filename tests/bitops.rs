@@ -48,7 +48,7 @@ fn count_trailing_zeros_basics() {
 fn round_up_pow2_basics() {
     assert_eq!(8, round_up_pow2(7));
 
-    const MAX: i32 = 1 << 24;
+    const MAX: u32 = 1 << 24;
     for i in 1..MAX {
         if is_power_of_2(i) {
             assert_eq!(i, round_up_pow2(i));

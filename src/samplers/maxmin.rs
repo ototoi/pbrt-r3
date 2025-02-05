@@ -23,8 +23,8 @@ impl MaxMinDistSampler {
             //Warning
             warn!("No more than {} samples per pixel are supported with MaxMinDistSampler. Rounding down.", spp);
         }
-        if !is_power_of_2(spp as i32) {
-            spp = round_up_pow2(spp as i32) as u32;
+        if !is_power_of_2(spp) {
+            spp = round_up_pow2(spp);
 
             //Warning
             warn!(
@@ -134,7 +134,7 @@ impl Sampler for MaxMinDistSampler {
     }
 
     fn round_count(&self, n: u32) -> u32 {
-        return round_up_pow2(n as i32) as u32;
+        return round_up_pow2(n);
     }
 
     fn clone_with_seed(&self, seed: u32) -> Arc<RwLock<dyn Sampler>> {

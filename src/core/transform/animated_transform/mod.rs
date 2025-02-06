@@ -1,6 +1,6 @@
-pub mod animated_transform;
 pub mod decompose;
 pub mod derivatives;
 pub mod interval;
+pub mod transform;
 
-pub use animated_transform::AnimatedTransform;
+pub use transform::AnimatedTransform;

@@ -172,25 +172,23 @@ impl Transform {
         let min = q
             .iter()
             .map(|v| [v.x, v.y, v.z])
-            .reduce(|acc, v| {
+            .fold([q[0].x, q[0].y, q[0].z], |acc, v| {
                 return [
                     Float::min(acc[0], v[0]),
                     Float::min(acc[1], v[1]),
                     Float::min(acc[2], v[2]),
                 ];
-            })
-            .unwrap();
+            });
         let max = q
             .iter()
             .map(|v| [v.x, v.y, v.z])
-            .reduce(|acc, v| {
+            .fold([q[0].x, q[0].y, q[0].z], |acc, v| {
                 return [
                     Float::max(acc[0], v[0]),
                     Float::max(acc[1], v[1]),
                     Float::max(acc[2], v[2]),
                 ];
-            })
-            .unwrap();
+            });
         assert!(min[0] <= max[0]);
         assert!(min[1] <= max[1]);
         assert!(min[2] <= max[2]);

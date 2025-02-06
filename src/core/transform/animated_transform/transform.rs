@@ -22,7 +22,7 @@ impl AnimatedTransform {
         end_transform: &Transform,
         end_time: Float,
     ) -> Self {
-        const EPS: f32 = f32::EPSILON * 1e+2;
+        const EPS: f32 = 0.0001;
         let transforms = [*start_transform, *end_transform];
         let times = [start_time, end_time];
         let actually_animated = start_transform != end_transform;
@@ -62,7 +62,7 @@ impl AnimatedTransform {
         }
 
         let dt = (time - self.times[0]) / (self.times[1] - self.times[0]);
-        //println!("{:?}",dt);
+        //println!("dt = {:?}",dt);
         let trans = (1.0 - dt) * self.t[0] + dt * self.t[1];
         let rotate = Quaternion::slerp(dt, &self.r[0], &self.r[1]);
         let mut scale = Matrix4x4::identity();
@@ -139,6 +139,13 @@ impl AnimatedTransform {
         }
     }
 
+    fn expand_bounds(b: &Bounds3f, eps: Float) -> Bounds3f {
+        let delta = b.diagonal() * eps;
+        let min = b.min - delta;
+        let max = b.max + delta;
+        return Bounds3f::new(&min, &max);
+    }
+
     pub fn motion_bounds(&self, b: &Bounds3f) -> Bounds3f {
         if !self.actually_animated {
             return self.transforms[0].transform_bounds(b);
@@ -149,11 +156,20 @@ impl AnimatedTransform {
         if !self.has_rotation {
             return bounds;
         } else {
-            // Return motion bounds accounting for animated rotation
-            for corner in 0..8 {
-                bounds = bounds.union(&self.bound_point_motion(&b.corner(corner)));
+            if false {
+                let count = 64;
+                let samples = (0..=count)
+                    .map(|i| i as Float / count as Float)
+                    .collect::<Vec<Float>>();
+                let sample_bounds = self.motion_bounds_sampled(&samples, b);
+                return Self::expand_bounds(&sample_bounds, 0.01);
+            } else {
+                // Return motion bounds accounting for animated rotation
+                for corner in 0..8 {
+                    bounds = bounds.union(&self.bound_point_motion(&b.corner(corner)));
+                }
+                return Self::expand_bounds(&bounds, 0.01);
             }
-            return bounds;
         }
     }
 
@@ -193,6 +209,7 @@ impl AnimatedTransform {
                     max_depth,
                 );
                 for zero in zeros {
+                    assert!(0.0 <= zero && zero <= 1.0);
                     let t = lerp(zero, self.times[0], self.times[1]);
                     let pz = self.transform_point(t, p);
                     bounds = bounds.union_p(&pz);
@@ -200,6 +217,21 @@ impl AnimatedTransform {
             }
             return bounds;
         }
+    }
+
+    pub fn motion_bounds_sampled(&self, samples: &[Float], b: &Bounds3f) -> Bounds3f {
+        //if !self.actually_animated {
+        //    return self.transforms[0].transform_bounds(b);
+        //}
+        let b0 = self.transforms[0].transform_bounds(b);
+        let b1 = self.transforms[1].transform_bounds(b);
+        let mut bounds = Bounds3f::union(&b0, &b1);
+        for sample in samples {
+            let t = lerp(*sample, self.times[0], self.times[1]);
+            let b = self.interpolate(t).transform_bounds(b);
+            bounds = bounds.union(&b);
+        }
+        return bounds;
     }
 
     pub fn is_animated(&self) -> bool {

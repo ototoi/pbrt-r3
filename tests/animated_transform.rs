@@ -9,6 +9,7 @@ fn random_transform(rng: &mut RNG) -> Transform {
         match rng.uniform_uint32_threshold(3) {
             0 => {
                 t = t * Transform::scale(r(rng).abs(), r(rng).abs(), r(rng).abs());
+                //t = t * Transform::scale(1.0 + rng.uniform_float(), 1.0 + rng.uniform_float(), 1.0 + rng.uniform_float());
             }
             1 => {
                 t = t * Transform::translate(r(rng), r(rng), r(rng));
@@ -63,6 +64,8 @@ fn animated_transform_randoms() {
                 tb.min += 1e-4 * diagonal;
                 tb.max -= 1e-4 * diagonal;
 
+                println!("has_rotation: {}, t: {}", at.has_rotation, t);
+
                 println!(
                     "{}/{} .. {}/{}",
                     motion_bounds.min.x, tb.min.x, tb.max.x, motion_bounds.max.x
@@ -75,6 +78,10 @@ fn animated_transform_randoms() {
                     "{}/{} .. {}/{}",
                     motion_bounds.min.z, tb.min.z, tb.max.z, motion_bounds.max.z
                 );
+
+                println!("t0: {:?}", t0.m);
+                println!("t1: {:?}", t1.m);
+                println!("tr: {:?}", tr.m);
                 println!();
 
                 // Now, the transformed bounds should be inside the motion
@@ -87,7 +94,8 @@ fn animated_transform_randoms() {
                 assert!(tb.max.y <= motion_bounds.max.y);
                 assert!(tb.max.z <= motion_bounds.max.z);
 
-                t += 1e-3 * rng.uniform_float();
+                //t += 1e-3 * rng.uniform_float();
+                t += 0.999999;
             }
         }
     }

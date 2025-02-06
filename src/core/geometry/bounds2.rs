@@ -11,9 +11,9 @@ pub type Bounds2d = Bounds2<f64>;
 pub type Bounds2i = Bounds2<i32>;
 
 impl<T: Copy + PartialOrd> Bounds2<T> {
-    pub fn new(min: &Vector2<T>, max: &Vector2<T>) -> Self {
-        let min = Vector2::<T>::new(min_(min.x, max.x), min_(min.y, max.y));
-        let max = Vector2::<T>::new(max_(min.x, max.x), max_(min.y, max.y));
+    pub fn new(v0: &Vector2<T>, v1: &Vector2<T>) -> Self {
+        let min = Vector2::<T>::new(min_(v0.x, v1.x), min_(v0.y, v1.y));
+        let max = Vector2::<T>::new(max_(v0.x, v1.x), max_(v0.y, v1.y));
         Bounds2::<T> { min, max }
     }
 }

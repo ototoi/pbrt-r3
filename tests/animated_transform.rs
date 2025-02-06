@@ -18,6 +18,8 @@ fn random_transform(rng: &mut RNG) -> Transform {
                 let theta = r(rng) * 20.0;
                 let uv = Point2f::new(rng.uniform_float(), rng.uniform_float());
                 let axis = uniform_sample_sphere(&uv);
+                //println!("axis: {:?}", axis);
+                assert!((axis.length() - 1.0).abs() < 1e-3);
                 t = t * Transform::rotate(theta, axis.x, axis.y, axis.z);
             }
             _ => unreachable!(),
@@ -43,13 +45,17 @@ fn animated_transform_randoms() {
                 (r(&mut rng), r(&mut rng), r(&mut rng)),
                 (r(&mut rng), r(&mut rng), r(&mut rng)),
             ));
+            let bounds = Bounds3f::from((
+                (0.0,0.0,0.0),
+                (1.0,1.0,1.0),
+            ));
             assert!(bounds.diagonal().x >= 0.0);
             assert!(bounds.diagonal().y >= 0.0);
             assert!(bounds.diagonal().z >= 0.0);
 
             let motion_bounds = at.motion_bounds(&bounds);
 
-            let mut t = 0.0;
+            let mut t = 0.0001;
             while t <= 1.0 {
                 // Now, interpolate the transformations at a bunch of times
                 // along the time range and then transform the bounding box

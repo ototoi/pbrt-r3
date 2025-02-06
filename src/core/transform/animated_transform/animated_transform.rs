@@ -143,31 +143,33 @@ impl AnimatedTransform {
         if !self.actually_animated {
             return self.transforms[0].transform_bounds(b);
         }
+        let b0 = self.transforms[0].transform_bounds(b);
+        let b1 = self.transforms[1].transform_bounds(b);
+        let mut bounds = Bounds3f::union(&b0, &b1);
         if !self.has_rotation {
-            let b0 = self.transforms[0].transform_bounds(b);
-            let b1 = self.transforms[1].transform_bounds(b);
-            return Bounds3f::union(&b0, &b1);
-        }
-        {
-            let bounds_list: Vec<_> = (0..8)
-                .map(|i| -> Bounds3f { self.bound_point_motion(&b.corner(i)).unwrap() })
-                .collect();
-            let bx = bounds_list[1..8]
-                .iter()
-                .fold(bounds_list[0], |a, b| -> Bounds3f {
-                    return a.union(b);
-                });
-            return bx;
+            return bounds;
+        } else {
+            // Return motion bounds accounting for animated rotation
+            for corner in 0..8 {
+                bounds = bounds.union(&self.bound_point_motion(&b.corner(corner)));
+            }
+            return bounds;
         }
     }
 
-    pub fn bound_point_motion(&self, p: &Point3f) -> Option<Bounds3f> {
+    pub fn bound_point_motion(&self, p: &Point3f) -> Bounds3f {
         if !self.actually_animated {
-            return None;
+            let p = self.transforms[0].transform_point(p);
+            return Bounds3f::from((p.x, p.y, p.z));
         }
         if !self.has_rotation {
-            return None;
-        } else if let Some(derivatives) = self.derivatives.as_ref() {
+            let p0 = self.transforms[0].transform_point(p);
+            let p1 = self.transforms[1].transform_point(p);
+            let b0 = Bounds3f::from((p0.x, p0.y, p0.z));
+            let b1 = Bounds3f::from((p1.x, p1.y, p1.z));
+            return Bounds3f::union(&b0, &b1);
+        } else {
+            let derivatives = self.derivatives.as_ref().unwrap();
             let p0 = self.transforms[0].transform_point(p);
             let p1 = self.transforms[1].transform_point(p);
             let mut bounds = Bounds3f::new(&p0, &p1);
@@ -196,9 +198,8 @@ impl AnimatedTransform {
                     bounds = bounds.union_p(&pz);
                 }
             }
-            return Some(bounds);
+            return bounds;
         }
-        return None;
     }
 
     pub fn is_animated(&self) -> bool {

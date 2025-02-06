@@ -1,6 +1,6 @@
 use crate::core::pbrt::*;
 
-#[derive(Debug, PartialEq, Default, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Bounds2<T> {
     pub min: Vector2<T>,
     pub max: Vector2<T>,
@@ -102,6 +102,68 @@ impl<T: Copy> From<((T, T), (T, T))> for Bounds2<T> {
         Bounds2::<T> {
             min: Vector2::<T>::from(value.0),
             max: Vector2::<T>::from(value.1),
+        }
+    }
+}
+
+impl<T: Copy> From<(T, T)> for Bounds2<T> {
+    fn from(value: (T, T)) -> Self {
+        Bounds2::<T> {
+            min: Vector2::<T>::from(value),
+            max: Vector2::<T>::from(value),
+        }
+    }
+}
+
+pub struct Bounds2iIterator<'a> {
+    p: Point2i,
+    bounds: &'a Bounds2i,
+}
+
+impl<'a> Iterator for Bounds2iIterator<'a> {
+    type Item = Point2i;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.p.y < self.bounds.max.y && self.p.x < self.bounds.max.x {
+            let old = self.p;
+            self.p.x += 1;
+            if self.p.x == self.bounds.max.x {
+                self.p.x = self.bounds.min.x;
+                self.p.y += 1;
+            }
+            return Some(old);
+        } else {
+            return None;
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a Bounds2i {
+    type Item = Point2i;
+    type IntoIter = Bounds2iIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Bounds2iIterator {
+            p: self.min,
+            bounds: self,
+        }
+    }
+}
+
+impl Default for Bounds2i {
+    fn default() -> Self {
+        Bounds2i {
+            min: Point2i::new(std::i32::MAX, std::i32::MAX),
+            max: Point2i::new(std::i32::MIN, std::i32::MIN),
+        }
+    }
+}
+
+impl Default for Bounds2f {
+    fn default() -> Self {
+        Bounds2f {
+            min: Point2f::new(std::f32::MAX, std::f32::MAX),
+            max: Point2f::new(std::f32::MIN, std::f32::MIN),
         }
     }
 }

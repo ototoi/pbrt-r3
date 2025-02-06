@@ -1,7 +1,7 @@
 use super::intersect::*;
 use crate::core::pbrt::*;
 
-#[derive(Debug, PartialEq, Default, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Bounds3<T> {
     pub min: Vector3<T>,
     pub max: Vector3<T>,
@@ -180,6 +180,19 @@ impl Bounds3f {
         let d = self.diagonal();
         return 2.0 * (d.x * d.y + d.x * d.z + d.y * d.z);
     }
+
+    pub fn distance_squared(&self, p: &Point3f) -> Float {
+        let mut d = 0.0;
+        for i in 0..3 {
+            let delta = max_(0.0, max_(self.min[i] - p[i], p[i] - self.max[i]));
+            d += delta * delta;
+        }
+        return d;
+    }
+
+    pub fn distance(&self, p: &Point3f) -> Float {
+        return self.distance_squared(p).sqrt();
+    }
 }
 
 impl<T: Copy> From<((T, T, T), (T, T, T))> for Bounds3<T> {
@@ -187,6 +200,33 @@ impl<T: Copy> From<((T, T, T), (T, T, T))> for Bounds3<T> {
         Bounds3::<T> {
             min: Vector3::<T>::from(value.0),
             max: Vector3::<T>::from(value.1),
+        }
+    }
+}
+
+impl<T: Copy> From<(T, T, T)> for Bounds3<T> {
+    fn from(value: (T, T, T)) -> Self {
+        Bounds3::<T> {
+            min: Vector3::<T>::from(value),
+            max: Vector3::<T>::from(value),
+        }
+    }
+}
+
+impl Default for Bounds3i {
+    fn default() -> Self {
+        Bounds3i {
+            min: Point3i::new(std::i32::MAX, std::i32::MAX, std::i32::MAX),
+            max: Point3i::new(std::i32::MIN, std::i32::MIN, std::i32::MIN),
+        }
+    }
+}
+
+impl Default for Bounds3f {
+    fn default() -> Self {
+        Bounds3f {
+            min: Point3f::new(std::f32::MAX, std::f32::MAX, std::f32::MAX),
+            max: Point3f::new(std::f32::MIN, std::f32::MIN, std::f32::MIN),
         }
     }
 }

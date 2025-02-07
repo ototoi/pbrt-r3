@@ -40,7 +40,7 @@ impl AnimatedTransform {
         } else {
             None
         };
-        AnimatedTransform {
+        let at = AnimatedTransform {
             transforms,
             times,
             actually_animated,
@@ -49,7 +49,8 @@ impl AnimatedTransform {
             r,
             s,
             derivatives,
-        }
+        };
+        return at;
     }
 
     pub fn interpolate(&self, time: Float) -> Transform {
@@ -61,7 +62,14 @@ impl AnimatedTransform {
             return self.transforms[1];
         }
 
+        let (t, r, s) = self.interpolate_core(time);
+        let m = Matrix4x4::translate(t.x, t.y, t.z) * r.to_matrix() * s;
+        return Transform::from(m);
+    }
+
+    fn interpolate_core(&self, time: Float) -> (Vector3f, Quaternion, Matrix4x4) {
         let dt = (time - self.times[0]) / (self.times[1] - self.times[0]);
+        assert!(0.0 <= dt && dt <= 1.0, "dt = {}", dt);
         //println!("dt = {:?}",dt);
         let trans = (1.0 - dt) * self.t[0] + dt * self.t[1];
         let rotate = Quaternion::slerp(dt, &self.r[0], &self.r[1]);
@@ -71,8 +79,7 @@ impl AnimatedTransform {
                 scale.m[4 * i + j] = lerp(dt, self.s[0].m[4 * i + j], self.s[1].m[4 * i + j]);
             }
         }
-        let m = Matrix4x4::translate(trans.x, trans.y, trans.z) * rotate.to_matrix() * scale;
-        return Transform::from(m);
+        return (trans, rotate, scale);
     }
 
     pub fn transform_point(&self, time: Float, p: &Point3f) -> Point3f {
@@ -156,20 +163,11 @@ impl AnimatedTransform {
         if !self.has_rotation {
             return bounds;
         } else {
-            if false {
-                let count = 64;
-                let samples = (0..=count)
-                    .map(|i| i as Float / count as Float)
-                    .collect::<Vec<Float>>();
-                let sample_bounds = self.motion_bounds_sampled(&samples, b);
-                return Self::expand_bounds(&sample_bounds, 0.01);
-            } else {
-                // Return motion bounds accounting for animated rotation
-                for corner in 0..8 {
-                    bounds = bounds.union(&self.bound_point_motion(&b.corner(corner)));
-                }
-                return Self::expand_bounds(&bounds, 0.01);
+            // Return motion bounds accounting for animated rotation
+            for corner in 0..8 {
+                bounds = bounds.union(&self.bound_point_motion(&b.corner(corner)));
             }
+            return Self::expand_bounds(&bounds, 0.01);
         }
     }
 

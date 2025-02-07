@@ -11,6 +11,11 @@ pub struct Quaternion {
 
 impl Quaternion {
     pub fn new(x: Float, y: Float, z: Float, w: Float) -> Self {
+        let (x, y, z, w) = if w < 0.0 {
+            (-x, -y, -z, -w)
+        } else {
+            (x, y, z, w)
+        };
         Quaternion { x, y, z, w }
     }
 
@@ -72,6 +77,15 @@ impl Quaternion {
         m.m[4 * 2 + 1] = 2.0 * (yz - wx);
         m.m[4 * 2 + 2] = 1.0 - 2.0 * (xx + yy);
         return m.transpose();
+    }
+
+    pub fn from_angle_axis(angle: Float, axis: &Vector3f) -> Self {
+        let angle = angle.to_radians();
+        let half_angle = angle / 2.0;
+        let s = Float::sin(half_angle);
+        let w = Float::cos(half_angle);
+        let v = axis.normalize() * s;
+        return Quaternion::new(v.x, v.y, v.z, w);
     }
 }
 
@@ -173,19 +187,13 @@ impl From<Matrix4x4> for Quaternion {
             let x = q[0];
             let y = q[1];
             let z = q[2];
-            return Quaternion::new(x, y, z, w).normalize();
+            return Quaternion::new(x, y, z, w);
         }
     }
 }
 
 impl From<(Float, Vector3f)> for Quaternion {
     fn from((angle, axis): (Float, Vector3f)) -> Self {
-        let angle = angle.to_radians();
-        let half_angle = angle / 2.0;
-        let s = Float::sin(half_angle);
-        let w = Float::cos(half_angle);
-        let (s, w) = if w > 0.0 { (-s, -w) } else { (s, w) };
-        let v = axis.normalize() * s;
-        return Quaternion::new(v.x, v.y, v.z, w);
+        return Quaternion::from_angle_axis(angle, &axis);
     }
 }

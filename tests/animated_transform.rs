@@ -33,7 +33,6 @@ fn invertible(m: &Matrix4x4) -> bool {
     }
 }
 
-
 fn random_transform(rng: &mut RNG) -> Transform {
     let mut t = Transform::new();
     let r = |rng: &mut RNG| -10.0 + 20.0 * rng.uniform_float();
@@ -70,7 +69,7 @@ fn random_transform(rng: &mut RNG) -> Transform {
         //println!("axis: {:?}", axis);
         assert!((axis.length() - 1.0).abs() < 1e-3);
         //let qq = Quaternion::from_axis_angle(&axis, theta);
-        let q0 = Quaternion::from((theta, axis));
+        let q0 = Quaternion::from_angle_axis(theta, &axis);
         let rr0 = Transform::from(q0.to_matrix());
         let rr = Transform::rotate(theta, axis.x, axis.y, axis.z);
         let q1 = Quaternion::from(rr.m);

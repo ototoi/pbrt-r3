@@ -15,6 +15,11 @@ pub struct AnimatedTransform {
     pub derivatives: Option<[[DerivativeTerm; 3]; 5]>,
 }
 
+fn composite_transform(t: &Vector3f, r: &Quaternion, s: &Matrix4x4) -> Transform {
+    let m = Matrix4x4::translate(t.x, t.y, t.z) * r.to_matrix() * *s;
+    return Transform::from(m);
+}
+
 impl AnimatedTransform {
     pub fn new(
         start_transform: &Transform,
@@ -23,7 +28,6 @@ impl AnimatedTransform {
         end_time: Float,
     ) -> Self {
         const EPS: f32 = 0.0001;
-        let transforms = [*start_transform, *end_transform];
         let times = [start_time, end_time];
         let actually_animated = start_transform != end_transform;
         let (t0, r0, s0) = decompose(&start_transform.m, EPS, 100).unwrap();
@@ -40,6 +44,12 @@ impl AnimatedTransform {
         } else {
             None
         };
+
+        let transforms = [
+            composite_transform(&t[0], &r[0], &s[0]),
+            composite_transform(&t[1], &r[1], &s[1]),
+        ];
+
         let at = AnimatedTransform {
             transforms,
             times,

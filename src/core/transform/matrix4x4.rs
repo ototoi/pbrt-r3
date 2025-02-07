@@ -95,24 +95,8 @@ impl Matrix4x4 {
     }
 
     pub fn rotate(theta: Float, x: Float, y: Float, z: Float) -> Self {
-        let a = Vector3f::new(x, y, z).normalize();
-        let s = Float::sin(radians(theta));
-        let c = Float::cos(radians(theta));
-
-        let _m00 = a.x * a.x + (1.0 - a.x * a.x) * c;
-        let _m01 = a.x * a.y + (1.0 - a.x * a.x) * c;
-        /*
-        m.m[0][2] = a.x * a.y * (1 - c) + a.y * s;
-        m.m[0][3] = 0;
-        m.m[0][1] = x;
-        m.m[0][2] = a.x * a.z * (1 - c) + a.y * s;
-        m.m[0][3] = 0;
-        */
-        Matrix4x4 {
-            m: [
-                c, -s, 0.0, 0.0, s, c, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-            ],
-        }
+        let q = Quaternion::from((theta, Vector3f::new(x, y, z)));
+        return q.to_matrix();
     }
 
     pub fn scale(x: Float, y: Float, z: Float) -> Self {

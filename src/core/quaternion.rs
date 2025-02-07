@@ -173,7 +173,19 @@ impl From<Matrix4x4> for Quaternion {
             let x = q[0];
             let y = q[1];
             let z = q[2];
-            return Quaternion::new(x, y, z, w);
+            return Quaternion::new(x, y, z, w).normalize();
         }
+    }
+}
+
+impl From<(Float, Vector3f)> for Quaternion {
+    fn from((angle, axis): (Float, Vector3f)) -> Self {
+        let angle = angle.to_radians();
+        let half_angle = angle / 2.0;
+        let s = Float::sin(half_angle);
+        let w = Float::cos(half_angle);
+        let (s, w) = if w > 0.0 { (-s, -w) } else { (s, w) };
+        let v = axis.normalize() * s;
+        return Quaternion::new(v.x, v.y, v.z, w);
     }
 }

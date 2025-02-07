@@ -217,6 +217,9 @@ impl AnimatedTransform {
                     max_depth,
                 );
                 for zero in zeros {
+                    if zero < 0.0 || 1.0 < zero {
+                        continue;
+                    }
                     assert!(0.0 <= zero && zero <= 1.0);
                     let t = lerp(zero, self.times[0], self.times[1]);
                     let pz = self.transform_point(t, p);

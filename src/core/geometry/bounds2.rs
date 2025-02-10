@@ -10,12 +10,11 @@ pub type Bounds2f = Bounds2<f32>;
 pub type Bounds2d = Bounds2<f64>;
 pub type Bounds2i = Bounds2<i32>;
 
-impl<T: Copy> Bounds2<T> {
-    pub fn new(min: &Vector2<T>, max: &Vector2<T>) -> Self {
-        Bounds2::<T> {
-            min: *min,
-            max: *max,
-        }
+impl<T: Copy + PartialOrd> Bounds2<T> {
+    pub fn new(v0: &Vector2<T>, v1: &Vector2<T>) -> Self {
+        let min = Vector2::<T>::new(min_(v0.x, v1.x), min_(v0.y, v1.y));
+        let max = Vector2::<T>::new(max_(v0.x, v1.x), max_(v0.y, v1.y));
+        Bounds2::<T> { min, max }
     }
 }
 
@@ -97,12 +96,11 @@ impl Bounds2f {
     }
 }
 
-impl<T: Copy> From<((T, T), (T, T))> for Bounds2<T> {
+impl<T: Copy + PartialOrd> From<((T, T), (T, T))> for Bounds2<T> {
     fn from(value: ((T, T), (T, T))) -> Self {
-        Bounds2::<T> {
-            min: Vector2::<T>::from(value.0),
-            max: Vector2::<T>::from(value.1),
-        }
+        let min = Vector2::<T>::from(value.0);
+        let max = Vector2::<T>::from(value.1);
+        Bounds2::<T>::new(&min, &max)
     }
 }
 

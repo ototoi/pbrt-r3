@@ -11,12 +11,11 @@ pub type Bounds3f = Bounds3<f32>;
 pub type Bounds3d = Bounds3<f64>;
 pub type Bounds3i = Bounds3<i32>;
 
-impl<T: Copy> Bounds3<T> {
-    pub fn new(min: &Vector3<T>, max: &Vector3<T>) -> Self {
-        Bounds3::<T> {
-            min: *min,
-            max: *max,
-        }
+impl<T: Copy + PartialOrd> Bounds3<T> {
+    pub fn new(v0: &Vector3<T>, v1: &Vector3<T>) -> Self {
+        let min = Vector3::<T>::new(min_(v0.x, v1.x), min_(v0.y, v1.y), min_(v0.z, v1.z));
+        let max = Vector3::<T>::new(max_(v0.x, v1.x), max_(v0.y, v1.y), max_(v0.z, v1.z));
+        Bounds3::<T> { min, max }
     }
 
     pub fn corner(&self, i: usize) -> Vector3<T> {
@@ -30,7 +29,7 @@ impl<T: Copy> Bounds3<T> {
             5 => Vector3::<T>::new(self.max.x, self.min.y, self.max.z),
             6 => Vector3::<T>::new(self.min.x, self.max.y, self.max.z),
             7 => Vector3::<T>::new(self.max.x, self.max.y, self.max.z),
-            _ => Vector3::<T>::new(self.min.x, self.min.y, self.min.z),
+            _ => unreachable!(),
         };
     }
 }
@@ -195,12 +194,11 @@ impl Bounds3f {
     }
 }
 
-impl<T: Copy> From<((T, T, T), (T, T, T))> for Bounds3<T> {
+impl<T: Copy + PartialOrd> From<((T, T, T), (T, T, T))> for Bounds3<T> {
     fn from(value: ((T, T, T), (T, T, T))) -> Self {
-        Bounds3::<T> {
-            min: Vector3::<T>::from(value.0),
-            max: Vector3::<T>::from(value.1),
-        }
+        let min = Vector3::<T>::from(value.0);
+        let max = Vector3::<T>::from(value.1);
+        Bounds3::<T>::new(&min, &max)
     }
 }
 

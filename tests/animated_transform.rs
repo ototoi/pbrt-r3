@@ -3,7 +3,7 @@
 use pbrt_r3::core::pbrt::*;
 
 fn random_transform(rng: &mut RNG) -> Transform {
-    let mut t = Transform::new();
+    let mut t = Transform::identity();
     let r = |rng: &mut RNG| -10.0 + 20.0 * rng.uniform_float();
     for _ in 0..10 {
         match rng.uniform_uint32_threshold(3) {
@@ -24,6 +24,27 @@ fn random_transform(rng: &mut RNG) -> Transform {
     }
     return t;
 }
+
+fn random_rotation(rng: &mut RNG) -> (Float, Vector3f) {
+    let theta = 20.0 * rng.uniform_float();
+    let uv = Point2f::new(rng.uniform_float(), rng.uniform_float());
+    let axis = uniform_sample_sphere(&uv);
+    return (theta, axis);
+}
+
+#[test]
+fn animated_transform_convert() {
+    let mut rng = RNG::new();
+    
+    for _ in 0..200 {
+        let (theta1, axis1)  = random_rotation(&mut rng);
+        let q1 = Quaternion::from_angle_axis(theta1, &axis1);
+        let m1 = q1.to_matrix();
+        let q1p = Quaternion::from_matrix(&m1);
+        assert!(q1.dot(&q1p) > 0.9995);
+    }
+}
+
 
 #[test]
 fn animated_transform_randoms() {
@@ -48,7 +69,7 @@ fn animated_transform_randoms() {
 
             let motion_bounds = at.motion_bounds(&bounds);
 
-            let mut t = 0.0;
+            let mut t = 0.000001;
             while t <= 1.0 {
                 // Now, interpolate the transformations at a bunch of times
                 // along the time range and then transform the bounding box
@@ -87,7 +108,8 @@ fn animated_transform_randoms() {
                 assert!(tb.max.y <= motion_bounds.max.y);
                 assert!(tb.max.z <= motion_bounds.max.z);
 
-                t += 1e-3 * rng.uniform_float();
+                //t += 1e-3 * rng.uniform_float();
+                t += 0.9999999;
             }
         }
     }

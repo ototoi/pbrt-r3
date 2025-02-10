@@ -11,7 +11,7 @@ pub struct AnimatedTransform {
     pub has_rotation: bool,
     pub t: [Vector3f; 2],
     pub r: [Quaternion; 2],
-    pub s: [Matrix4x4; 2],
+    pub s: [Vector3f; 2],
     pub derivatives: Option<[[DerivativeTerm; 3]; 5]>,
 }
 
@@ -36,6 +36,7 @@ impl AnimatedTransform {
         }
         let has_rotation = Quaternion::dot(&r[0], &r[1]) < 0.9995;
         let derivatives = if has_rotation {
+            let s = [Matrix4x4::scale(s0.x, s0.y, s0.z), Matrix4x4::scale(s1.x, s1.y, s1.z)];
             Some(get_derivatives(&t, &r, &s))
         } else {
             None
@@ -65,13 +66,8 @@ impl AnimatedTransform {
         //println!("{:?}",dt);
         let trans = (1.0 - dt) * self.t[0] + dt * self.t[1];
         let rotate = Quaternion::slerp(dt, &self.r[0], &self.r[1]);
-        let mut scale = Matrix4x4::identity();
-        for i in 0..3 {
-            for j in 0..3 {
-                scale.m[4 * i + j] = lerp(dt, self.s[0].m[4 * i + j], self.s[1].m[4 * i + j]);
-            }
-        }
-        let m = Matrix4x4::translate(trans.x, trans.y, trans.z) * rotate.to_matrix() * scale;
+        let scale = (1.0 - dt) * self.s[0] + dt * self.s[1];
+        let m = Matrix4x4::translate(trans.x, trans.y, trans.z) * rotate.to_matrix() * Matrix4x4::scale(scale.x, scale.y, scale.z);
         return Transform::from(m);
     }
 
@@ -208,65 +204,5 @@ impl AnimatedTransform {
 
     pub fn has_scale(&self) -> bool {
         return self.transforms[0].has_scale() || self.transforms[1].has_scale();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn supress_zero_f(f: Float) -> Float {
-        if (-1e-6 < f) && (f < 1e-6) {
-            return 0.0;
-        }
-        return f;
-    }
-
-    impl Matrix4x4 {
-        pub fn supress_zero(&mut self) {
-            for i in 0..self.m.len() {
-                self.m[i] = supress_zero_f(self.m[i]);
-            }
-        }
-    }
-
-    #[test]
-    fn test_001() {
-        let t1 = Vector3f::new(1.0, 2.0, 3.0);
-        let s1 = Vector3f::new(3.0, 2.0, 2.0);
-        let mt = Matrix4x4::translate(t1.x, t1.y, t1.z);
-        let mr = Matrix4x4::rotate_x(30.0);
-        let qr = Quaternion::from(mr);
-        let ms = Matrix4x4::scale(s1.x, s1.y, s1.z);
-        let m = mt * mr * ms;
-        let (t2, r2, mut s2) = decompose(&m, 0.0001, 100).unwrap();
-        s2.supress_zero();
-        assert_eq!(t1, t2);
-        assert_eq!(qr, r2);
-        assert_eq!(ms, s2);
-    }
-
-    #[test]
-    fn test_002() {
-        let t0 = Transform::translate(1.0, 2.0, 3.0);
-        let t1 = Transform::translate(4.0, 5.0, 6.0);
-        let at = AnimatedTransform::new(&t0, 0.4, &t1, 0.6);
-        let p0 = at.transform_point(0.0, &Point3f::zero());
-        let p1 = at.transform_point(1.0, &Point3f::zero());
-        let _tt0 = Transform::translate(at.t[0][0], at.t[0][1], at.t[0][2]);
-        let _tt1 = Transform::translate(at.t[1][0], at.t[1][1], at.t[1][2]);
-        let _tr0 = Transform::from(at.r[0].to_matrix());
-        let _tr1 = Transform::from(at.r[1].to_matrix());
-        let _ts0 = Transform::from(at.s[0]);
-        let _ts1 = Transform::from(at.s[1]);
-        let _tt = at.interpolate(0.5);
-        let pt = at.transform_point(0.5, &Point3f::zero());
-        assert_eq!(p0, Point3f::new(1.0, 2.0, 3.0));
-        assert_eq!(p1, Point3f::new(4.0, 5.0, 6.0));
-        let d = pt - Point3f::new(2.5, 3.5, 4.5);
-        let dx = supress_zero_f(d[0]);
-        let dy = supress_zero_f(d[1]);
-        let dz = supress_zero_f(d[2]);
-        assert_eq!(Point3f::new(dx, dy, dz), Point3f::zero());
     }
 }

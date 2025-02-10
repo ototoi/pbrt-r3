@@ -41,7 +41,7 @@ fn animated_transform_convert() {
         let q1 = Quaternion::from_angle_axis(theta1, &axis1);
         let m1 = q1.to_matrix();
         let q1p = Quaternion::from_matrix(&m1);
-        assert!(q1.dot(&q1p) > 0.9995);
+        assert!(q1.dot(&q1p) > 0.9999, "{:?} {:?}", q1, q1p);
     }
 }
 

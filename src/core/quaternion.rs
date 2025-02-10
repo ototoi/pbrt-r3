@@ -37,8 +37,8 @@ impl Quaternion {
         return Quaternion::new(self.x / l, self.y / l, self.z / l, self.w / l);
     }
 
-    pub fn dot(q1: &Quaternion, q2: &Quaternion) -> Float {
-        return (q1.x * q2.x) + (q1.y * q2.y) + (q1.z * q2.z) + (q1.w * q2.w);
+    pub fn dot(&self, q2: &Quaternion) -> Float {
+        return (self.x * q2.x) + (self.y * q2.y) + (self.z * q2.z) + (self.w * q2.w);
     }
 
     pub fn slerp(t: Float, q1: &Quaternion, q2: &Quaternion) -> Quaternion {

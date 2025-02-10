@@ -17,7 +17,7 @@ pub fn decompose(
     m: &Matrix4x4,
     epsilon: Float,
     max_count: i32,
-) -> Option<(Vector3f, Quaternion, Matrix4x4)> {
+) -> Option<(Vector3f, Quaternion, Vector3f)> {
     // Extract translation _T_ from transformation matrix
     let t = Vector3f::new(m.m[4 * 0 + 3], m.m[4 * 1 + 3], m.m[4 * 2 + 3]);
 
@@ -42,9 +42,9 @@ pub fn decompose(
                     r_next.m[4 * i + j] = lerp(0.5, r.m[4 * i + j], r_it.m[4 * i + j]);
                 }
             }
-            assert!(invertible(&r_next));
 
             // pbrt-r3
+            assert!(invertible(&r_next));
             if let Some(ir_next) = r_next.inverse() {
                 let s = supress_for_scale(ir_next * mm);
                 if let Some(is) = s.inverse() {
@@ -77,6 +77,7 @@ pub fn decompose(
             r = mm * is;
         }
         let q = Quaternion::from(r);
+        let s = Vector3f::new(s.m[0], s.m[5], s.m[10]);
         return Some((t, q, s));
     }
     return None;

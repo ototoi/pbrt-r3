@@ -12,9 +12,9 @@ pub type Bounds3d = Bounds3<f64>;
 pub type Bounds3i = Bounds3<i32>;
 
 impl<T: Copy + PartialOrd> Bounds3<T> {
-    pub fn new(min: &Vector3<T>, max: &Vector3<T>) -> Self {
-        let min = Vector3::<T>::new(min_(min.x, max.x), min_(min.y, max.y), min_(min.z, max.z));
-        let max = Vector3::<T>::new(max_(min.x, max.x), max_(min.y, max.y), max_(min.z, max.z));
+    pub fn new(v0: &Vector3<T>, v1: &Vector3<T>) -> Self {
+        let min = Vector3::<T>::new(min_(v0.x, v1.x), min_(v0.y, v1.y), min_(v0.z, v1.z));
+        let max = Vector3::<T>::new(max_(v0.x, v1.x), max_(v0.y, v1.y), max_(v0.z, v1.z));
         Bounds3::<T> { min, max }
     }
 

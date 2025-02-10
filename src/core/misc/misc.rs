@@ -61,12 +61,13 @@ pub fn quadratic(a: Float, b: Float, c: Float) -> Option<(Float, Float)> {
 }
 
 #[inline]
-pub fn is_power_of_2(v: i32) -> bool {
+pub fn is_power_of_2(v: u32) -> bool {
+    let v = v as u32;
     return (v != 0) && ((v & (v - 1)) == 0);
 }
 
 #[inline]
-pub fn round_up_pow2(v: i32) -> i32 {
+pub fn round_up_pow2(v: u32) -> u32 {
     let mut v = v;
     v -= 1;
     v |= v >> 1;
@@ -126,6 +127,11 @@ pub fn find_interval_range(
 #[inline]
 pub fn log2int(v: u32) -> u32 {
     return 31 - v.leading_zeros();
+}
+
+#[inline]
+pub fn log2_int64(v: u64) -> u32 {
+    return 63 - v.leading_zeros();
 }
 
 #[inline]

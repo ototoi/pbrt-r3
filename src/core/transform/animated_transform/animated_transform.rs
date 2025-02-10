@@ -36,7 +36,10 @@ impl AnimatedTransform {
         }
         let has_rotation = Quaternion::dot(&r[0], &r[1]) < 0.9995;
         let derivatives = if has_rotation {
-            let s = [Matrix4x4::scale(s0.x, s0.y, s0.z), Matrix4x4::scale(s1.x, s1.y, s1.z)];
+            let s = [
+                Matrix4x4::scale(s0.x, s0.y, s0.z),
+                Matrix4x4::scale(s1.x, s1.y, s1.z),
+            ];
             Some(get_derivatives(&t, &r, &s))
         } else {
             None
@@ -67,7 +70,9 @@ impl AnimatedTransform {
         let trans = (1.0 - dt) * self.t[0] + dt * self.t[1];
         let rotate = Quaternion::slerp(dt, &self.r[0], &self.r[1]);
         let scale = (1.0 - dt) * self.s[0] + dt * self.s[1];
-        let m = Matrix4x4::translate(trans.x, trans.y, trans.z) * rotate.to_matrix() * Matrix4x4::scale(scale.x, scale.y, scale.z);
+        let m = Matrix4x4::translate(trans.x, trans.y, trans.z)
+            * rotate.to_matrix()
+            * Matrix4x4::scale(scale.x, scale.y, scale.z);
         return Transform::from(m);
     }
 
@@ -145,9 +150,18 @@ impl AnimatedTransform {
         if !self.has_rotation {
             return bounds;
         } else {
-            // Return motion bounds accounting for animated rotation
-            for corner in 0..8 {
-                bounds = bounds.union(&self.bound_point_motion(&b.corner(corner)));
+            if true {
+                let count = 64;
+                (1..count).into_iter().map(|i| {
+                    let t = lerp(i as Float / count as Float, self.times[0], self.times[1]);
+                    let tr = self.interpolate(t);
+                    tr.transform_bounds(b)
+                }).fold(bounds, |acc, x| Bounds3f::union(&acc, &x));
+            } else {
+                // Return motion bounds accounting for animated rotation
+                for corner in 0..8 {
+                    bounds = bounds.union(&self.bound_point_motion(&b.corner(corner)));
+                }
             }
             return bounds;
         }

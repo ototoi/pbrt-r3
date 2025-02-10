@@ -38,10 +38,10 @@ fn animated_transform_convert() {
     
     for _ in 0..200 {
         let (theta1, axis1)  = random_rotation(&mut rng);
-        let q1 = Quaternion::from_angle_axis(theta1, &axis1);
+        let q1 = Quaternion::from_angle_axis(theta1, &axis1).normalize();
         let m1 = q1.to_matrix();
         let q1p = Quaternion::from_matrix(&m1);
-        assert!(q1.dot(&q1p) > 0.9999, "{:?} {:?}", q1, q1p);
+        assert!(q1.dot(&q1p) > 0.99999, "{:?} {:?} - {} {} - {} {}", q1, q1p, Vector3::new(q1.x, q1.y, q1.z).length(), Vector3::new(q1p.x, q1p.y, q1p.z).length(), (1.0 - q1.w * q1.w).sqrt(), (1.0 - q1p.w * q1p.w).sqrt());
     }
 }
 

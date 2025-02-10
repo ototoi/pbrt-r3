@@ -41,6 +41,7 @@ impl Quaternion {
         return (self.x * q2.x) + (self.y * q2.y) + (self.z * q2.z) + (self.w * q2.w);
     }
 
+    /*
     pub fn slerp(t: Float, q1: &Quaternion, q2: &Quaternion) -> Quaternion {
         const T: Float = 1.0 - Float::EPSILON;
 
@@ -52,6 +53,13 @@ impl Quaternion {
             let s = Float::recip(Float::sin(theta));
             return ((*q1) * Float::sin((1.0 - t) * theta) + (*q2) * Float::sin(t * theta)) * s;
         }
+    }
+    */
+    pub fn slerp(t: Float, q1: &Quaternion, q2: &Quaternion) -> Quaternion {
+        let c = Self::dot(q1, q2);
+        let theta = Float::acos(c);
+        let s = 1.0 / Float::sin(theta);
+        return ((*q1) * Float::sin((1.0 - t) * theta) + (*q2) * Float::sin(t * theta)) * s;
     }
 
     pub fn to_matrix(&self) -> Matrix4x4 {
@@ -91,6 +99,7 @@ impl Quaternion {
         return Quaternion::new(v.x, v.y, v.z, cos_theta);
     }
 
+    /*
     pub fn from_matrix(m: &Matrix4x4) -> Self {
         let trace = m.m[0] + m.m[5] + m.m[10];
         if trace > 0.0 {
@@ -98,17 +107,17 @@ impl Quaternion {
             // 4w^2 = m[0][0] + m[1][1] + m[2][2] + m[3][3] (but m[3][3] == 1)
             let s = Float::sqrt(trace + 1.0);
             let w = s / 2.0;
-            let s2 = 0.5 / s;
-            let x = (m.m[4 * 2 + 1] - m.m[4 * 1 + 2]) * s2; //21 12
-            let y = (m.m[4 * 0 + 2] - m.m[4 * 2 + 0]) * s2; //02 20
-            let z = (m.m[4 * 1 + 0] - m.m[4 * 0 + 1]) * s2; //10 01
+            let s = 0.5 / s;
+            let x = (m.m[4 * 2 + 1] - m.m[4 * 1 + 2]) * s; //21 12
+            let y = (m.m[4 * 0 + 2] - m.m[4 * 2 + 0]) * s; //02 20
+            let z = (m.m[4 * 1 + 0] - m.m[4 * 0 + 1]) * s; //10 01
             return Quaternion::new(x, y, z, w);
         } else {
             // Compute largest of $x$, $y$, or $z$, then remaining components
             let nxt = [1, 2, 0];
             let mut q = [0.0; 3];
             let mut i = 0;
-            if m.m[4 * 1 + 1] > m.m[4 * 0 + 0] {
+            if m.m[4 * 1 + 1] > m.m[4 * i + i] {
                 i = 1;
             }
             if m.m[4 * 2 + 2] > m.m[4 * i + i] {
@@ -125,9 +134,45 @@ impl Quaternion {
             let w = (m.m[4 * k + j] - m.m[4 * j + k]) * s;
             q[j] = (m.m[4 * j + i] + m.m[4 * i + j]) * s;
             q[k] = (m.m[4 * k + i] + m.m[4 + i + k]) * s;
+
             let x = q[0];
             let y = q[1];
             let z = q[2];
+            return Quaternion::new(x, y, z, w);
+        }
+    }
+    */
+    pub fn from_matrix(m: &Matrix4x4) -> Self {
+        let trace = m.m[0] + m.m[5] + m.m[10];
+        if trace > 0.0 {
+            // Compute w from matrix trace, then xyz
+            // 4w^2 = m[0][0] + m[1][1] + m[2][2] + m[3][3] (but m[3][3] == 1)
+            let s = Float::sqrt(trace + 1.0) * 2.0;
+            let x = (m.m[4 * 2 + 1] - m.m[4 * 1 + 2]) / s; //21 12
+            let y = (m.m[4 * 0 + 2] - m.m[4 * 2 + 0]) / s; //02 20
+            let z = (m.m[4 * 1 + 0] - m.m[4 * 0 + 1]) / s; //10 01
+            let w = s / 4.0;
+            return Quaternion::new(x, y, z, w);
+        } else if m.m[4 * 0 + 0] > m.m[4 * 1 + 1] && m.m[4 * 0 + 0] > m.m[4 * 2 + 2] {
+            let s = Float::sqrt(1.0 + m.m[4 * 0 + 0] - m.m[4 * 1 + 1] - m.m[4 * 2 + 2]) * 2.0;
+            let x = s / 4.0;
+            let y = (m.m[4 * 1 + 0] + m.m[4 * 0 + 1]) / s;
+            let z = (m.m[4 * 0 + 2] + m.m[4 * 2 + 0]) / s;
+            let w = (m.m[4 * 2 + 1] - m.m[4 * 1 + 2]) / s;
+            return Quaternion::new(x, y, z, w);
+        } else if m.m[4 * 1 + 1] > m.m[4 * 2 + 2] {
+            let s = Float::sqrt(1.0 + m.m[4 * 1 + 1] - m.m[4 * 0 + 0] - m.m[4 * 2 + 2]) * 2.0;
+            let x = (m.m[4 * 1 + 0] + m.m[4 * 0 + 1]) / s;
+            let y = s / 4.0;
+            let z = (m.m[4 * 2 + 1] + m.m[4 * 1 + 2]) / s;
+            let w = (m.m[4 * 0 + 2] - m.m[4 * 2 + 0]) / s;
+            return Quaternion::new(x, y, z, w);
+        } else {
+            let s = Float::sqrt(1.0 + m.m[4 * 2 + 2] - m.m[4 * 0 + 0] - m.m[4 * 1 + 1]) * 2.0;
+            let x = (m.m[4 * 0 + 2] + m.m[4 * 2 + 0]) / s;
+            let y = (m.m[4 * 2 + 1] + m.m[4 * 1 + 2]) / s;
+            let z = s / 4.0;
+            let w = (m.m[4 * 1 + 0] - m.m[4 * 0 + 1]) / s;
             return Quaternion::new(x, y, z, w);
         }
     }
@@ -157,6 +202,7 @@ impl ops::Sub<Quaternion> for Quaternion {
     }
 }
 
+/*
 impl ops::Mul<Quaternion> for Quaternion {
     type Output = Quaternion;
     fn mul(self, rhs: Quaternion) -> Quaternion {
@@ -168,6 +214,7 @@ impl ops::Mul<Quaternion> for Quaternion {
         }
     }
 }
+*/
 
 impl ops::Mul<Float> for Quaternion {
     type Output = Quaternion;

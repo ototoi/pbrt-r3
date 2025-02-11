@@ -393,8 +393,8 @@ impl Shape for Triangle {
             //ns x ss -> ts
             //ss x ts -> ns
             //ts x ns -> ss
-            //let mut ts = Vector3f::cross(&ss, &ns); //pbrt-v3
-            let mut ts = Vector3f::cross(&ns, &ss); //zx->y //pbrt-r3
+            let mut ts = Vector3f::cross(&ss, &ns); //pbrt-v3
+            //let mut ts = Vector3f::cross(&ns, &ss); //zx->y //pbrt-r3
             if ts.length_squared() > 0.0 {
                 ts = ts.normalize();
                 ss = Vector3f::cross(&ts, &ns).normalize(); //yz->x

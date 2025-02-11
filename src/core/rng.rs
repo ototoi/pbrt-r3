@@ -10,7 +10,7 @@ const PCG32_DEFAULT_STATE: u64 = 0x853c49e6748fea9b;
 const PCG32_DEFAULT_STREAM: u64 = 0xda3e39cb94b95bdb;
 const PCG32_MULT: u64 = 0x5851f42d4c957f2d;
 
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct RNG {
     pub state: u64,
     pub inc: u64,
@@ -65,6 +65,12 @@ impl RNG {
     pub fn uniform_float(&mut self) -> f32 {
         let f: f32 = self.uniform_uint32() as f32 * 2.3283064365386963e-10;
         return ONE_MINUS_EPSILON.min(f);
+    }
+}
+
+impl Default for RNG {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

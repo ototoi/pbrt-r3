@@ -10,7 +10,7 @@ fn radians(x: Float) -> Float {
     return x * (PI / 180.0);
 }
 
-#[derive(Debug, PartialEq, Default, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Transform {
     pub m: Matrix4x4,
     pub minv: Matrix4x4,
@@ -191,6 +191,12 @@ impl Transform {
                 ];
             })
             .unwrap();
+        assert!(min[0] <= max[0]);
+        assert!(min[1] <= max[1]);
+        assert!(min[2] <= max[2]);
+        assert!(q.iter().all(|v| v.x >= min[0] && v.x <= max[0]));
+        assert!(q.iter().all(|v| v.y >= min[1] && v.y <= max[1]));
+        assert!(q.iter().all(|v| v.z >= min[2] && v.z <= max[2]));
         return Bounds3f::from(((min[0], min[1], min[2]), (max[0], max[1], max[2])));
     }
 
@@ -356,6 +362,12 @@ impl Transform {
             - m.m[4 * 0 + 1] * (m.m[4 * 1 + 0] * m.m[4 * 2 + 2] - m.m[4 * 1 + 2] * m.m[4 * 2 + 0])
             + m.m[4 * 0 + 2] * (m.m[4 * 1 + 0] * m.m[4 * 2 + 1] - m.m[4 * 1 + 1] * m.m[4 * 2 + 0]);
         return Float::abs(det) < 0.01 || (la2 < 0.01 || lb2 < 0.01 || lc2 < 0.01);
+    }
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

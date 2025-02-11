@@ -14,12 +14,12 @@ pub struct SobolSampler {
 }
 
 impl SobolSampler {
-    pub fn new(samples_per_pixel: u64, sample_bounds: &Bounds2i) -> Self {
+    pub fn new(samples_per_pixel: u32, sample_bounds: &Bounds2i) -> Self {
         let diagonal = sample_bounds.diagonal();
-        let resolution = (round_up_pow2(i32::max(diagonal.x, diagonal.y))) as u32;
+        let resolution = round_up_pow2(u32::max(diagonal.x as u32, diagonal.y as u32));
         let log2_resolution = log2int(resolution);
         SobolSampler {
-            base: BaseGlobalSampler::new(round_up_pow2(samples_per_pixel as i32) as u32),
+            base: BaseGlobalSampler::new(round_up_pow2(samples_per_pixel)),
             //dimension: 0,
             //dimension_1d: 0,
             //dimension_2d: 0,
@@ -192,7 +192,7 @@ pub fn create_sobol_sampler(
     params: &ParamSet,
     sample_bounds: &Bounds2i,
 ) -> Result<Arc<RwLock<dyn Sampler>>, PbrtError> {
-    let mut nsamp = params.find_one_int("pixelsamples", 16) as u64;
+    let mut nsamp = params.find_one_int("pixelsamples", 16) as u32;
     {
         let options = PbrtOptions::get();
         if options.quick_render {

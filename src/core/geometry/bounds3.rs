@@ -1,7 +1,7 @@
 use super::intersect::*;
 use crate::core::pbrt::*;
 
-#[derive(Debug, PartialEq, Default, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Bounds3<T> {
     pub min: Vector3<T>,
     pub max: Vector3<T>,
@@ -11,12 +11,11 @@ pub type Bounds3f = Bounds3<f32>;
 pub type Bounds3d = Bounds3<f64>;
 pub type Bounds3i = Bounds3<i32>;
 
-impl<T: Copy> Bounds3<T> {
-    pub fn new(min: &Vector3<T>, max: &Vector3<T>) -> Self {
-        Bounds3::<T> {
-            min: *min,
-            max: *max,
-        }
+impl<T: Copy + PartialOrd> Bounds3<T> {
+    pub fn new(v0: &Vector3<T>, v1: &Vector3<T>) -> Self {
+        let min = Vector3::<T>::new(min_(v0.x, v1.x), min_(v0.y, v1.y), min_(v0.z, v1.z));
+        let max = Vector3::<T>::new(max_(v0.x, v1.x), max_(v0.y, v1.y), max_(v0.z, v1.z));
+        Bounds3::<T> { min, max }
     }
 
     pub fn corner(&self, i: usize) -> Vector3<T> {
@@ -30,7 +29,7 @@ impl<T: Copy> Bounds3<T> {
             5 => Vector3::<T>::new(self.max.x, self.min.y, self.max.z),
             6 => Vector3::<T>::new(self.min.x, self.max.y, self.max.z),
             7 => Vector3::<T>::new(self.max.x, self.max.y, self.max.z),
-            _ => Vector3::<T>::new(self.min.x, self.min.y, self.min.z),
+            _ => unreachable!(),
         };
     }
 }
@@ -180,13 +179,52 @@ impl Bounds3f {
         let d = self.diagonal();
         return 2.0 * (d.x * d.y + d.x * d.z + d.y * d.z);
     }
+
+    pub fn distance_squared(&self, p: &Point3f) -> Float {
+        let mut d = 0.0;
+        for i in 0..3 {
+            let delta = max_(0.0, max_(self.min[i] - p[i], p[i] - self.max[i]));
+            d += delta * delta;
+        }
+        return d;
+    }
+
+    pub fn distance(&self, p: &Point3f) -> Float {
+        return self.distance_squared(p).sqrt();
+    }
 }
 
-impl<T: Copy> From<((T, T, T), (T, T, T))> for Bounds3<T> {
+impl<T: Copy + PartialOrd> From<((T, T, T), (T, T, T))> for Bounds3<T> {
     fn from(value: ((T, T, T), (T, T, T))) -> Self {
+        let min = Vector3::<T>::from(value.0);
+        let max = Vector3::<T>::from(value.1);
+        Bounds3::<T>::new(&min, &max)
+    }
+}
+
+impl<T: Copy> From<(T, T, T)> for Bounds3<T> {
+    fn from(value: (T, T, T)) -> Self {
         Bounds3::<T> {
-            min: Vector3::<T>::from(value.0),
-            max: Vector3::<T>::from(value.1),
+            min: Vector3::<T>::from(value),
+            max: Vector3::<T>::from(value),
+        }
+    }
+}
+
+impl Default for Bounds3i {
+    fn default() -> Self {
+        Bounds3i {
+            min: Point3i::new(std::i32::MAX, std::i32::MAX, std::i32::MAX),
+            max: Point3i::new(std::i32::MIN, std::i32::MIN, std::i32::MIN),
+        }
+    }
+}
+
+impl Default for Bounds3f {
+    fn default() -> Self {
+        Bounds3f {
+            min: Point3f::new(std::f32::MAX, std::f32::MAX, std::f32::MAX),
+            max: Point3f::new(std::f32::MIN, std::f32::MIN, std::f32::MIN),
         }
     }
 }

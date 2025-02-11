@@ -204,12 +204,12 @@ fn resample_image(
     swrap_mode: ImageWrap,
     twrap_mode: ImageWrap,
 ) -> ((usize, usize), Vec<f32>) {
-    if is_power_of_2(resolution.0 as i32) && is_power_of_2(resolution.1 as i32) {
+    if is_power_of_2(resolution.0 as u32) && is_power_of_2(resolution.1 as u32) {
         return (resolution, Vec::from(img));
     } else {
         let res_pow2 = (
-            round_up_pow2(resolution.0 as i32) as usize,
-            round_up_pow2(resolution.1 as i32) as usize,
+            round_up_pow2(resolution.0 as u32) as usize,
+            round_up_pow2(resolution.1 as u32) as usize,
         );
         let ratio = (res_pow2.0 * res_pow2.1) as Float / (resolution.0 * resolution.1) as Float;
         info!(

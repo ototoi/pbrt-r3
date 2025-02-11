@@ -104,19 +104,19 @@ pub fn count_trailing_zeros(v: u32) -> u32 {
 #[inline]
 pub fn find_interval(v: &[Float], pred: &dyn Fn(&[Float], usize) -> bool) -> usize {
     let mut first = 0;
-    let mut len = v.len();
+    let mut len = v.len() as i64;
     while len > 0 {
         let half = len.wrapping_shr(1);
         let middle = first + half;
         // Bisect range based on value of _pred_ at _middle_
-        if pred(v, middle) {
+        if pred(v, middle as usize) {
             first = middle + 1;
             len -= half + 1;
         } else {
             len = half;
         }
     }
-    return usize::clamp(first - 1, 0, v.len() - 2);
+    return i64::clamp(first - 1, 0, v.len() as i64 - 2) as usize;
 }
 
 #[inline]

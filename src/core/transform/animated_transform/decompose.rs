@@ -77,6 +77,7 @@ pub fn decompose(
             r = mm * is;
         }
         let q = Quaternion::from(r);
+        let q = q.normalize(); //pbrt-r3
         let s = Vector3f::new(s.m[0], s.m[5], s.m[10]);
         return Some((t, q, s));
     }

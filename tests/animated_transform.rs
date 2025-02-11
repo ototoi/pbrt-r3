@@ -35,16 +35,24 @@ fn random_rotation(rng: &mut RNG) -> (Float, Vector3f) {
 #[test]
 fn animated_transform_convert() {
     let mut rng = RNG::new();
-    
+
     for _ in 0..200 {
-        let (theta1, axis1)  = random_rotation(&mut rng);
+        let (theta1, axis1) = random_rotation(&mut rng);
         let q1 = Quaternion::from_angle_axis(theta1, &axis1).normalize();
         let m1 = q1.to_matrix();
         let q1p = Quaternion::from_matrix(&m1);
-        assert!(q1.dot(&q1p) > 0.99999, "{:?} {:?} - {} {} - {} {}", q1, q1p, Vector3::new(q1.x, q1.y, q1.z).length(), Vector3::new(q1p.x, q1p.y, q1p.z).length(), (1.0 - q1.w * q1.w).sqrt(), (1.0 - q1p.w * q1p.w).sqrt());
+        assert!(
+            q1.dot(&q1p) > 0.99999,
+            "{:?} {:?} - {} {} - {} {}",
+            q1,
+            q1p,
+            Vector3::new(q1.x, q1.y, q1.z).length(),
+            Vector3::new(q1p.x, q1p.y, q1p.z).length(),
+            (1.0 - q1.w * q1.w).sqrt(),
+            (1.0 - q1p.w * q1p.w).sqrt()
+        );
     }
 }
-
 
 #[test]
 fn animated_transform_randoms() {
@@ -69,7 +77,7 @@ fn animated_transform_randoms() {
 
             let motion_bounds = at.motion_bounds(&bounds);
 
-            let mut t = 0.000001;
+            let mut t = 0.0;
             while t <= 1.0 {
                 // Now, interpolate the transformations at a bunch of times
                 // along the time range and then transform the bounding box
@@ -84,20 +92,6 @@ fn animated_transform_randoms() {
                 tb.min += 1e-4 * diagonal;
                 tb.max -= 1e-4 * diagonal;
 
-                println!(
-                    "{}/{} .. {}/{}",
-                    motion_bounds.min.x, tb.min.x, tb.max.x, motion_bounds.max.x
-                );
-                println!(
-                    "{}/{} .. {}/{}",
-                    motion_bounds.min.y, tb.min.y, tb.max.y, motion_bounds.max.y
-                );
-                println!(
-                    "{}/{} .. {}/{}",
-                    motion_bounds.min.z, tb.min.z, tb.max.z, motion_bounds.max.z
-                );
-                println!();
-
                 // Now, the transformed bounds should be inside the motion
                 // bounds.
                 assert!(tb.min.x >= motion_bounds.min.x);
@@ -108,8 +102,7 @@ fn animated_transform_randoms() {
                 assert!(tb.max.y <= motion_bounds.max.y);
                 assert!(tb.max.z <= motion_bounds.max.z);
 
-                //t += 1e-3 * rng.uniform_float();
-                t += 0.9999999;
+                t += 1e-3 * rng.uniform_float();
             }
         }
     }

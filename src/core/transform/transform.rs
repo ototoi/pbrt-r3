@@ -194,6 +194,9 @@ impl Transform {
         assert!(min[0] <= max[0]);
         assert!(min[1] <= max[1]);
         assert!(min[2] <= max[2]);
+        assert!(q.iter().all(|v| v.x >= min[0] && v.x <= max[0]));
+        assert!(q.iter().all(|v| v.y >= min[1] && v.y <= max[1]));
+        assert!(q.iter().all(|v| v.z >= min[2] && v.z <= max[2]));
         return Bounds3f::from(((min[0], min[1], min[2]), (max[0], max[1], max[2])));
     }
 

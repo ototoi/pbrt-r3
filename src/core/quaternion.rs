@@ -41,25 +41,16 @@ impl Quaternion {
         return (self.x * q2.x) + (self.y * q2.y) + (self.z * q2.z) + (self.w * q2.w);
     }
 
-    /*
     pub fn slerp(t: Float, q1: &Quaternion, q2: &Quaternion) -> Quaternion {
         const T: Float = 1.0 - Float::EPSILON;
-
-        let c = Self::dot(q1, q2);
-        if c >= T {
-            return (*q1) * (1.0 - t) + (*q2) * t;
+        let c = Self::dot(q1, q2).clamp(0.0, 1.0);
+        if c > T {
+            return *q1;
         } else {
             let theta = Float::acos(c);
             let s = Float::recip(Float::sin(theta));
             return ((*q1) * Float::sin((1.0 - t) * theta) + (*q2) * Float::sin(t * theta)) * s;
         }
-    }
-    */
-    pub fn slerp(t: Float, q1: &Quaternion, q2: &Quaternion) -> Quaternion {
-        let c = Self::dot(q1, q2);
-        let theta = Float::acos(c);
-        let s = 1.0 / Float::sin(theta);
-        return ((*q1) * Float::sin((1.0 - t) * theta) + (*q2) * Float::sin(t * theta)) * s;
     }
 
     pub fn to_matrix(&self) -> Matrix4x4 {

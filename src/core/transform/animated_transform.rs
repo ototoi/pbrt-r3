@@ -1,3 +1,4 @@
+use super::decompose::*;
 use super::derivatives::*;
 use super::interval::*;
 use crate::core::pbrt::*;
@@ -25,8 +26,8 @@ impl AnimatedTransform {
         //let transforms = [*start_transform, *end_transform];
         let times = [start_time, end_time];
         let actually_animated = start_transform != end_transform;
-        let (t0, r0, s0) = Matrix4x4::decompose(&start_transform.m, EPS, 100).unwrap();
-        let (t1, r1, s1) = Matrix4x4::decompose(&end_transform.m, EPS, 100).unwrap();
+        let (t0, r0, s0) = decompose(&start_transform.m, EPS, 100).unwrap();
+        let (t1, r1, s1) = decompose(&end_transform.m, EPS, 100).unwrap();
         let t = [t0, t1];
         let mut r = [r0, r1];
         let s = [s0, s1];

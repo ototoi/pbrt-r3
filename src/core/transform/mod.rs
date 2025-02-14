@@ -2,7 +2,7 @@ pub mod animated_transform;
 pub mod derivatives;
 pub mod interval;
 pub mod matrix4x4;
-pub mod matrix4x4_decompose;
+pub mod decompose;
 pub mod transform;
 pub mod transform_set;
 

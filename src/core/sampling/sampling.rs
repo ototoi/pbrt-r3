@@ -102,7 +102,7 @@ pub fn uniform_sample_sphere(u: &Point2f) -> Vector3f {
 
 #[inline]
 pub fn uniform_sphere_pdf() -> Float {
-    return INV_2_PI;
+    return INV_4_PI;
 }
 
 pub fn uniform_sample_triangle(u: &Point2f) -> Point2f {

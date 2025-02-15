@@ -33,7 +33,7 @@ fn henyey_greenstein_sampling_orientation_forward() {
     let mut n_backward = 0;
     for _ in 0..100 {
         let u = Vector2f::new(rng.uniform_float(), rng.uniform_float());
-        let (p0, wi) = hg.sample_p(&wo, &u);
+        let (_p0, wi) = hg.sample_p(&wo, &u);
         if wi.x > 0.0 {
             n_forward += 1;
         } else {

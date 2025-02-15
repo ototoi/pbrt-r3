@@ -1,6 +1,6 @@
 # pbrt-r3
 [![Rust](https://github.com/ototoi/pbrt-r3/actions/workflows/rust.yml/badge.svg)](https://github.com/ototoi/pbrt-r3/actions/workflows/rust.yml)
-![License](https://img.shields.io/github/license/ototoi/pbrt-r3)
+[![License](https://img.shields.io/github/license/ototoi/pbrt-r3)](LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/ototoi/pbrt-r3)](https://github.com/ototoi/pbrt-r3/releases/latest)
 
 

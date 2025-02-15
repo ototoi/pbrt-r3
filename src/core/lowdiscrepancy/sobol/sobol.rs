@@ -31,7 +31,11 @@ pub fn sobol_interval_to_index(m: u32, frame: u64, p: &Point2i) -> u64 {
 }
 
 #[inline]
-pub fn sobol_sample(a: i64, dimension: u32, scramble: u32) -> Float {
+pub fn sobol_sample(a: i64, dimension: u32, scramble: u64) -> Float {
+    sobol_sample_float(a, dimension, scramble as u32) as Float
+}
+
+pub fn sobol_sample_float(a: i64, dimension: u32, scramble: u32) -> f32 {
     let mut a = a;
     let mut v = scramble;
     //let dimension = dimension % ((NUM_SOBOL_DIMENSIONS) as u32);
@@ -48,5 +52,25 @@ pub fn sobol_sample(a: i64, dimension: u32, scramble: u32) -> Float {
         i %= SOBOL_MATRICES_32.len();
     }
     let fv = ((v as f64) * 2.3283064365386963e-10) as Float;
-    return Float::min(fv, ONE_MINUS_EPSILON);
+    return f32::min(fv, ONE_MINUS_EPSILON);
+}
+
+pub fn sobol_sample_double(a: i64, dimension: u32, scramble: u64) -> f64 {
+    let mut a = a;
+    let mut v = scramble;
+    //let dimension = dimension % ((NUM_SOBOL_DIMENSIONS) as u32);
+    let mut i = usize::min(
+        dimension as usize * SOBOL_MATRIX_SIZE,
+        SOBOL_MATRICES_32.len() - 1,
+    );
+    while a != 0 {
+        if (a & 1) != 0 {
+            v ^= SOBOL_MATRICES_32[i] as u64;
+        }
+        a >>= 1;
+        i += 1;
+        i %= SOBOL_MATRICES_32.len();
+    }
+    let fv = ((v as f64) * 2.3283064365386963e-10) as f64;
+    return f64::min(fv, ONE_MINUS_EPSILON as f64);
 }

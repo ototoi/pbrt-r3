@@ -18,7 +18,7 @@ pub fn reverse_bits64(n: u64) -> u64 {
 }
 */
 
-fn reverse_bits32(mut n: u32) -> u32 {
+pub fn reverse_bits32(mut n: u32) -> u32 {
     n = (n.wrapping_shl(16)) | (n.wrapping_shr(16));
     n = ((n & 0x00ff00ff).wrapping_shl(8)) | ((n & 0xff00ff00).wrapping_shr(8));
     n = ((n & 0x0f0f0f0f).wrapping_shl(4)) | ((n & 0xf0f0f0f0).wrapping_shr(4));
@@ -27,7 +27,7 @@ fn reverse_bits32(mut n: u32) -> u32 {
     return n;
 }
 
-fn reverse_bits64(n: u64) -> u64 {
+pub fn reverse_bits64(n: u64) -> u64 {
     let n0 = reverse_bits32(n as u32) as u64;
     let n1 = reverse_bits32((n.wrapping_shr(32)) as u32) as u64;
     return (n0.wrapping_shl(32)) | n1;

@@ -399,6 +399,7 @@ impl HairBSDF {
     }
 
     fn compute_theta_op(&self, p: usize, sin_theta_o: Float, cos_theta_o: Float) -> (Float, Float) {
+        // Compute $\sin \thetao$ and $\cos \thetao$ terms accounting for scales
         let sin2k_alpha = &self.sin2k_alpha;
         let cos2k_alpha = &self.cos2k_alpha;
         return match p {
@@ -411,8 +412,8 @@ impl HairBSDF {
                 cos_theta_o * cos2k_alpha[0] - sin_theta_o * sin2k_alpha[0],
             ),
             2 => (
-                sin_theta_o * cos2k_alpha[2] - cos_theta_o * sin2k_alpha[2],
-                cos_theta_o * cos2k_alpha[2] + sin_theta_o * sin2k_alpha[2],
+                sin_theta_o * cos2k_alpha[2] + cos_theta_o * sin2k_alpha[2],
+                cos_theta_o * cos2k_alpha[2] - sin_theta_o * sin2k_alpha[2],
             ),
             _ => (sin_theta_o, cos_theta_o),
         };

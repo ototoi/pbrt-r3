@@ -4,7 +4,7 @@ fn invertible(m: &Matrix4x4) -> bool {
     m.inverse().is_some()
 }
 
-fn supress_for_scale(m: Matrix4x4) -> Matrix4x4 {
+fn suppress_for_scale(m: Matrix4x4) -> Matrix4x4 {
     let mut mm = Matrix4x4::identity();
     for i in 0..3 {
         mm.m[4 * i + i] = m.m[4 * i + i];
@@ -46,7 +46,7 @@ pub fn decompose(
             // pbrt-r3
             assert!(invertible(&r_next));
             if let Some(ir_next) = r_next.inverse() {
-                let s = supress_for_scale(ir_next * mm);
+                let s = suppress_for_scale(ir_next * mm);
                 if let Some(is) = s.inverse() {
                     r_next = mm * is;
                 }
@@ -72,7 +72,7 @@ pub fn decompose(
     }
 
     if let Some(ir) = r.inverse() {
-        let s = supress_for_scale(ir * mm);
+        let s = suppress_for_scale(ir * mm);
         if let Some(is) = s.inverse() {
             r = mm * is;
         }

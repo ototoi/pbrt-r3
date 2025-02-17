@@ -9,14 +9,14 @@ use std::sync::Arc;
 
 const HEADER_EXP: [char; 8] = ['S', 'C', 'A', 'T', 'F', 'U', 'N', '\x01'];
 
-fn read_i32(reader: &mut BufReader<File>) -> Result<i32, PbrtError> {
+fn read_i32(reader: &mut dyn Read) -> Result<i32, PbrtError> {
     let mut buffer: [u8; 4] = [0; 4];
     reader.read_exact(&mut buffer)?;
     let f = i32::from_le_bytes(buffer);
     return Ok(f);
 }
 
-fn read_f32(reader: &mut BufReader<File>) -> Result<f32, PbrtError> {
+fn read_f32(reader: &mut dyn Read) -> Result<f32, PbrtError> {
     let mut buffer: [u8; 4] = [0; 4];
     reader.read_exact(&mut buffer)?;
     let f = f32::from_le_bytes(buffer);
@@ -49,30 +49,57 @@ impl FourierBSDFTable {
         let path = Path::new(filename);
         let fp = File::open(path)?;
         let mut reader = BufReader::new(fp);
-        let mut header: [u8; 8] = [0; 8];
-
-        reader.read_exact(&mut header)?;
+        let header: [u8; 8] = Self::read_header(&mut reader)?;
         for i in 0..8 {
             if header[i] as char != HEADER_EXP[i] {
                 return Err(Self::error(filename));
             }
         }
-        let flags: i32 = read_i32(&mut reader)?;
-        let n_mu: usize = read_i32(&mut reader)? as usize;
-        let n_coeffs: usize = read_i32(&mut reader)? as usize;
-        let m_max: usize = read_i32(&mut reader)? as usize;
-        let n_channels: u32 = read_i32(&mut reader)? as u32;
-        let n_bases: u32 = read_i32(&mut reader)? as u32;
-        for _ in 0..3 {
-            let _: i32 = read_i32(&mut reader)?;
+
+        match Self::read_body(&mut reader) {
+            Ok(table) => return Ok(table),
+            Err(_) => return Err(Self::error(filename)),
         }
-        let eta = read_f32(&mut reader)?;
+    }
+
+    pub fn read_from_bytes(bytes: &[u8]) -> Result<FourierBSDFTable, PbrtError> {
+        let mut reader = std::io::Cursor::new(bytes);
+        let header: [u8; 8] = Self::read_header(&mut reader)?;
+        for i in 0..8 {
+            if header[i] as char != HEADER_EXP[i] {
+                return Err(Self::error(""));
+            }
+        }
+
+        match Self::read_body(&mut reader) {
+            Ok(table) => return Ok(table),
+            Err(_) => return Err(Self::error("")),
+        }
+    }
+
+    pub fn read_header(reader: &mut dyn Read) -> Result<[u8; 8], PbrtError> {
+        let mut header: [u8; 8] = [0; 8];
+        reader.read_exact(&mut header)?;
+        return Ok(header);
+    }
+
+    pub fn read_body(reader: &mut dyn Read) -> Result<FourierBSDFTable, PbrtError> {
+        let flags: i32 = read_i32(reader)?;
+        let n_mu: usize = read_i32(reader)? as usize;
+        let n_coeffs: usize = read_i32(reader)? as usize;
+        let m_max: usize = read_i32(reader)? as usize;
+        let n_channels: u32 = read_i32(reader)? as u32;
+        let n_bases: u32 = read_i32(reader)? as u32;
+        for _ in 0..3 {
+            let _: i32 = read_i32(reader)?;
+        }
+        let eta = read_f32(reader)?;
         for _ in 0..4 {
-            let _: i32 = read_i32(&mut reader)?;
+            let _: i32 = read_i32(reader)?;
         }
 
         if flags != 1 || (n_channels != 1 && n_channels != 3) || n_bases != 1 {
-            return Err(Self::error(filename));
+            return Err(Self::error(""));
         }
 
         let mut mu: Vec<f32> = vec![0.0; n_mu];
@@ -84,16 +111,16 @@ impl FourierBSDFTable {
         let mut a: Vec<f32> = vec![0.0; n_coeffs];
 
         for i in 0..n_mu {
-            mu[i] = read_f32(&mut reader)?;
+            mu[i] = read_f32(reader)?;
         }
         for i in 0..(n_mu * n_mu) {
-            cdf[i] = read_f32(&mut reader)?;
+            cdf[i] = read_f32(reader)?;
         }
         for i in 0..(n_mu * n_mu * 2) {
-            offset_and_length[i] = read_i32(&mut reader)?;
+            offset_and_length[i] = read_i32(reader)?;
         }
         for i in 0..n_coeffs {
-            a[i] = read_f32(&mut reader)?;
+            a[i] = read_f32(reader)?;
         }
 
         for i in 0..(n_mu * n_mu) {

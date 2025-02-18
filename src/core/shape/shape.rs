@@ -60,11 +60,11 @@ pub trait Shape {
             let u = Point2f::new(radical_inverse(0, i as u64), radical_inverse(1, i as u64));
             if let Some((p_shape, pdf)) = self.sample_from(&inter, &u) {
                 let r = Ray::new(p, &(p_shape.get_p() - *p), 0.999, 0.0);
-                if self.intersect_p(&r) {
+                if !self.intersect_p(&r) {
                     solid_angle += 1.0 / pdf
                 }
             }
         }
-        return solid_angle;
+        return solid_angle / n_samples as Float;
     }
 }

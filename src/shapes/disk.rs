@@ -177,7 +177,8 @@ impl Shape for Disk {
         let mut n = self
             .base
             .object_to_world
-            .transform_normal(&Normal3f::new(0.0, 0.0, 1.0));
+            .transform_normal(&Normal3f::new(0.0, 0.0, 1.0))
+            .normalize();
         if self.base.reverse_orientation {
             n *= -1.0;
         }

@@ -300,10 +300,10 @@ impl Shape for Cylinder {
         let radius = self.radius;
         let z_min = self.z_min;
         let z_max = self.z_max;
-        //let phi_max = self.phi_max;
+        let phi_max = self.phi_max;
 
         let z = lerp(u[0], z_min, z_max);
-        let phi = u[1] * z_max;
+        let phi = u[1] * phi_max;
         let mut p_obj = Point3f::new(radius * Float::cos(phi), radius * Float::sin(phi), z);
         let mut n = self
             .base

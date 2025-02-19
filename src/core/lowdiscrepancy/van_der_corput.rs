@@ -54,7 +54,7 @@ const CSOBOL: [[u32; 32]; 2] = [
 ];
 
 #[inline]
-fn gray_code_sample_1d(c: &[u32], n: usize, scramble: u32, p: &mut [Float]) {
+pub fn gray_code_sample_1d(c: &[u32], n: usize, scramble: u32, p: &mut [Float]) {
     let mut v = scramble;
     for i in 0..n {
         p[i] = Float::min(
@@ -66,7 +66,13 @@ fn gray_code_sample_1d(c: &[u32], n: usize, scramble: u32, p: &mut [Float]) {
 }
 
 #[inline]
-fn gray_code_sample_2d(c0: &[u32], c1: &[u32], n: usize, scramble: &[u32; 2], p: &mut [Point2f]) {
+pub fn gray_code_sample_2d(
+    c0: &[u32],
+    c1: &[u32],
+    n: usize,
+    scramble: &[u32; 2],
+    p: &mut [Point2f],
+) {
     let mut v = scramble.clone();
     for i in 0..n {
         p[i].x = Float::min(

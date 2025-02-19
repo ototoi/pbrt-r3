@@ -23,7 +23,7 @@ impl AnimatedTransform {
         end_time: Float,
     ) -> Self {
         const EPS: f32 = f32::EPSILON * 1e+2;
-        //let transforms = [*start_transform, *end_transform];
+        let transforms = [*start_transform, *end_transform];
         let times = [start_time, end_time];
         let actually_animated = start_transform != end_transform;
         let (t0, r0, s0) = decompose(&start_transform.m, EPS, 100).unwrap();
@@ -31,34 +31,19 @@ impl AnimatedTransform {
         let t = [t0, t1];
         let mut r = [r0, r1];
         let s = [s0, s1];
+        let sm = [
+            Matrix4x4::scale(s0.x, s0.y, s0.z),
+            Matrix4x4::scale(s1.x, s1.y, s1.z),
+        ];
         if Quaternion::dot(&r[0], &r[1]) < 0.0 {
             r[1] = -r[1];
         }
-        //
-        let matrices = [
-            Matrix4x4::translate(t0.x, t0.y, t0.z)
-                * r0.to_matrix()
-                * Matrix4x4::scale(s0.x, s0.y, s0.z),
-            Matrix4x4::translate(t1.x, t1.y, t1.z)
-                * r1.to_matrix()
-                * Matrix4x4::scale(s1.x, s1.y, s1.z),
-        ];
-        let transforms = [Transform::from(matrices[0]), Transform::from(matrices[1])];
-
-        // pbrt-r3
-        //let has_rotation = Quaternion::dot(&r[0], &r[1]) < 0.9995;
-        let has_rotation = r[0].w < 0.9995 || r[1].w < 0.9995;
-        //pbrt-r3
+        let has_rotation = Quaternion::dot(&r[0], &r[1]) < 0.9995;
         let derivatives = if has_rotation {
-            let s = [
-                Matrix4x4::scale(s0.x, s0.y, s0.z),
-                Matrix4x4::scale(s1.x, s1.y, s1.z),
-            ];
-            Some(get_derivatives(&t, &r, &s))
+            Some(get_derivatives(&t, &r, &sm))
         } else {
             None
         };
-
         AnimatedTransform {
             transforms,
             times,
@@ -88,25 +73,7 @@ impl AnimatedTransform {
         let m = Matrix4x4::translate(trans.x, trans.y, trans.z)
             * rotate.to_matrix()
             * Matrix4x4::scale(scale.x, scale.y, scale.z);
-        assert!(rotate.to_matrix().inverse().is_some(), "{:?}", rotate);
-        assert!(m.inverse().is_some(), "{:?}", m);
         return Transform::from(m);
-    }
-
-    pub fn interpolate_trs(&self, time: Float) -> (Vector3f, Quaternion, Vector3f) {
-        if !self.actually_animated || time <= self.times[0] {
-            return (self.t[0], self.r[0], self.s[0]);
-        }
-
-        if self.times[1] <= time {
-            return (self.t[1], self.r[1], self.s[1]);
-        }
-
-        let dt = (time - self.times[0]) / (self.times[1] - self.times[0]);
-        let trans = (1.0 - dt) * self.t[0] + dt * self.t[1];
-        let rotate = Quaternion::slerp(dt, &self.r[0], &self.r[1]);
-        let scale = (1.0 - dt) * self.s[0] + dt * self.s[1];
-        return (trans, rotate, scale);
     }
 
     pub fn transform_point(&self, time: Float, p: &Point3f) -> Point3f {
@@ -184,42 +151,45 @@ impl AnimatedTransform {
         if !self.actually_animated {
             return self.transforms[0].transform_bounds(b);
         }
-        let b0 = self.transforms[0].transform_bounds(b);
-        let b1 = self.transforms[1].transform_bounds(b);
-        let mut bounds = Bounds3f::union(&b0, &b1);
         if !self.has_rotation {
-            return bounds;
-        } else {
+            let b0 = self.transforms[0].transform_bounds(b);
+            let b1 = self.transforms[1].transform_bounds(b);
+            return Bounds3f::union(&b0, &b1);
+        }
+        {
             if true {
                 let count = 64;
+                let b0 = self.transforms[0].transform_bounds(b);
+                let b1 = self.transforms[1].transform_bounds(b);
+                let mut bounds = Bounds3f::union(&b0, &b1);
                 for i in 0..count {
                     let t = lerp(i as Float / count as Float, self.times[0], self.times[1]);
                     let tr = self.interpolate(t);
                     bounds = Bounds3f::union(&bounds, &tr.transform_bounds(b));
                 }
+                return Self::expand_bounds(&bounds, 0.1);
             } else {
-                // Return motion bounds accounting for animated rotation
-                for corner in 0..8 {
-                    bounds = bounds.union(&self.bound_point_motion(&b.corner(corner)));
-                }
+                let bounds_list: Vec<_> = (0..8)
+                    .map(|i| -> Bounds3f { self.bound_point_motion(&b.corner(i)).unwrap() })
+                    .collect();
+                let bounds = bounds_list[1..8]
+                    .iter()
+                    .fold(bounds_list[0], |a, b| -> Bounds3f {
+                        return a.union(b);
+                    });
+                return Self::expand_bounds(&bounds, 0.1);
             }
-            return Self::expand_bounds(&bounds, 0.01);
         }
     }
 
-    pub fn bound_point_motion(&self, p: &Point3f) -> Bounds3f {
+    pub fn bound_point_motion(&self, p: &Point3f) -> Option<Bounds3f> {
         if !self.actually_animated {
-            let p = self.transforms[0].transform_point(p);
-            return Bounds3f::from((p.x, p.y, p.z));
+            return None;
         }
         if !self.has_rotation {
-            let p0 = self.transforms[0].transform_point(p);
-            let p1 = self.transforms[1].transform_point(p);
-            let b0 = Bounds3f::from((p0.x, p0.y, p0.z));
-            let b1 = Bounds3f::from((p1.x, p1.y, p1.z));
-            return Bounds3f::union(&b0, &b1);
-        } else {
-            let derivatives = self.derivatives.as_ref().unwrap();
+            return None;
+        }
+        if let Some(derivatives) = self.derivatives.as_ref() {
             let p0 = self.transforms[0].transform_point(p);
             let p1 = self.transforms[1].transform_point(p);
             let mut bounds = Bounds3f::new(&p0, &p1);
@@ -248,8 +218,9 @@ impl AnimatedTransform {
                     bounds = bounds.union_p(&pz);
                 }
             }
-            return bounds;
+            return Some(bounds);
         }
+        return None;
     }
 
     pub fn is_animated(&self) -> bool {

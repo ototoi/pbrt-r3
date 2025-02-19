@@ -3,9 +3,64 @@
 use pbrt_r3::core::pbrt::*;
 use pbrt_r3::shapes::*;
 
+use std::sync::Arc;
+
 fn p_exp(rng: &mut RNG, exp: Float) -> Float {
     let logu = lerp(rng.uniform_float(), -exp, exp);
     return Float::powf(10.0, logu);
+}
+
+fn p_unif(rng: &mut RNG, range: Float) -> Float {
+    return lerp(rng.uniform_float(), -range, range);
+}
+
+fn get_random_triangle<F>(mut value: F) -> Option<Arc<dyn Shape>>
+where
+    F: FnMut() -> Float,
+{
+    let mut v = vec![Point3f::default(); 3];
+    for i in 0..3 {
+        v[i] = Point3f::new(value(), value(), value());
+    }
+    if Vector3f::cross(&(v[1] - v[0]), &(v[2] - v[0])).length_squared() < 1e-20 {
+        return None;
+    }
+
+    let identity = Transform::identity();
+    let indices = vec![0, 1, 2];
+    let tri_vec = create_triangle_mesh(
+        &identity,
+        &identity,
+        false,
+        indices,
+        v,
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        &ParamSet::new(),
+    );
+    if tri_vec.is_empty() {
+        return None;
+    }
+    return Some(tri_vec[0].clone());
+}
+
+// Checks the closed-form solid angle computation for triangles against a
+// Monte Carlo estimate of it.
+#[test]
+fn triangle_solid_angle() {
+    for i in 0..50 {
+        let range = 10.0;
+        let mut rng = RNG::new_sequence(100 + i);
+        if let Some(tri) = get_random_triangle(|| p_unif(&mut rng, range)) {
+
+            // Ensure that the reference point isn't too close to the
+            // triangle's surface (which makes the Monte Carlo stuff have more
+            // variance, thus requiring more samples).
+            
+
+        }
+    }
 }
 
 // Use Quasi Monte Carlo with uniform sphere sampling to esimate the solid
@@ -23,7 +78,42 @@ fn mc_solid_angle(p: &Point3f, shape: &dyn Shape, n_samples: usize) -> Float {
     return n_hits as Float / (uniform_sphere_pdf() * n_samples as Float);
 }
 
-/*
+#[test]
+fn sphere_solid_angle() {
+    let tr = Transform::translate(1.0, 0.5, -0.8) * Transform::rotate_x(30.0);
+    let tr_inv = tr.inverse();
+    let sphere = Sphere::new(&tr, &tr_inv, false, 1.0, -1.0, 1.0, 360.0);
+
+    // Make sure we get a subtended solid angle of 4pi for a point
+    // inside the sphere.
+    let p_inside = Point3f::new(1.0, 0.9, -0.8);
+    let n_samples = 128 * 1024;
+    let solid_angle_mc = mc_solid_angle(&p_inside, &sphere, n_samples);
+    assert!(
+        Float::abs(solid_angle_mc - 4.0 * PI) < 0.01,
+        "solid_angle_mc: {}",
+        solid_angle_mc
+    );
+
+    let solid_angle = sphere.solid_angle(&p_inside, n_samples as i32);
+    assert!(
+        Float::abs(solid_angle - 4.0 * PI) < 0.01,
+        "solid_angle: {}",
+        solid_angle
+    );
+
+    // Now try a point outside the sphere
+    let p_outside = Point3f::new(-0.25, -1.0, 0.8);
+    let mc_sa = mc_solid_angle(&p_outside, &sphere, n_samples);
+    let sphere_sa = sphere.solid_angle(&p_outside, n_samples as i32);
+    assert!(
+        Float::abs(mc_sa - sphere_sa) < 0.001,
+        "mc_sa: {}, sphere_sa: {}",
+        mc_sa,
+        sphere_sa
+    );
+}
+
 #[test]
 fn cylinder_solid_angle() {
     let tr = Transform::translate(1.0, 0.5, -0.8) * Transform::rotate_x(30.0);
@@ -40,7 +130,6 @@ fn cylinder_solid_angle() {
         solid_angle
     );
 }
-*/
 
 #[test]
 fn disk_solid_angle() {

@@ -13,10 +13,10 @@ pub struct BaseInteraction {
 impl Default for BaseInteraction {
     fn default() -> Self {
         BaseInteraction {
-            p: Point3f::default(),
-            p_error: Vector3f::default(),
-            wo: Vector3f::default(),
-            n: Normal3f::new(0.0, 0.0, 1.0),
+            p: Point3f::zero(),
+            p_error: Vector3f::zero(),
+            wo: Vector3f::zero(),
+            n: Normal3f::zero(),
             time: 0.0,
             medium_interface: MediumInterface::default(),
         }
@@ -29,7 +29,7 @@ impl From<&Ray> for BaseInteraction {
             p: ray.o,
             time: ray.time,
             p_error: Vector3f::zero(),
-            n: Vector3f::zero(),
+            n: Normal3f::zero(),
             wo: Vector3f::zero(),
             medium_interface: MediumInterface::from(&ray.medium),
         }

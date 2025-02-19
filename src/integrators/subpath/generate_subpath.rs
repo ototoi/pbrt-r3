@@ -228,7 +228,7 @@ pub fn generate_light_subpath(
             return path.len();
         }
 
-        let beta = le * n_light.abs_dot(&ray.d) * (1.0 / (light_pdf * pdf_pos * pdf_dir));
+        let beta = le * (n_light.abs_dot(&ray.d) / (light_pdf * pdf_pos * pdf_dir));
         let ray = RayDifferential::from(&ray);
         assert!(max_depth > 1);
 
@@ -497,8 +497,6 @@ fn mis_weight(
         }
     }
 
-    //println!("sum_ri: {}", sum_ri);
-
     return 1.0 / (1.0 + sum_ri);
 }
 
@@ -548,8 +546,8 @@ pub fn connect_bdpt(
             if let Some((spec, wi, pdf, pr, vis)) =
                 camera.as_ref().sample_wi(intersection, &sampler.get_2d())
             {
+                p_raster = pr;
                 if pdf > 0.0 && !spec.is_black() {
-                    p_raster = pr;
                     // Initialize dynamically sampled vertex and _L_ for $t=1$ case
                     let sampled_beta = spec * (1.0 / pdf);
                     let sampled_v =
@@ -637,11 +635,10 @@ pub fn connect_bdpt(
     });
 
     // Compute MIS weight for connection strategy
-    if l.is_black() || !l.is_valid() {
-        return None;
+    let mis_weight = if l.is_black() {
+        0.0
     } else {
-        assert!(l.is_valid() && !l.is_black());
-        let mis_weight = mis_weight(
+        mis_weight(
             scene,
             light_vertices,
             camera_vertices,
@@ -650,17 +647,13 @@ pub fn connect_bdpt(
             t,
             light_distr,
             light_to_index,
-        );
-        return if mis_weight <= 0.0 || !mis_weight.is_finite() {
-            None
-        } else {
-            assert!(mis_weight.is_finite() && mis_weight > 0.0);
-            let l = l * mis_weight;
-            if l.is_black() || !l.is_valid() {
-                None
-            } else {
-                Some((l, mis_weight, p_raster))
-            }
-        };
-    }
+        )
+    };
+
+    assert!(l.is_valid());
+    assert!(mis_weight.is_finite());
+
+    l *= mis_weight;
+
+    return Some((l, mis_weight, p_raster));
 }

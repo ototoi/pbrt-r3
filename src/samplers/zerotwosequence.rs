@@ -9,8 +9,8 @@ pub struct ZeroTwoSequenceSampler {
 
 impl ZeroTwoSequenceSampler {
     pub fn new(samples_per_pixel: u32, n_sampled_dimensions: u32) -> Self {
-        let samples_per_pixel_pow2 = round_up_pow2(samples_per_pixel as i32) as u32;
-        if !is_power_of_2(samples_per_pixel as i32) {
+        let samples_per_pixel_pow2 = round_up_pow2(samples_per_pixel);
+        if !is_power_of_2(samples_per_pixel) {
             log::warn!(
                 "Pixel samples being rounded up to power of 2 (from \" {} \" to \" {} \").",
                 samples_per_pixel,

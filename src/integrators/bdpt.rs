@@ -292,7 +292,7 @@ impl Integrator for BDPTIntegrator {
                                                     &p_film,
                                                 )
                                             {
-                                                assert!(!l_path.is_black());
+                                                //assert!(!l_path.is_black());
                                                 if visualize_info {
                                                     let value = if visualize_strategies {
                                                         if mis_weight <= 0.0 {

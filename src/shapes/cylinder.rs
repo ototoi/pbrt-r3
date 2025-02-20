@@ -308,7 +308,8 @@ impl Shape for Cylinder {
         let mut n = self
             .base
             .object_to_world
-            .transform_normal(&Normal3f::new(p_obj.x, p_obj.y, 0.0)).normalize();
+            .transform_normal(&Normal3f::new(p_obj.x, p_obj.y, 0.0))
+            .normalize();
         if self.base.reverse_orientation {
             n *= -1.0;
         }

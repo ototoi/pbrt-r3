@@ -3,9 +3,278 @@
 use pbrt_r3::core::pbrt::*;
 use pbrt_r3::shapes::*;
 
+use std::sync::Arc;
+
 fn p_exp(rng: &mut RNG, exp: Float) -> Float {
     let logu = lerp(rng.uniform_float(), -exp, exp);
     return Float::powf(10.0, logu);
+}
+
+fn p_unif(rng: &mut RNG, range: Float) -> Float {
+    return lerp(rng.uniform_float(), -range, range);
+}
+
+#[test]
+fn triangle_watertight() {
+    let mut rng = RNG::new_sequence(12111);
+    let n_theta = 16 as u32;
+    let n_phi = 8 as u32;
+    assert!(n_theta >= 3);
+    assert!(n_phi >= 4);
+
+    // Make a triangle mesh representing a triangulated sphere (with
+    // vertices randomly offset along their normal), centered at the
+    // origin.
+    let n_vertices = (n_theta * n_phi) as usize;
+    let mut vertices = Vec::new();
+    for t in 0..n_theta {
+        let theta = PI * (t as Float) / ((n_theta - 1) as Float);
+        let cos_theta = theta.cos();
+        let sin_theta = theta.sin();
+        for p in 0..n_phi {
+            let phi = 2.0 * PI * (p as Float) / ((n_phi - 1) as Float);
+            let mut radius = 1.0;
+            // Make sure all of the top and bottom vertices are coincident.
+            if t == 0 {
+                vertices.push(Point3f::new(0.0, 0.0, radius));
+            } else if t == n_theta - 1 {
+                vertices.push(Point3f::new(0.0, 0.0, -radius));
+            } else if p == n_phi - 1 {
+                // Close it up exactly at the end
+                let v = vertices[vertices.len() - (n_phi - 1) as usize];
+                vertices.push(v);
+            } else {
+                radius += 5.0 * rng.uniform_float();
+                let v = Point3f::zero() + radius * spherical_direction(sin_theta, cos_theta, phi);
+                vertices.push(v);
+            }
+        }
+    }
+    assert_eq!(vertices.len(), n_vertices);
+
+    let mut indices: Vec<u32> = Vec::new();
+    // fan at the top
+    let offset = |t: u32, p: u32| -> u32 { t * n_phi + p };
+    for p in 0..n_phi - 1 {
+        indices.push(offset(0, 0));
+        indices.push(offset(1, p));
+        indices.push(offset(1, p + 1));
+    }
+
+    // quads in the middle rows
+    for t in 1..n_theta - 2 {
+        for p in 0..n_phi - 1 {
+            indices.push(offset(t, p));
+            indices.push(offset(t + 1, p));
+            indices.push(offset(t + 1, p + 1));
+
+            indices.push(offset(t, p));
+            indices.push(offset(t + 1, p + 1));
+            indices.push(offset(t, p + 1));
+        }
+    }
+
+    // fan at bottom
+    for p in 0..n_phi - 1 {
+        indices.push(offset(n_theta - 1, 0));
+        indices.push(offset(n_theta - 2, p));
+        indices.push(offset(n_theta - 2, p + 1));
+    }
+
+    let identity = Transform::identity();
+    let tris = create_triangle_mesh(
+        &identity,
+        &identity,
+        false,
+        indices,
+        vertices.clone(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        &ParamSet::new(),
+    );
+
+    for _ in 0..100000 {
+        let u = Point2f::new(rng.uniform_float(), rng.uniform_float());
+        let p = Point3f::zero() + uniform_sample_sphere(&u) * 0.5;
+
+        let u = Point2f::new(rng.uniform_float(), rng.uniform_float());
+        let ray = Ray::new(&p, &uniform_sample_sphere(&u), Float::INFINITY, 0.0);
+        let mut n_hits = 0;
+        for tri in tris.iter() {
+            if tri.intersect(&ray).is_some() {
+                n_hits += 1;
+            }
+        }
+        assert!(n_hits >= 1);
+
+        // Now tougher: shoot directly at a vertex.
+        let p_vertex = vertices[rng.uniform_uint32_threshold(vertices.len() as u32) as usize];
+        let ray = Ray::new(&p, &(p_vertex - p), Float::INFINITY, 0.0);
+        let mut n_hits = 0;
+        for tri in tris.iter() {
+            if tri.intersect(&ray).is_some() {
+                n_hits += 1;
+            }
+        }
+        assert!(n_hits >= 1, "p_vertex: {:?}", p_vertex);
+    }
+}
+
+fn get_random_triangle<F>(mut value: F) -> Arc<dyn Shape>
+where
+    F: FnMut() -> Float,
+{
+    loop {
+        let mut v = vec![Point3f::default(); 3];
+        for i in 0..3 {
+            v[i] = Point3f::new(value(), value(), value());
+        }
+        if Vector3f::cross(&(v[1] - v[0]), &(v[2] - v[0])).length_squared() < 1e-20 {
+            continue;
+        }
+
+        let identity = Transform::identity();
+        let indices = vec![0, 1, 2];
+        let tri_vec = create_triangle_mesh(
+            &identity,
+            &identity,
+            false,
+            indices,
+            v,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            &ParamSet::new(),
+        );
+        if !tri_vec.is_empty() {
+            return tri_vec[0].clone();
+        }
+    }
+}
+
+#[test]
+fn triangle_reintersect() {
+    for i in 0..1000 {
+        let mut rng = RNG::new_sequence(i);
+        let tri = get_random_triangle(|| p_unif(&mut rng, 10.0));
+        test_reintersect_convex(tri.as_ref(), &mut rng);
+
+        // Sample a point on the triangle surface to shoot the ray toward.
+        let u = Point2f::new(rng.uniform_float(), rng.uniform_float());
+        if let Some((p_tri, pdf)) = tri.sample(&u) {
+            // Choose a ray origin.
+            let o = Point3f::new(
+                p_exp(&mut rng, 8.0),
+                p_exp(&mut rng, 8.0),
+                p_exp(&mut rng, 8.0),
+            );
+            let r = Ray::new(&o, &(p_tri.get_p() - o), Float::INFINITY, 0.0);
+            if let Some((t_hit, isect)) = tri.intersect(&r) {
+                // Now trace a bunch of rays leaving the intersection point.
+                for _ in 0..10000 {
+                    // Random direction leaving the intersection point.
+                    let u = Point2f::new(rng.uniform_float(), rng.uniform_float());
+                    let w = uniform_sample_sphere(&u);
+                    let r_out = isect.spawn_ray(&w);
+                    assert!(!tri.intersect_p(&r_out));
+
+                    // Choose a random point to trace rays to.
+                    let p2 = Point3f::new(
+                        p_exp(&mut rng, 8.0),
+                        p_exp(&mut rng, 8.0),
+                        p_exp(&mut rng, 8.0),
+                    );
+                    let r_out = isect.spawn_ray_to_point(&p2);
+
+                    assert!(!tri.intersect_p(&r_out));
+                    assert!(!tri.intersect(&r_out).is_some());
+                }
+            }
+        }
+    }
+}
+
+// Checks the closed-form solid angle computation for triangles against a
+// Monte Carlo estimate of it.
+#[test]
+fn triangle_solid_angle() {
+    for i in 0..50 {
+        let range = 10.0;
+        let mut rng = RNG::new_sequence(100 + i);
+        let tri = get_random_triangle(|| p_unif(&mut rng, range));
+
+        // Ensure that the reference point isn't too close to the
+        // triangle's surface (which makes the Monte Carlo stuff have more
+        // variance, thus requiring more samples).
+        let mut pc = Point3f::new(
+            p_unif(&mut rng, range),
+            p_unif(&mut rng, range),
+            p_unif(&mut rng, range),
+        );
+        pc[(rng.uniform_uint32() % 3) as usize] = if rng.uniform_float() > 0.5 {
+            -range - 3.0
+        } else {
+            range + 3.0
+        };
+
+        // Compute reference value using Monte Carlo with uniform spherical
+        // sampling.
+        let count = 512 * 1024;
+        let mut hits = 0;
+        for j in 0..count {
+            let u = Point2f::new(radical_inverse(0, j as u64), radical_inverse(1, j as u64));
+            let w = uniform_sample_sphere(&u);
+            let ray = Ray::new(&pc, &w, Float::INFINITY, 0.0);
+            if tri.intersect_p(&ray) {
+                hits += 1;
+            }
+        }
+        let unif_estimate = hits as Float / (count as Float * uniform_sphere_pdf());
+
+        // Now use Triangle::Sample()...
+        let inter = Interaction::from((
+            pc,
+            Normal3f::default(),
+            Vector3f::default(),
+            Vector3f::new(0.0, 0.0, 1.0),
+            0.0,
+            MediumInterface::default(),
+        ));
+        let mut tri_sample_estimate = 0.0;
+        for j in 0..count {
+            let u = Point2f::new(radical_inverse(0, j as u64), radical_inverse(1, j as u64));
+            if let Some((_p, pdf)) = tri.sample_from(&inter, &u) {
+                assert!(pdf > 0.0);
+                tri_sample_estimate += 1.0 / (count as Float * pdf);
+            } else {
+                assert!(false);
+            }
+        }
+
+        // Now make sure that the two computed solid angle values are
+        // fairly close.
+        // Absolute error for small solid angles, relative for large.
+        let error = |a: Float, b: Float| {
+            if a.abs() < 1e-4 || b.abs() < 1e-4 {
+                return Float::abs(a - b);
+            } else {
+                return Float::abs((a - b) / b);
+            }
+        };
+
+        // Don't compare really small triangles, since uniform sampling
+        // doesn't get a good estimate for them.
+        if tri_sample_estimate > 1e-3 {
+            assert!(
+                error(tri_sample_estimate, unif_estimate) < 0.1,
+                "unif_estimate: {}, tri_sample_estimate: {}, tri index: {}",
+                unif_estimate,
+                tri_sample_estimate,
+                i
+            );
+        }
+    }
 }
 
 // Use Quasi Monte Carlo with uniform sphere sampling to esimate the solid
@@ -23,7 +292,42 @@ fn mc_solid_angle(p: &Point3f, shape: &dyn Shape, n_samples: usize) -> Float {
     return n_hits as Float / (uniform_sphere_pdf() * n_samples as Float);
 }
 
-/*
+#[test]
+fn sphere_solid_angle() {
+    let tr = Transform::translate(1.0, 0.5, -0.8) * Transform::rotate_x(30.0);
+    let tr_inv = tr.inverse();
+    let sphere = Sphere::new(&tr, &tr_inv, false, 1.0, -1.0, 1.0, 360.0);
+
+    // Make sure we get a subtended solid angle of 4pi for a point
+    // inside the sphere.
+    let p_inside = Point3f::new(1.0, 0.9, -0.8);
+    let n_samples = 128 * 1024;
+    let solid_angle_mc = mc_solid_angle(&p_inside, &sphere, n_samples);
+    assert!(
+        Float::abs(solid_angle_mc - 4.0 * PI) < 0.01,
+        "solid_angle_mc: {}",
+        solid_angle_mc
+    );
+
+    let solid_angle = sphere.solid_angle(&p_inside, n_samples as i32);
+    assert!(
+        Float::abs(solid_angle - 4.0 * PI) < 0.01,
+        "solid_angle: {}",
+        solid_angle
+    );
+
+    // Now try a point outside the sphere
+    let p_outside = Point3f::new(-0.25, -1.0, 0.8);
+    let mc_sa = mc_solid_angle(&p_outside, &sphere, n_samples);
+    let sphere_sa = sphere.solid_angle(&p_outside, n_samples as i32);
+    assert!(
+        Float::abs(mc_sa - sphere_sa) < 0.001,
+        "mc_sa: {}, sphere_sa: {}",
+        mc_sa,
+        sphere_sa
+    );
+}
+
 #[test]
 fn cylinder_solid_angle() {
     let tr = Transform::translate(1.0, 0.5, -0.8) * Transform::rotate_x(30.0);
@@ -40,7 +344,6 @@ fn cylinder_solid_angle() {
         solid_angle
     );
 }
-*/
 
 #[test]
 fn disk_solid_angle() {
@@ -196,6 +499,6 @@ fn triangle_badcases() {
             0.9999,
             0.0,
         );
-        assert!(mesh[0].intersect(&ray).is_none());
+        assert!(!mesh[0].intersect(&ray).is_some());
     }
 }

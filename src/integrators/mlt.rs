@@ -257,7 +257,7 @@ impl MLTIntegrator {
         camera_vertices: &mut Vec<Arc<Vertex>>,
         light_vertices: &mut Vec<Arc<Vertex>>,
         depth: u32,
-    ) -> (Spectrum, Point2f) {
+    ) -> (Spectrum, Spectrum, Point2f) {
         let camera = self.camera.clone();
         sampler.start_stream(CAMERA_STREAM_INDEX);
         // Determine the number of available strategies for connecting the
@@ -292,7 +292,7 @@ impl MLTIntegrator {
             camera_vertices,
         ) != t as usize
         {
-            return (Spectrum::zero(), p_raster);
+            return (Spectrum::zero(),Spectrum::zero(), p_raster);
         };
 
         // Generate a light subpath with exactly _s_ vertices
@@ -311,7 +311,7 @@ impl MLTIntegrator {
             light_vertices,
         ) != s as usize
         {
-            return (Spectrum::zero(), p_raster);
+            return (Spectrum::zero(), Spectrum::zero(), p_raster);
         };
         //let t = camera_vertices.len() as u32;
         //let s = light_vertices.len() as u32;
@@ -330,9 +330,9 @@ impl MLTIntegrator {
             sampler,
             &p_raster,
         ) {
-            return (spec * n_strategies as Float, p_raster_new);
+            return (spec * n_strategies as Float, Spectrum::zero(), p_raster_new);
         } else {
-            return (Spectrum::zero(), p_raster);
+            return (Spectrum::zero(), Spectrum::zero(), p_raster);
         }
     }
 }
@@ -402,7 +402,7 @@ impl Integrator for MLTIntegrator {
                         large_step_probability,
                         n_sample_streams,
                     );
-                    let (l, _p_raster) = self.l(
+                    let (l, _c, _p_raster) = self.l(
                         scene,
                         &mut arena,
                         &light_distr,
@@ -511,7 +511,7 @@ impl Integrator for MLTIntegrator {
                     n_sample_streams,
                 );
 
-                let (mut l_current, mut p_current) = self.l(
+                let (mut l_current, c, mut p_current) = self.l(
                     scene,
                     &mut arena,
                     &light_distr,
@@ -525,7 +525,7 @@ impl Integrator for MLTIntegrator {
                 // Run the Markov chain for _nChainMutations_ steps
                 for _ in 0..n_chain_mutations {
                     sampler.start_iteration();
-                    let (l_proposed, p_proposed) = self.l(
+                    let (l_proposed, c, p_proposed) = self.l(
                         scene,
                         &mut arena,
                         &light_distr,

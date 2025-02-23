@@ -2,6 +2,7 @@ use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 
 use super::subpath::*;
+use super::subpath::classify_subpath::*;
 use crate::core::pbrt::*;
 
 use std::sync::atomic::*;
@@ -41,7 +42,7 @@ impl PrimarySample {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MLTSampler {
     base: BaseSampler,
     rng: RNG,
@@ -74,7 +75,7 @@ impl MLTSampler {
             rng,
             sigma,
             large_step_probability,
-            stream_count: stream_count,
+            stream_count,
             x,
             current_iteration: 0,
             large_step: true,
@@ -96,7 +97,7 @@ impl MLTSampler {
     }
 
     pub fn reject(&mut self) {
-        for xi in &mut self.x {
+        for xi in self.x.iter_mut() {
             if xi.last_modification_iteration == self.current_iteration {
                 xi.restore();
             }
@@ -278,6 +279,7 @@ impl MLTIntegrator {
             &Point2f::new(sample_bounds.min.x as Float, sample_bounds.min.y as Float),
             &Point2f::new(sample_bounds.max.x as Float, sample_bounds.max.y as Float),
         );
+        
         let p_raster = sample_bounds.lerp(&sampler.get_2d());
         // Generate a camera subpath with exactly _t_ vertices
         //let mut camera_vertices = Vec::with_capacity(t as usize);
@@ -316,6 +318,16 @@ impl MLTIntegrator {
         //let t = camera_vertices.len() as u32;
         //let s = light_vertices.len() as u32;
 
+        let mut c = Spectrum::zero();
+        if classify_subpath(&[VertexClass::Camera, VertexClass::TransmissionSurface], &[VertexClass::Any], &camera_vertices, &light_vertices) {
+            //println!("Detected camera and light subpath");
+           // c += Spectrum::from_rgb(&[0.0, 1.0, 0.0], SpectrumType::Reflectance);
+        }
+        if classify_subpath(&[VertexClass::Camera, VertexClass::TransmissionSurface, VertexClass::Any], &[VertexClass::Any], &camera_vertices, &light_vertices) {
+            //println!("Detected camera and light subpath");
+            //c += Spectrum::from_rgb(&[1.0, 0.0, 0.0], SpectrumType::Reflectance);
+        }
+
         // Execute connection strategy and return the radiance estimate
         sampler.start_stream(CONNECTION_STREAM_INDEX);
         if let Some((spec, _, p_raster_new)) = connect_bdpt(
@@ -330,7 +342,7 @@ impl MLTIntegrator {
             sampler,
             &p_raster,
         ) {
-            return (spec * n_strategies as Float, Spectrum::zero(), p_raster_new);
+            return (spec * n_strategies as Float, c * n_strategies as Float, p_raster_new);
         } else {
             return (Spectrum::zero(), Spectrum::zero(), p_raster);
         }
@@ -511,7 +523,7 @@ impl Integrator for MLTIntegrator {
                     n_sample_streams,
                 );
 
-                let (mut l_current, c, mut p_current) = self.l(
+                let (mut l_current, _c, mut p_current) = self.l(
                     scene,
                     &mut arena,
                     &light_distr,
@@ -542,12 +554,16 @@ impl Integrator for MLTIntegrator {
                     // Splat both current and proposed samples to _film_
                     {
                         let mut film = film.write().unwrap();
-                        if accept > 0.0 {
-                            let spec = l_proposed * (accept / l_proposed.y());
-                            film.add_splat(&p_proposed, &spec);
+                        if c.y() > 0.0 {
+                            film.add_splat(&p_proposed, &c);
+                        } else {
+                            if accept > 0.0 {
+                                let spec = l_proposed * (accept / l_proposed.y());
+                                film.add_splat(&p_proposed, &spec);
+                            }
+                            let spec = l_current * ((1.0 - accept) / l_current.y());
+                            film.add_splat(&p_current, &spec);
                         }
-                        let spec = l_current * ((1.0 - accept) / l_current.y());
-                        film.add_splat(&p_current, &spec);
                     }
 
                     // Accept or reject the proposal

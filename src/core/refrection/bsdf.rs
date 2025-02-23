@@ -139,10 +139,12 @@ impl BSDF {
         if wo.z == 0.0 || !is_finite(&wo) {
             return None;
         }
+        println!("wo.length_squared():{}", wo.length_squared());
+        let wo = wo.normalize();
         let mut sampled_type = found_bxdf.get_type();
         if let Some((mut f, wi, mut pdf, t)) = found_bxdf.sample_f(&wo, &remapped) {
             assert!(Float::is_finite(f.y()));
-            if pdf <= 0.0 {
+            if pdf == 0.0 {
                 //t = 0;
                 return None;
             }

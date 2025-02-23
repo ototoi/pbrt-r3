@@ -118,9 +118,9 @@ fn random_walk(
                     pdf_rev = bsdf.pdf(&wi, &wo, BSDF_ALL);
                     assert!(pdf_rev >= 0.0);
                     if (t & BSDF_SPECULAR) != 0 {
-                        vertex.delta.set(true);
-                        pdf_rev = 0.0;
-                        pdf_fwd = 0.0;
+                        //vertex.delta.set(true);
+                        //pdf_rev = 0.0;
+                        //pdf_fwd = 0.0;
                     }
                     beta *= correct_shading_normal(&isect, &wo, &wi, mode);
 
@@ -167,7 +167,7 @@ pub fn generate_camera_subpath(
     };
 
     if let Some((beta, mut ray)) = camera.generate_ray_differential(&camera_sample) {
-        let beta = Spectrum::from(beta);
+        let beta = Spectrum::one();//Spectrum::from(beta);
         ray.scale_differentials(1.0 / Float::sqrt(sampler.get_samples_per_pixel() as Float));
         if let Some((_pdf_pos, pdf_dir)) = camera.pdf_we(&ray.ray) {
             let new_vertex = Arc::new(Vertex::create_camera_from_ray(&camera, &ray.ray, &beta));

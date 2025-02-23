@@ -49,8 +49,8 @@ impl Material for GlassMaterial {
 
         let mut u_rough = self.u_roughness.as_ref().evaluate(si);
         let mut v_rough = self.v_roughness.as_ref().evaluate(si);
-        let r = self.kr.as_ref().evaluate(si);
-        let t = self.kt.as_ref().evaluate(si);
+        let r = self.kr.as_ref().evaluate(si).clamp_zero();
+        let t = self.kt.as_ref().evaluate(si).clamp_zero();
 
         if r.is_black() && t.is_black() {
             return;

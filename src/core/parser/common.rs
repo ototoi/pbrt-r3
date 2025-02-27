@@ -1,5 +1,6 @@
 use crate::core::param_set::wellknown_params;
 use crate::core::param_set::ParamSet;
+use crate::core::pbrt::Float;
 use nom::bytes;
 use nom::character;
 use nom::multi;
@@ -120,48 +121,75 @@ pub fn parse_params(s: &str) -> IResult<&str, ParamSet> {
             }
             "color" => {
                 let s_values = vv.1;
-                let values: Vec<f32> = s_values.iter().map(|s| s.parse::<f32>().unwrap()).collect();
+                let values: Vec<Float> = s_values
+                    .iter()
+                    .map(|s| s.parse::<Float>().unwrap())
+                    .collect();
                 params.add_color(&new_key, &values);
             }
             "rgb" => {
                 let s_values = vv.1;
-                let values: Vec<f32> = s_values.iter().map(|s| s.parse::<f32>().unwrap()).collect();
+                let values: Vec<Float> = s_values
+                    .iter()
+                    .map(|s| s.parse::<Float>().unwrap())
+                    .collect();
                 params.add_rgb(&new_key, &values);
             }
             "xyz" => {
                 let s_values = vv.1;
-                let values: Vec<f32> = s_values.iter().map(|s| s.parse::<f32>().unwrap()).collect();
+                let values: Vec<Float> = s_values
+                    .iter()
+                    .map(|s| s.parse::<Float>().unwrap())
+                    .collect();
                 params.add_xyz(&new_key, &values);
             }
             "blackbody" => {
                 let s_values = vv.1;
-                let values: Vec<f32> = s_values.iter().map(|s| s.parse::<f32>().unwrap()).collect();
+                let values: Vec<Float> = s_values
+                    .iter()
+                    .map(|s| s.parse::<Float>().unwrap())
+                    .collect();
                 params.add_blackbody(&new_key, &values);
             }
             "point" => {
                 let s_values = vv.1;
-                let values: Vec<f32> = s_values.iter().map(|s| s.parse::<f32>().unwrap()).collect();
+                let values: Vec<Float> = s_values
+                    .iter()
+                    .map(|s| s.parse::<Float>().unwrap())
+                    .collect();
                 params.add_point(&new_key, &values);
             }
             "vector" => {
                 let s_values = vv.1;
-                let values: Vec<f32> = s_values.iter().map(|s| s.parse::<f32>().unwrap()).collect();
+                let values: Vec<Float> = s_values
+                    .iter()
+                    .map(|s| s.parse::<Float>().unwrap())
+                    .collect();
                 params.add_point(&new_key, &values);
             }
             "normal" => {
                 let s_values = vv.1;
-                let values: Vec<f32> = s_values.iter().map(|s| s.parse::<f32>().unwrap()).collect();
+                let values: Vec<Float> = s_values
+                    .iter()
+                    .map(|s| s.parse::<Float>().unwrap())
+                    .collect();
                 params.add_point(&new_key, &values);
             }
             "float" => {
                 let s_values = vv.1;
-                let values: Vec<f32> = s_values.iter().map(|s| s.parse::<f32>().unwrap()).collect();
+                let values: Vec<Float> = s_values
+                    .iter()
+                    .map(|s| s.parse::<Float>().unwrap())
+                    .collect();
                 params.add_floats(&new_key, &values);
             }
             _ => {
                 let s_values = vv.1;
                 //println!("{}:{:?}", t, s_values);
-                let values: Vec<f32> = s_values.iter().map(|s| s.parse::<f32>().unwrap()).collect();
+                let values: Vec<Float> = s_values
+                    .iter()
+                    .map(|s| s.parse::<Float>().unwrap())
+                    .collect();
                 params.add_floats(&new_key, &values);
             }
         }

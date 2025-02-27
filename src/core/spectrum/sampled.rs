@@ -17,7 +17,7 @@ pub enum SpectrumType {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct SampledSpectrum {
-    pub c: [f32; SPECTRAL_SAMPLES],
+    pub c: [Float; SPECTRAL_SAMPLES],
 }
 
 impl SampledSpectrum {
@@ -96,12 +96,12 @@ impl SampledSpectrum {
         }
     }
 
-    pub fn to_vec(&self) -> Vec<f32> {
+    pub fn to_vec(&self) -> Vec<Float> {
         let c = &self.c;
         return c.to_vec();
     }
 
-    pub fn set_vec(&mut self, v: &[f32]) {
+    pub fn set_vec(&mut self, v: &[Float]) {
         let c = &mut self.c;
         c.copy_from_slice(v);
         //for i in 0..c.len() {
@@ -241,7 +241,7 @@ impl SampledSpectrum {
         return s;
     }
 
-    pub fn near_equal(a: &SampledSpectrum, b: &SampledSpectrum, eps: f32) -> bool {
+    pub fn near_equal(a: &SampledSpectrum, b: &SampledSpectrum, eps: Float) -> bool {
         let aa = a.to_vec();
         let bb = b.to_vec();
         if aa.len() != bb.len() {
@@ -250,21 +250,25 @@ impl SampledSpectrum {
         let s = aa
             .iter()
             .zip(bb)
-            .map(|(x, y)| -> f32 { f32::abs(x - y) })
-            .sum::<f32>()
-            / (aa.len() as f32);
+            .map(|(x, y)| -> Float { Float::abs(x - y) })
+            .sum::<Float>()
+            / (aa.len() as Float);
         return s < eps;
     }
 
     pub fn sqrt(&self) -> Self {
-        let v: Vec<_> = self.c.iter().map(|x| -> f32 { f32::sqrt(*x) }).collect();
-        let a: [f32; 60] = v.try_into().unwrap();
+        let v: Vec<_> = self
+            .c
+            .iter()
+            .map(|x| -> Float { Float::sqrt(*x) })
+            .collect();
+        let a: [Float; 60] = v.try_into().unwrap();
         return SampledSpectrum { c: a };
     }
 
     pub fn exp(&self) -> Self {
-        let v: Vec<_> = self.c.iter().map(|x| -> f32 { f32::exp(*x) }).collect();
-        let a: [f32; 60] = v.try_into().unwrap();
+        let v: Vec<_> = self.c.iter().map(|x| -> Float { Float::exp(*x) }).collect();
+        let a: [Float; 60] = v.try_into().unwrap();
         return SampledSpectrum { c: a };
     }
 
@@ -294,7 +298,7 @@ impl ops::IndexMut<usize> for SampledSpectrum {
 impl ops::Mul<Float> for SampledSpectrum {
     type Output = SampledSpectrum;
     #[inline]
-    fn mul(self, s: f32) -> SampledSpectrum {
+    fn mul(self, s: Float) -> SampledSpectrum {
         let mut spc = self;
         spc.mul_scalar(s);
         return spc;
@@ -404,7 +408,7 @@ impl ops::Neg for SampledSpectrum {
     type Output = SampledSpectrum;
     #[inline]
     fn neg(self) -> Self::Output {
-        let c: Vec<f32> = self.c.iter().map(|v| -v).collect();
+        let c: Vec<Float> = self.c.iter().map(|v| -v).collect();
         return SampledSpectrum::from(c);
     }
 }
@@ -416,9 +420,9 @@ impl Default for SampledSpectrum {
     }
 }
 
-impl From<f32> for SampledSpectrum {
+impl From<Float> for SampledSpectrum {
     #[inline]
-    fn from(value: f32) -> Self {
+    fn from(value: Float) -> Self {
         let mut c = [0.0; SPECTRAL_SAMPLES];
         for i in 0..SPECTRAL_SAMPLES {
             c[i] = value;
@@ -427,37 +431,37 @@ impl From<f32> for SampledSpectrum {
     }
 }
 
-impl From<&[f32; SPECTRAL_SAMPLES]> for SampledSpectrum {
+impl From<&[Float; SPECTRAL_SAMPLES]> for SampledSpectrum {
     #[inline]
-    fn from(value: &[f32; SPECTRAL_SAMPLES]) -> Self {
+    fn from(value: &[Float; SPECTRAL_SAMPLES]) -> Self {
         SampledSpectrum { c: *value }
     }
 }
 
-impl From<[f32; SPECTRAL_SAMPLES]> for SampledSpectrum {
+impl From<[Float; SPECTRAL_SAMPLES]> for SampledSpectrum {
     #[inline]
-    fn from(value: [f32; SPECTRAL_SAMPLES]) -> Self {
+    fn from(value: [Float; SPECTRAL_SAMPLES]) -> Self {
         SampledSpectrum { c: value }
     }
 }
 
-impl From<[f32; 3]> for SampledSpectrum {
+impl From<[Float; 3]> for SampledSpectrum {
     #[inline]
-    fn from(value: [f32; 3]) -> Self {
+    fn from(value: [Float; 3]) -> Self {
         return SampledSpectrum::from_rgb(&value, SpectrumType::Reflectance);
     }
 }
 
-impl From<&[f32; 3]> for SampledSpectrum {
+impl From<&[Float; 3]> for SampledSpectrum {
     #[inline]
-    fn from(value: &[f32; 3]) -> Self {
+    fn from(value: &[Float; 3]) -> Self {
         return SampledSpectrum::from_rgb(value, SpectrumType::Reflectance);
     }
 }
 
-impl From<Vec<f32>> for SampledSpectrum {
+impl From<Vec<Float>> for SampledSpectrum {
     #[inline]
-    fn from(value: Vec<f32>) -> Self {
+    fn from(value: Vec<Float>) -> Self {
         SampledSpectrum {
             c: value.try_into().unwrap(),
         }

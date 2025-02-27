@@ -13,7 +13,7 @@ fn convert_from_luma8(img: &image::GrayImage, gamma: bool) -> (Vec<RGBSpectrum>,
         for x in 0..width {
             let index = (y * width + x) as usize;
             let pixel = img[(x, y)];
-            let mut r = pixel[0] as f32 / 255.0;
+            let mut r = pixel[0] as Float / 255.0;
 
             if gamma {
                 r = inverse_gamma_correct(r);
@@ -32,8 +32,8 @@ fn convert_from_lumaa8(img: &image::GrayAlphaImage, gamma: bool) -> (Vec<RGBSpec
         for x in 0..width {
             let index = (y * width + x) as usize;
             let pixel = img[(x, y)];
-            let mut r = pixel[0] as f32 / 255.0;
-            let _a = pixel[1] as f32 / 255.0; // Ignore alpha channel
+            let mut r = pixel[0] as Float / 255.0;
+            let _a = pixel[1] as Float / 255.0; // Ignore alpha channel
 
             if gamma {
                 r = inverse_gamma_correct(r);
@@ -52,9 +52,9 @@ fn convert_from_rgb8(img: &image::RgbImage, gamma: bool) -> (Vec<RGBSpectrum>, P
         for x in 0..width {
             let index = (y * width + x) as usize;
             let pixel = img[(x, y)];
-            let mut r = pixel[0] as f32 / 255.0;
-            let mut g = pixel[1] as f32 / 255.0;
-            let mut b = pixel[2] as f32 / 255.0;
+            let mut r = pixel[0] as Float / 255.0;
+            let mut g = pixel[1] as Float / 255.0;
+            let mut b = pixel[2] as Float / 255.0;
 
             if gamma {
                 r = inverse_gamma_correct(r);
@@ -75,9 +75,9 @@ fn convert_from_rgba8(img: &image::RgbaImage, gamma: bool) -> (Vec<RGBSpectrum>,
         for x in 0..width {
             let index = (y * width + x) as usize;
             let pixel = img[(x, y)];
-            let mut r = pixel[0] as f32 / 255.0;
-            let mut g = pixel[1] as f32 / 255.0;
-            let mut b = pixel[2] as f32 / 255.0;
+            let mut r = pixel[0] as Float / 255.0;
+            let mut g = pixel[1] as Float / 255.0;
+            let mut b = pixel[2] as Float / 255.0;
 
             if gamma {
                 r = inverse_gamma_correct(r);
@@ -98,9 +98,9 @@ fn convert_from_rgb16(img: &Rgb16Image) -> (Vec<RGBSpectrum>, Point2i) {
         for x in 0..width {
             let index = (y * width + x) as usize;
             let pixel = img.get_pixel(x, y);
-            let r = pixel[0] as f32 / 65535.0;
-            let g = pixel[1] as f32 / 65535.0;
-            let b = pixel[2] as f32 / 65535.0;
+            let r = pixel[0] as Float / 65535.0;
+            let g = pixel[1] as Float / 65535.0;
+            let b = pixel[2] as Float / 65535.0;
             spcs[index] = RGBSpectrum::new(r, g, b);
         }
     }
@@ -114,9 +114,9 @@ fn convert_from_rgb32f(img: &image::Rgb32FImage) -> (Vec<RGBSpectrum>, Point2i) 
         for x in 0..width {
             let index = (y * width + x) as usize;
             let pixel = img.get_pixel(x, y);
-            let r = pixel[0];
-            let g = pixel[1];
-            let b = pixel[2];
+            let r = pixel[0] as Float;
+            let g = pixel[1] as Float;
+            let b = pixel[2] as Float;
             spcs[index] = RGBSpectrum::new(r, g, b);
         }
     }
@@ -130,9 +130,9 @@ fn convert_from_rgba32f(img: &image::Rgba32FImage) -> (Vec<RGBSpectrum>, Point2i
         for x in 0..width {
             let index = (y * width + x) as usize;
             let pixel = img.get_pixel(x, y);
-            let r = pixel[0];
-            let g = pixel[1];
-            let b = pixel[2];
+            let r = pixel[0] as Float;
+            let g = pixel[1] as Float;
+            let b = pixel[2] as Float;
             spcs[index] = RGBSpectrum::new(r, g, b);
         }
     }

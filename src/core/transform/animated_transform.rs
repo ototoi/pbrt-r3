@@ -22,7 +22,7 @@ impl AnimatedTransform {
         end_transform: &Transform,
         end_time: Float,
     ) -> Self {
-        const EPS: f32 = f32::EPSILON * 1e+2;
+        const EPS: Float = Float::EPSILON * 1e+2;
         let transforms = [*start_transform, *end_transform];
         let times = [start_time, end_time];
         let actually_animated = start_transform != end_transform;

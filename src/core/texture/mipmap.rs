@@ -40,14 +40,24 @@ impl From<(&[f32], (usize, usize))> for F32MIPMapImage {
     }
 }
 
+impl From<(&[f64], (usize, usize))> for F32MIPMapImage {
+    fn from(v: (&[f64], (usize, usize))) -> Self {
+        let data: Vec<f32> = v.0.iter().map(|x| *x as f32).collect();
+        F32MIPMapImage {
+            resolution: v.1,
+            data: data,
+        }
+    }
+}
+
 impl From<(&[Spectrum], (usize, usize))> for F32MIPMapImage {
     fn from(v: (&[Spectrum], (usize, usize))) -> Self {
         let mut data = vec![0.0; 3 * v.0.len()];
         for i in 0..v.0.len() {
             let c = v.0[i].to_rgb();
-            data[3 * i + 0] = c[0];
-            data[3 * i + 1] = c[1];
-            data[3 * i + 2] = c[2];
+            data[3 * i + 0] = c[0] as f32;
+            data[3 * i + 1] = c[1] as f32;
+            data[3 * i + 2] = c[2] as f32;
         }
         F32MIPMapImage {
             resolution: v.1,
@@ -98,7 +108,7 @@ impl MIPMapImage<RGBSpectrum> for F32MIPMapImage {
 
 struct ResampleWeight {
     first_texel: i32,
-    weight: [Float; 4],
+    weight: [f32; 4],
 }
 
 fn math_mod(a: i32, b: i32) -> i32 {
@@ -181,7 +191,7 @@ fn resample_weights(old_res: usize, new_res: usize) -> Vec<ResampleWeight> {
         let mut weight = [0.0; 4];
         for j in 0..4 {
             let pos = first_texel + (j as Float) + 0.5;
-            weight[j] = lanczos((pos - center) / FILTER_WIDTH, FILTER_WIDTH);
+            weight[j] = lanczos((pos - center) / FILTER_WIDTH, FILTER_WIDTH) as f32;
         }
         // Normalize filter weights for texel resampling
         let inv_sum_wts = 1.0 / (weight[0] + weight[1] + weight[2] + weight[3]);
@@ -648,18 +658,16 @@ fn write_spectrum_mipmap_image(path: &str, image: &F32MIPMapImage) -> Result<(),
     let resolution = image.resolution;
     let w = resolution.0;
     let h = resolution.1;
-    let channels = image.data.len() / (w * h) as usize;
-    let mut img: Vec<f32> = vec![0.0; w * h * 3];
-    if channels == 3 {
-        img = image.data.clone();
-    } else {
-        for i in 0..(w * h) {
-            let c = image.data[i];
-            img[3 * i + 0] = c;
-            img[3 * i + 1] = c;
-            img[3 * i + 2] = c;
-        }
+    // let channels = image.data.len() / (w * h) as usize;
+    let mut img: Vec<Float> = vec![0.0; w * h * 3];
+
+    for i in 0..(w * h) {
+        let c = image.data[i];
+        img[3 * i + 0] = c as Float;
+        img[3 * i + 1] = c as Float;
+        img[3 * i + 2] = c as Float;
     }
+
     return write_image(
         &path,
         &img,

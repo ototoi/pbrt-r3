@@ -183,7 +183,7 @@ impl Matrix4x4 {
         camera_to_world[10] = dir.z;
         camera_to_world[14] = 0.;
         */
-        let m: [f32; 16] = [
+        let m: [Float; 16] = [
             right.x, new_up.x, dir.x, pos.x, //
             right.y, new_up.y, dir.y, pos.y, //
             right.z, new_up.z, dir.z, pos.z, //
@@ -349,8 +349,6 @@ impl From<[Float; 16]> for Matrix4x4 {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::pbrt::vector3::Vector3f;
-
     use super::*;
 
     #[test]

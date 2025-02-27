@@ -2,10 +2,16 @@
 
 //use std::cmp;
 
-//const DOUBLE_ONE_MINUS_EPSILON: f64 = 0.99999999999999989;
-const FLOAT_ONE_MINUS_EPSILON: f32 = 0.99999994;
+use crate::core::pbrt::Float;
 
+pub const DOUBLE_ONE_MINUS_EPSILON: f64 = 0.99999999999999989;
+pub const FLOAT_ONE_MINUS_EPSILON: f32 = 0.99999994;
+
+#[cfg(not(feature = "float-as-double"))]
 pub const ONE_MINUS_EPSILON: f32 = FLOAT_ONE_MINUS_EPSILON;
+#[cfg(feature = "float-as-double")]
+pub const ONE_MINUS_EPSILON: f64 = DOUBLE_ONE_MINUS_EPSILON;
+
 const PCG32_DEFAULT_STATE: u64 = 0x853c49e6748fea9b;
 const PCG32_DEFAULT_STREAM: u64 = 0xda3e39cb94b95bdb;
 const PCG32_MULT: u64 = 0x5851f42d4c957f2d;
@@ -62,9 +68,13 @@ impl RNG {
     }
 
     #[inline]
-    pub fn uniform_float(&mut self) -> f32 {
+    pub fn uniform_float(&mut self) -> Float {
+        return self.uniform_float32() as Float;
+    }
+
+    pub fn uniform_float32(&mut self) -> f32 {
         let f: f32 = self.uniform_uint32() as f32 * 2.3283064365386963e-10;
-        return ONE_MINUS_EPSILON.min(f);
+        return FLOAT_ONE_MINUS_EPSILON.min(f);
     }
 }
 
@@ -88,9 +98,9 @@ mod tests {
     #[test]
     fn test_002() {
         let mut rng = RNG::new();
-        let a: f32 = rng.uniform_float();
+        let a: f32 = rng.uniform_float32();
         let astate = rng.state;
-        let b: f32 = rng.uniform_float();
+        let b: f32 = rng.uniform_float32();
         let bstate = rng.state;
         assert_ne!(a, b);
         assert_ne!(astate, bstate);

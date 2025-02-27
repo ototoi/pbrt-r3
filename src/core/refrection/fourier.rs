@@ -93,7 +93,7 @@ impl FourierBSDFTable {
         for _ in 0..3 {
             let _: i32 = read_i32(reader)?;
         }
-        let eta = read_f32(reader)?;
+        let eta = read_f32(reader)? as Float;
         for _ in 0..4 {
             let _: i32 = read_i32(reader)?;
         }
@@ -102,25 +102,25 @@ impl FourierBSDFTable {
             return Err(Self::error(""));
         }
 
-        let mut mu: Vec<f32> = vec![0.0; n_mu];
-        let mut cdf: Vec<f32> = vec![0.0; n_mu * n_mu];
-        let mut a0: Vec<f32> = vec![0.0; n_mu * n_mu];
+        let mut mu: Vec<Float> = vec![0.0; n_mu];
+        let mut cdf: Vec<Float> = vec![0.0; n_mu * n_mu];
+        let mut a0: Vec<Float> = vec![0.0; n_mu * n_mu];
         let mut offset_and_length: Vec<i32> = vec![0; (n_mu * n_mu * 2) as usize];
         let mut a_offset: Vec<i32> = vec![0; n_mu * n_mu];
         let mut m: Vec<i32> = vec![0; n_mu * n_mu];
-        let mut a: Vec<f32> = vec![0.0; n_coeffs];
+        let mut a: Vec<Float> = vec![0.0; n_coeffs];
 
         for i in 0..n_mu {
-            mu[i] = read_f32(reader)?;
+            mu[i] = read_f32(reader)? as Float;
         }
         for i in 0..(n_mu * n_mu) {
-            cdf[i] = read_f32(reader)?;
+            cdf[i] = read_f32(reader)? as Float;
         }
         for i in 0..(n_mu * n_mu * 2) {
             offset_and_length[i] = read_i32(reader)?;
         }
         for i in 0..n_coeffs {
-            a[i] = read_f32(reader)?;
+            a[i] = read_f32(reader)? as Float;
         }
 
         for i in 0..(n_mu * n_mu) {

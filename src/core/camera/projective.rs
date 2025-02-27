@@ -28,7 +28,7 @@ impl ProjectiveCamera {
         medium: &Option<Arc<dyn Medium>>,
     ) -> Self {
         let resolution = film.read().unwrap().full_resolution;
-        let screen_to_raster = Transform::scale(resolution.x as f32, resolution.y as f32, 1.0)
+        let screen_to_raster = Transform::scale(resolution.x as Float, resolution.y as Float, 1.0)
             * Transform::scale(
                 1.0 / (screen_window.max.x - screen_window.min.x),
                 1.0 / (screen_window.min.y - screen_window.max.y),

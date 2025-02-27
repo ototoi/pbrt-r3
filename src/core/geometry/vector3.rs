@@ -8,9 +8,9 @@ pub struct Vector3<T> {
     pub z: T,
 }
 
-pub type Vector3f = Vector3<f32>;
-pub type Vector3d = Vector3<f64>;
-pub type Vector3i = Vector3<i32>;
+type Vector3f = Vector3<f32>;
+type Vector3d = Vector3<f64>;
+type Vector3i = Vector3<i32>;
 
 impl<T: Copy> Vector3<T> {
     pub fn new(x: T, y: T, z: T) -> Self {

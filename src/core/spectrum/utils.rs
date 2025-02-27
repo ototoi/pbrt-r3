@@ -1,7 +1,8 @@
 include!(concat!(env!("OUT_DIR"), "/spectrum_utils.rs"));
 use crate::core::misc::find_interval;
+use crate::core::pbrt::Float;
 
-pub fn spectrum_samples_sorted(lambda: &[f32], _vals: &[f32]) -> bool {
+pub fn spectrum_samples_sorted(lambda: &[Float], _vals: &[Float]) -> bool {
     for i in 0..(lambda.len() - 1) {
         if lambda[i] > lambda[i + 1] {
             return false;
@@ -10,9 +11,9 @@ pub fn spectrum_samples_sorted(lambda: &[f32], _vals: &[f32]) -> bool {
     return true;
 }
 
-pub fn sort_spectrum_samples(lambda: &mut [f32], vals: &mut [f32]) {
+pub fn sort_spectrum_samples(lambda: &mut [Float], vals: &mut [Float]) {
     let n = lambda.len();
-    let mut sort_vec: Vec<(f32, f32)> = Vec::with_capacity(n);
+    let mut sort_vec: Vec<(Float, Float)> = Vec::with_capacity(n);
     for i in 0..n {
         sort_vec.push((lambda[i], vals[i]));
     }
@@ -23,7 +24,7 @@ pub fn sort_spectrum_samples(lambda: &mut [f32], vals: &mut [f32]) {
     }
 }
 
-pub fn interpolate_spectrum_samples(lambda: &[f32], vals: &[f32], l: f32) -> f32 {
+pub fn interpolate_spectrum_samples(lambda: &[Float], vals: &[Float], l: Float) -> Float {
     //for (int i = 0; i < n - 1; ++i) CHECK_GT(lambda[i + 1], lambda[i]);
     let n = lambda.len();
     if l <= lambda[0] {
@@ -54,11 +55,11 @@ pub fn interpolate_spectrum_samples(lambda: &[f32], vals: &[f32], l: f32) -> f32
 // and for downsampling, we apply a box filter centered around the
 // destination wavelength with total width equal to the sample spacing.
 pub fn resample_linear_spectrum(
-    lambda_in: &[f32],
-    v_in: &[f32],
-    lambda_min: f32,
-    lambda_max: f32,
-    v_out: &mut [f32],
+    lambda_in: &[Float],
+    v_in: &[Float],
+    lambda_min: Float,
+    lambda_max: Float,
+    v_out: &mut [Float],
 ) {
     let n_in = lambda_in.len();
     let n_out = v_out.len();
@@ -69,7 +70,7 @@ pub fn resample_linear_spectrum(
     assert!(lambda_min < lambda_max);
 
     // Spacing between samples in the output distribution.
-    let delta = (lambda_max - lambda_min) / (n_out - 1) as f32;
+    let delta = (lambda_max - lambda_min) / (n_out - 1) as Float;
 
     // We assume that the SPD is constant outside of the specified
     // wavelength range, taking on the respectively first/last SPD value
@@ -91,7 +92,7 @@ pub fn resample_linear_spectrum(
     // increasing set of wavelength values. However, this isn't a problem
     // since we only access these virtual samples if the destination range
     // is wider than the source range.)
-    let lambda_in_clamped = |index: i32| -> f32 {
+    let lambda_in_clamped = |index: i32| -> Float {
         assert!(index >= -1 && index <= n_in as i32);
         if index == -1 {
             assert!(lambda_min - delta < lambda_in[0]);
@@ -106,14 +107,14 @@ pub fn resample_linear_spectrum(
 
     // Due to the piecewise-constant assumption, the SPD values outside the
     // specified range are given by the valid endpoints.
-    let v_in_clamped = |index: i32| -> f32 {
+    let v_in_clamped = |index: i32| -> Float {
         assert!(index >= -1 && index <= n_in as i32);
         return v_in[index.clamp(0, n_in as i32 - 1) as usize];
     };
 
     // Helper that upsamples ors downsample the given SPD at the given
     // wavelength lambda.
-    let resample = |lambda: f32| -> f32 {
+    let resample = |lambda: Float| -> Float {
         // Handle the edge cases first so that we don't need to worry about
         // them in the following.
         //
@@ -197,7 +198,7 @@ pub fn resample_linear_spectrum(
         // since we're resampling it at a regular and increasing set of
         // lambdas. It would be nice to polish that up.
         let lambda = lerp(
-            out_offset as f32 / (n_out as f32 - 1.0),
+            out_offset as Float / (n_out as Float - 1.0),
             lambda_min,
             lambda_max,
         );

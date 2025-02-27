@@ -6,9 +6,11 @@ build = "build/main.rs"
 default-run = "pbrt-r3"
 
 [features]
-default = []
+default = ["float-as-double"]
 profile = []
 stats = []
+float-as-double = []
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

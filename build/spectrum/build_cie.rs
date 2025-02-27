@@ -24,7 +24,7 @@ pub fn build_core(path: &str) {
 
     contents += "\n";
     contents += &format!(
-        "pub const CIE_Y_INTEGRAL: f32 = {};\n",
+        "pub const CIE_Y_INTEGRAL: Float = {};\n",
         cie_data::CIE_Y_INTEGRAL
     );
 

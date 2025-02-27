@@ -1,5 +1,5 @@
 use super::super::utils::*;
-use super::config::SPECTRAL_SAMPLES;
+use super::config::*;
 use super::rgb_data;
 use super::to_string::spectrum_to_string;
 use super::utils::sample_spectrum;
@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 
 pub fn build_core(path: &str) {
-    let mut m: Vec<(&str, [f32; SPECTRAL_SAMPLES])> = Vec::new();
+    let mut m: Vec<(&str, [Float; SPECTRAL_SAMPLES])> = Vec::new();
     m.push((
         "RGBREFL2SPECT_WHITE",
         sample_spectrum(&rgb_data::RGB2SPECT_LAMBDA, &rgb_data::RGBREFL2SPECT_WHITE),

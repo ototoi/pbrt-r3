@@ -5,7 +5,7 @@ use super::homogeneous::HomogeneousMedium;
 use crate::core::pbrt::*;
 use std::sync::Arc;
 
-const SUBSURFACE_PARAMETER_TABLE: [(&str, [f32; 3], [f32; 3]); 47] = [
+const SUBSURFACE_PARAMETER_TABLE: [(&str, [Float; 3], [Float; 3]); 47] = [
     // From "A Practical Model for Subsurface Light Transport"
     // Jensen, Marschner, Levoy, Hanrahan
     // Proc SIGGRAPH 2001

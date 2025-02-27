@@ -132,7 +132,7 @@ impl KDTreeBuilder {
         // Choose split axis position for interior node
         let mut best_axis: i32 = -1;
         let mut best_offset: i64 = -1;
-        let mut best_cost = std::f32::INFINITY;
+        let mut best_cost = Float::INFINITY;
         let old_cost = self.isect_cost as Float * n_primitives as Float;
         let total_sa = node_bounds.surface_area();
         let inv_total_sa = 1.0 / total_sa;

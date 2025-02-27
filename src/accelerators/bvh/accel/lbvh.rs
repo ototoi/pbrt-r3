@@ -7,18 +7,18 @@ use std::sync::Arc;
 thread_local!(static TREE_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/BVH tree"));
 
 pub struct LinearBVHNode {
-    pub bounds: [[f32; 3]; 2], //32*3*2
+    pub bounds: [[Float; 3]; 2], //32*3*2
     pub offset: usize,
     pub n_primitives: usize, // 0 -> interior node
     pub axis: u8,            // interior node: xyz
 }
 
-fn to_bounds3f(b: &[[f32; 3]; 2]) -> Bounds3f {
-    return Bounds3f::from(((b[0][0], b[0][1], b[0][2]), (b[1][0], b[1][1], b[1][2])));
+fn to_bounds3f(b: &[[Float; 3]; 2]) -> Bounds3f {
+    return Bounds3f::from(((b[0][0] as Float, b[0][1] as Float, b[0][2] as Float), (b[1][0] as Float, b[1][1] as Float, b[1][2] as Float)));
 }
 
-fn to_array_bounds3f(b: &Bounds3f) -> [[f32; 3]; 2] {
-    return [[b.min.x, b.min.y, b.min.z], [b.max.x, b.max.y, b.max.z]];
+fn to_array_bounds3f(b: &Bounds3f) -> [[Float; 3]; 2] {
+    return [[b.min.x as Float, b.min.y as Float, b.min.z as Float], [b.max.x as Float, b.max.y as Float, b.max.z as Float]];
 }
 
 impl LinearBVHNode {

@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 
 pub fn build_core(path: &str) {
-    let mut m: Vec<(&str, [f32; SPECTRAL_SAMPLES])> = Vec::new();
+    let mut m: Vec<(&str, [Float; SPECTRAL_SAMPLES])> = Vec::new();
     m.push((
         "CIE_X",
         sample_spectrum(&cie_data::CIE_LAMBDA, &cie_data::CIE_X),

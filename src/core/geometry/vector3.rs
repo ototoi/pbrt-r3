@@ -8,10 +8,6 @@ pub struct Vector3<T> {
     pub z: T,
 }
 
-type Vector3f = Vector3<f32>;
-type Vector3d = Vector3<f64>;
-type Vector3i = Vector3<i32>;
-
 impl<T: Copy> Vector3<T> {
     pub fn new(x: T, y: T, z: T) -> Self {
         Vector3::<T> { x, y, z }
@@ -346,6 +342,10 @@ impl<T: Copy> From<&[T]> for Vector3<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    type Vector3f = Vector3<f32>;
+    type Vector3d = Vector3<f64>;
+    type Vector3i = Vector3<i32>;
 
     #[test]
     fn test_001() {

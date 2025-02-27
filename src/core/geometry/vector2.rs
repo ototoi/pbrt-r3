@@ -7,10 +7,6 @@ pub struct Vector2<T> {
     pub y: T,
 }
 
-type Vector2f = Vector2<f32>;
-type Vector2d = Vector2<f64>;
-type Vector2i = Vector2<i32>;
-
 impl<T: Copy> Vector2<T> {
     pub fn new(x: T, y: T) -> Self {
         Vector2::<T> { x, y }

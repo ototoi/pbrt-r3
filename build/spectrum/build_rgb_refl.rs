@@ -106,9 +106,9 @@ pub fn build_core(path: &str) {
 }
 
 pub fn build() {
-    let depends = ["build/spectrum/cie_data.rs", "build/spectrum/rgb_data.rs"];
+    println!("cargo:rerun-if-changed=build/spectrum/rgb_data.rs;build/spectrum/build_rgb_refl.rs");
+    let depends = ["build/spectrum/rgb_data.rs", "build/spectrum/build_rgb_refl.rs"];
     let target = "spectrum_data_rgb_refl.rs";
-    //println!("cargo:rerun-if-changed=build/spectrum/cie_data.rs;build/spectrum/rgb_data.rs");
     let out_dir = env::var("OUT_DIR").unwrap();
     let path = Path::new(&out_dir).join(target);
     let path = String::from(path.to_str().unwrap());

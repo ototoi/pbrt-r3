@@ -1,4 +1,6 @@
-pub const SAMPLED_LAMBDA_START: u32 = 400;
-pub const SAMPLED_LAMBDA_END: u32 = 700;
-pub const SPECTRAL_SAMPLES: usize = 60;
-pub const RGB2SPECT_SAMPLES: usize = 32;
+pub use super::spectrum_config::*;
+
+#[cfg(not(feature = "float-as-double"))]
+pub type Float = f32;
+#[cfg(feature = "float-as-double")]
+pub type Float = f64;

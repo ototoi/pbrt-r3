@@ -1,8 +1,10 @@
+use super::config::*;
+
 pub const CIE_SAMPLES: usize = 471;
 
 // CIE X function values
 #[rustfmt::skip]
-pub const CIE_X: [f32; CIE_SAMPLES] = [
+pub const CIE_X: [Float; CIE_SAMPLES] = [
     0.0001299000,   0.0001458470,   0.0001638021,   0.0001840037,
     0.0002066902,   0.0002321000,   0.0002607280,   0.0002930750,
     0.0003293880,   0.0003699140,   0.0004149000,   0.0004641587,
@@ -125,7 +127,7 @@ pub const CIE_X: [f32; CIE_SAMPLES] = [
 
 // CIE Y function values
 #[rustfmt::skip]
-pub const CIE_Y: [f32; CIE_SAMPLES] = [
+pub const CIE_Y: [Float; CIE_SAMPLES] = [
     // CIE Y function values
     0.000003917000,  0.000004393581,  0.000004929604,  0.000005532136,
     0.000006208245,  0.000006965000,  0.000007813219,  0.000008767336,
@@ -248,7 +250,7 @@ pub const CIE_Y: [f32; CIE_SAMPLES] = [
 ];
 
 // CIE Z function values
-pub const CIE_Z: [f32; CIE_SAMPLES] = [
+pub const CIE_Z: [Float; CIE_SAMPLES] = [
     0.0006061000,
     0.0006808792,
     0.0007651456,
@@ -723,7 +725,7 @@ pub const CIE_Z: [f32; CIE_SAMPLES] = [
 ];
 
 #[rustfmt::skip]
-pub const CIE_LAMBDA: [f32; CIE_SAMPLES] = [
+pub const CIE_LAMBDA: [Float; CIE_SAMPLES] = [
     360.0, 361.0, 362.0, 363.0, 364.0, 365.0, 366.0, 367.0, 368.0, 369.0, 370.0, 371.0, 372.0,
     373.0, 374.0, 375.0, 376.0, 377.0, 378.0, 379.0, 380.0, 381.0, 382.0, 383.0, 384.0, 385.0,
     386.0, 387.0, 388.0, 389.0, 390.0, 391.0, 392.0, 393.0, 394.0, 395.0, 396.0, 397.0, 398.0,
@@ -763,4 +765,4 @@ pub const CIE_LAMBDA: [f32; CIE_SAMPLES] = [
     828.0, 829.0, 830.0,
 ];
 
-pub const CIE_Y_INTEGRAL: f32 = 106.856895;
+pub const CIE_Y_INTEGRAL: Float = 106.856895;

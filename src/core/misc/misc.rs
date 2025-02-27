@@ -3,7 +3,7 @@ use crate::core::pbrt::*;
 pub const MACHINE_EPSILON: Float = Float::EPSILON * 0.5;
 
 #[inline]
-pub fn gamma(n: f32) -> Float {
+pub fn gamma(n: Float) -> Float {
     //return (n * MachineEpsilon) / (1 - n * MachineEpsilon);
     let e = n * MACHINE_EPSILON;
     return e / (1.0 - e);

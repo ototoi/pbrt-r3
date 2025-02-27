@@ -29,7 +29,7 @@ impl<'a> TextureParams<'a> {
         }
     }
 
-    fn get_float(&self, key: &str) -> Option<f32> {
+    fn get_float(&self, key: &str) -> Option<Float> {
         if let Some(c) = self.mat_params.get_floats_ref(key) {
             if c.len() >= 1 {
                 if c.len() > 1 {

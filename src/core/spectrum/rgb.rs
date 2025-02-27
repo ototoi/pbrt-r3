@@ -4,11 +4,11 @@ use super::utils::*;
 use crate::core::pbrt::*;
 use std::ops;
 
-const YWEIGHT: [f32; 3] = [0.212671, 0.715160, 0.072169];
+const YWEIGHT: [Float; 3] = [0.212671, 0.715160, 0.072169];
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct RGBSpectrum {
-    c: [f32; 3],
+    c: [Float; 3],
 }
 
 impl RGBSpectrum {
@@ -74,12 +74,12 @@ impl RGBSpectrum {
         c[2] *= s;
     }
 
-    pub fn to_vec(&self) -> Vec<f32> {
+    pub fn to_vec(&self) -> Vec<Float> {
         let c = &self.c;
         return c.to_vec();
     }
 
-    pub fn set_vec(&mut self, v: &[f32]) {
+    pub fn set_vec(&mut self, v: &[Float]) {
         let c = &mut self.c;
         c.copy_from_slice(v);
         //for i in 0..c.len() {
@@ -126,7 +126,7 @@ impl RGBSpectrum {
         }
         let mut xyz: [Float; 3] = [0.0; 3];
         for i in 0..CIE_SAMPLES {
-            let val: f32 = interpolate_spectrum_samples(lambda, vals, CIE_LAMBDA[i]);
+            let val: Float = interpolate_spectrum_samples(lambda, vals, CIE_LAMBDA[i]);
             xyz[0] += val * CIE_X[i];
             xyz[1] += val * CIE_Y[i];
             xyz[2] += val * CIE_Z[i];
@@ -157,7 +157,7 @@ impl RGBSpectrum {
 
     //-----------------------------------------------
 
-    pub fn near_equal(a: &RGBSpectrum, b: &RGBSpectrum, eps: f32) -> bool {
+    pub fn near_equal(a: &RGBSpectrum, b: &RGBSpectrum, eps: Float) -> bool {
         let aa = a.to_vec();
         let bb = b.to_vec();
         if aa.len() != bb.len() {
@@ -166,9 +166,9 @@ impl RGBSpectrum {
         let s = aa
             .iter()
             .zip(bb)
-            .map(|(x, y)| -> f32 { f32::abs(x - y) })
-            .sum::<f32>()
-            / (aa.len() as f32);
+            .map(|(x, y)| -> Float { Float::abs(x - y) })
+            .sum::<Float>()
+            / (aa.len() as Float);
         return s < eps;
     }
 
@@ -212,7 +212,7 @@ impl ops::IndexMut<usize> for RGBSpectrum {
 impl ops::Mul<Float> for RGBSpectrum {
     type Output = RGBSpectrum;
     #[inline]
-    fn mul(self, s: f32) -> RGBSpectrum {
+    fn mul(self, s: Float) -> RGBSpectrum {
         return RGBSpectrum::from([self[0] * s, self[1] * s, self[2] * s]);
     }
 }
@@ -324,45 +324,45 @@ impl Default for RGBSpectrum {
     }
 }
 
-impl From<f32> for RGBSpectrum {
+impl From<Float> for RGBSpectrum {
     #[inline]
-    fn from(value: f32) -> Self {
+    fn from(value: Float) -> Self {
         RGBSpectrum {
             c: [value, value, value],
         }
     }
 }
 
-impl From<(f32, f32, f32)> for RGBSpectrum {
+impl From<(Float, Float, Float)> for RGBSpectrum {
     #[inline]
-    fn from(value: (f32, f32, f32)) -> Self {
+    fn from(value: (Float, Float, Float)) -> Self {
         RGBSpectrum {
             c: [value.0, value.1, value.2],
         }
     }
 }
 
-impl From<&[f32; 3]> for RGBSpectrum {
+impl From<&[Float; 3]> for RGBSpectrum {
     #[inline]
-    fn from(value: &[f32; 3]) -> Self {
+    fn from(value: &[Float; 3]) -> Self {
         RGBSpectrum {
             c: [value[0], value[1], value[2]],
         }
     }
 }
 
-impl From<[f32; 3]> for RGBSpectrum {
+impl From<[Float; 3]> for RGBSpectrum {
     #[inline]
-    fn from(value: [f32; 3]) -> Self {
+    fn from(value: [Float; 3]) -> Self {
         RGBSpectrum {
             c: [value[0], value[1], value[2]],
         }
     }
 }
 
-impl From<Vec<f32>> for RGBSpectrum {
+impl From<Vec<Float>> for RGBSpectrum {
     #[inline]
-    fn from(value: Vec<f32>) -> Self {
+    fn from(value: Vec<Float>) -> Self {
         RGBSpectrum {
             c: value.try_into().unwrap(),
         }

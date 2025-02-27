@@ -14,8 +14,8 @@ pub fn load_from_file(path: &str) -> Result<SampledSpectrum, PbrtError> {
             let mut wls = Vec::new();
             let mut v = Vec::new();
             for j in 0..(vals.len() / 2) {
-                wls.push(vals[2 * j]);
-                v.push(vals[2 * j + 1]);
+                wls.push(vals[2 * j] as Float);
+                v.push(vals[2 * j + 1] as Float);
             }
             return Ok(SampledSpectrum::sampled_from_sampled(&wls, &v));
         }

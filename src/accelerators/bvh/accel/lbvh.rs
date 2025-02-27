@@ -14,11 +14,17 @@ pub struct LinearBVHNode {
 }
 
 fn to_bounds3f(b: &[[Float; 3]; 2]) -> Bounds3f {
-    return Bounds3f::from(((b[0][0] as Float, b[0][1] as Float, b[0][2] as Float), (b[1][0] as Float, b[1][1] as Float, b[1][2] as Float)));
+    return Bounds3f::from((
+        (b[0][0] as Float, b[0][1] as Float, b[0][2] as Float),
+        (b[1][0] as Float, b[1][1] as Float, b[1][2] as Float),
+    ));
 }
 
 fn to_array_bounds3f(b: &Bounds3f) -> [[Float; 3]; 2] {
-    return [[b.min.x as Float, b.min.y as Float, b.min.z as Float], [b.max.x as Float, b.max.y as Float, b.max.z as Float]];
+    return [
+        [b.min.x as Float, b.min.y as Float, b.min.z as Float],
+        [b.max.x as Float, b.max.y as Float, b.max.z as Float],
+    ];
 }
 
 impl LinearBVHNode {

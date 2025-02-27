@@ -73,7 +73,7 @@ impl Shape for Sphere {
         let b = (dx * ox + dy * oy + dz * oz) * 2.0;
         let c = ox * ox + oy * oy + oz * oz - rad * rad;
 
-        let t_max = ray.t_max.get();
+        let t_max: f32 = ray.t_max.get() as f32;
 
         let (t0, t1) = EFloat::quadratic(a, b, c)?;
         // pbrt-r3:
@@ -95,7 +95,7 @@ impl Shape for Sphere {
             }
         }
 
-        let mut p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+        let mut p_hit = ray.o + ray.d * Float::from(t_shape_hit);
         p_hit *= self.radius / Vector3f::distance(&p_hit, &Vector3f::zero());
         if p_hit.x == 0.0 && p_hit.y == 0.0 {
             p_hit.x = 1e-5 * self.radius;
@@ -115,7 +115,7 @@ impl Shape for Sphere {
                 return None;
             }
             t_shape_hit = t1;
-            p_hit = ray.o + ray.d * t_shape_hit.v; //
+            p_hit = ray.o + ray.d * Float::from(t_shape_hit);
             p_hit *= self.radius / Vector3f::distance(&p_hit, &Vector3f::zero());
             if p_hit.x == 0.0 && p_hit.y == 0.0 {
                 p_hit.x = 1e-5 * self.radius;
@@ -194,7 +194,7 @@ impl Shape for Sphere {
             .base
             .object_to_world
             .transform_surface_interaction(&isect);
-        return Some((t_shape_hit.v, isect));
+        return Some((t_shape_hit.into(), isect));
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
@@ -210,7 +210,7 @@ impl Shape for Sphere {
         let b = (dx * ox + dy * oy + dz * oz) * 2.0;
         let c = ox * ox + oy * oy + oz * oz - rad * rad;
 
-        let t_max = ray.t_max.get();
+        let t_max: f32 = ray.t_max.get() as f32;
 
         if let Some((t0, t1)) = EFloat::quadratic(a, b, c) {
             // pbrt-r3:
@@ -228,7 +228,7 @@ impl Shape for Sphere {
                     return false;
                 }
             }
-            let mut p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+            let mut p_hit = ray.o + ray.d * Float::from(t_shape_hit);
             p_hit *= self.radius / Vector3f::distance(&p_hit, &Vector3f::zero());
             if p_hit.x == 0.0 && p_hit.y == 0.0 {
                 p_hit.x = 1e-5 * self.radius;
@@ -248,7 +248,7 @@ impl Shape for Sphere {
                     return false;
                 }
                 t_shape_hit = t1;
-                p_hit = ray.o + ray.d * t_shape_hit.v; //
+                p_hit = ray.o + ray.d * Float::from(t_shape_hit);
                 p_hit *= self.radius / Vector3f::distance(&p_hit, &Vector3f::zero());
                 if p_hit.x == 0.0 && p_hit.y == 0.0 {
                     p_hit.x = 1e-5 * self.radius;

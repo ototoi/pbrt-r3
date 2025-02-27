@@ -70,7 +70,7 @@ fn spectrum_linear_upsample_2x() {
     let mut new_val = [0.0; 9];
     resample_linear_spectrum(&lambda, &val, lambda[0], lambda[4], &mut new_val);
     for i in 0..9 {
-        assert_eq!((i + 1) as f32, new_val[i]);
+        assert_eq!((i + 1) as Float, new_val[i]);
     }
 }
 
@@ -86,7 +86,7 @@ fn spectrum_linear_upsample_higher() {
     let mut new_val = [0.0; 20];
     resample_linear_spectrum(&lambda, &val, lambda[1], lambda[3], &mut new_val);
     for i in 0..20 {
-        let t = i as f32 / (20 - 1) as f32;
+        let t = i as Float / (20 - 1) as Float;
         assert!(near_equal(lerp(t, val[1], val[3]), new_val[i], 1e-6));
     }
 }
@@ -105,7 +105,7 @@ fn spectrum_linear_upsampling() {
     let lambda_max = 3.75;
     resample_linear_spectrum(&lambda, &val, lambda_min, lambda_max, &mut new_val);
     for i in 0..40 {
-        let t = i as f32 / (40 - 1) as f32;
+        let t = i as Float / (40 - 1) as Float;
         assert!(near_equal(
             lerp(t, 1.0 + 2.0 * lambda_min, 1.0 + 2.0 * lambda_max),
             new_val[i],
@@ -121,7 +121,7 @@ fn spectrum_linear_irregular_resample() {
         -1.5, -0.5, 0.01, 0.6, 1.0, 2.0, 2.1, 3.4, 4.6, 5.7, 7.0, 8.2, 9.0, 9.8, 11.11, 12.0, 13.0,
         14.7,
     ];
-    let val = lambda.iter().map(|&l| l * l).collect::<Vec<f32>>();
+    let val = lambda.iter().map(|&l| l * l).collect::<Vec<Float>>();
     assert_eq!(lambda.len(), val.len());
 
     // Resample it over a subset of the wavelengths.
@@ -135,7 +135,7 @@ fn spectrum_linear_irregular_resample() {
     // downsampling, we're averaging over a range of the quadratic
     // function.
     for i in 0..30 {
-        let t = i as f32 / (30 - 1) as f32;
+        let t = i as Float / (30 - 1) as Float;
         let lambda = lerp(t, lambda_min, lambda_max);
         assert!(lambda * lambda - new_val[i] < 0.75);
     }
@@ -191,7 +191,7 @@ fn spectrum_linear_downsample_irreg() {
     for _ in 0..100 {
         lambda.push(lambda.last().unwrap() + rng.uniform_float());
     }
-    let val = lambda.iter().map(|&l| l * l).collect::<Vec<f32>>();
+    let val = lambda.iter().map(|&l| l * l).collect::<Vec<Float>>();
     assert_eq!(lambda.len(), val.len());
 
     // Resample it over a subset of the wavelengths.
@@ -204,7 +204,7 @@ fn spectrum_linear_downsample_irreg() {
     // tolerance so that we account for the averaging over ranges of the
     // quadratic function.
     for i in 0..10 {
-        let t = i as f32 / (10 - 1) as f32;
+        let t = i as Float / (10 - 1) as Float;
         let lambda = lerp(t, lambda_min, lambda_max);
         let val_delta = (lambda * lambda - new_val[i]).abs();
         assert!(val_delta < 0.8);

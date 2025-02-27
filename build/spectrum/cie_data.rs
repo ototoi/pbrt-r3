@@ -2,7 +2,6 @@ use super::config::*;
 
 pub const CIE_SAMPLES: usize = 471;
 
-
 // CIE X function values
 #[rustfmt::skip]
 pub const CIE_X: [Float; CIE_SAMPLES] = [

@@ -14,7 +14,7 @@ fn near_equal(a: Float, b: Float, e: Float) -> bool {
 fn lowdiscrepancy_radical_inverse() {
     for a in 0..1024 {
         assert_eq!(
-            reverse_bits32(a) as f32 * 2.3283064365386963e-10,
+            reverse_bits32(a) as Float * 2.3283064365386963e-10,
             radical_inverse(0, a as u64)
         );
     }
@@ -111,8 +111,8 @@ fn lowdiscrepancy_sobol() {
     // Check that float and double variants match (as float values).
     for i in 0..256 {
         for dim in 0..100 {
-            let val_f = sobol_sample_float(i, dim, 0);
-            let val_d = sobol_sample_double(i, dim, 0) as f32;
+            let val_f = sobol_sample_float(i, dim, 0) as Float;
+            let val_d = sobol_sample_double(i, dim, 0) as Float;
             assert!(
                 near_equal(val_f, val_d, 1e-5),
                 "val_f: {}, val_d: {}, i: {}, dim: {}",
@@ -235,7 +235,7 @@ fn max_min_dist_min_dist() {
             return d.length();
         };
 
-        let mut min_dist = std::f32::INFINITY;
+        let mut min_dist = Float::INFINITY;
         for i in 0..s.len() {
             for j in 0..s.len() {
                 if i == j {

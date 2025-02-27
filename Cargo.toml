@@ -6,7 +6,7 @@ build = "build/main.rs"
 default-run = "pbrt-r3"
 
 [features]
-default = ["float-as-double"]
+default = []
 profile = []
 stats = []
 float-as-double = []

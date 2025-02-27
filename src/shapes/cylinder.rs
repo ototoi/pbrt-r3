@@ -77,7 +77,7 @@ impl Shape for Cylinder {
         let c = ox * ox + oy * oy - EFloat::from(radius) * EFloat::from(radius);
 
         // Solve quadratic equation for _t_ values
-        let t_max = ray.t_max.get();
+        let t_max: f32 = ray.t_max.get() as f32;
 
         let (t0, t1) = EFloat::quadratic(a, b, c)?;
         // pbrt-r3:
@@ -103,7 +103,7 @@ impl Shape for Cylinder {
         }
 
         // Compute cylinder hit point and $\phi$
-        let mut p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+        let mut p_hit = ray.o + ray.d * Float::from(t_shape_hit);
 
         // Refine cylinder intersection point
         {
@@ -126,7 +126,7 @@ impl Shape for Cylinder {
             }
             t_shape_hit = t1;
             // Compute cylinder inverse mapping
-            p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+            p_hit = ray.o + ray.d * Float::from(t_shape_hit);
             {
                 let hit_rad = Float::sqrt(p_hit.x * p_hit.x + p_hit.y * p_hit.y);
                 p_hit.x *= radius / hit_rad;
@@ -192,7 +192,7 @@ impl Shape for Cylinder {
             .base
             .object_to_world
             .transform_surface_interaction(&isect);
-        return Some((t_shape_hit.v, isect));
+        return Some((t_shape_hit.into(), isect));
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
@@ -217,7 +217,7 @@ impl Shape for Cylinder {
         let c = ox * ox + oy * oy - EFloat::from(radius) * EFloat::from(radius);
 
         // Solve quadratic equation for _t_ values
-        let t_max = ray.t_max.get();
+        let t_max: f32 = ray.t_max.get() as f32;
 
         if let Some((t0, t1)) = EFloat::quadratic(a, b, c) {
             // pbrt-r3:
@@ -243,7 +243,7 @@ impl Shape for Cylinder {
             }
 
             // Compute cylinder hit point and $\phi$
-            let mut p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+            let mut p_hit = ray.o + ray.d * Float::from(t_shape_hit);
 
             // Refine cylinder intersection point
             {
@@ -266,7 +266,7 @@ impl Shape for Cylinder {
                 }
                 t_shape_hit = t1;
                 // Compute cylinder inverse mapping
-                p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+                p_hit = ray.o + ray.d * Float::from(t_shape_hit);
                 {
                     let hit_rad = Float::sqrt(p_hit.x * p_hit.x + p_hit.y * p_hit.y);
                     p_hit.x *= radius / hit_rad;

@@ -5,8 +5,8 @@ mod build_utils;
 mod build_xyz;
 mod cie_data;
 mod config;
-mod spectrum_config;
 mod rgb_data;
+mod spectrum_config;
 mod to_string;
 mod utils;
 

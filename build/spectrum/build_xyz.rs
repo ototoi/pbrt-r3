@@ -25,6 +25,9 @@ pub fn build_core(path: &str) {
     ));
 
     let mut contents = String::from("");
+    contents += "use crate::core::pbrt::Float;\n";
+    contents += "\n";
+
     contents += &format!("const SPECTRAL_SAMPLES: usize = {};\n", SPECTRAL_SAMPLES);
     contents += "\n";
     for (key, v) in m.iter() {

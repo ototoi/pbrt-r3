@@ -8,6 +8,9 @@ use std::path::Path;
 pub fn build_core(path: &str) {
     let mut contents = String::from("");
     //contents += "use super::super::spectrum;\n";
+    contents += "use crate::core::pbrt::Float;\n";
+    contents += "\n";
+
     contents += &format!(
         "pub const CIE_SAMPLES: usize = {};\n",
         cie_data::CIE_SAMPLES

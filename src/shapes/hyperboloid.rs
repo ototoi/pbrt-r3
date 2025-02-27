@@ -108,8 +108,8 @@ impl Shape for Hyperboloid {
         // Initialize _EFloat_ ray coordinate values
         let p1 = self.p1;
         let p2 = self.p2;
-        let ah = self.ah;
-        let ch = self.ch;
+        let ah = EFloat::from(self.ah);
+        let ch = EFloat::from(self.ch);
         let z_min = self.z_min;
         let z_max = self.z_max;
         let phi_max = self.phi_max;
@@ -125,7 +125,7 @@ impl Shape for Hyperboloid {
         let c = ah * (ox * ox) + ah * (oy * oy) - ch * (oz * oz) - EFloat::from(1.0);
 
         // Solve quadratic equation for _t_ values
-        let t_max = ray.t_max.get();
+        let t_max: f32 = ray.t_max.get() as f32;
 
         let (t0, t1) = EFloat::quadratic(a, b, c)?;
         // pbrt-r3:
@@ -151,7 +151,7 @@ impl Shape for Hyperboloid {
         }
 
         // Compute hyperboloid inverse mapping
-        let mut p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+        let mut p_hit = ray.o + ray.d * Float::from(t_shape_hit);
         let mut v = (p_hit.z - p1.z) / (p2.z - p1.z);
         let pr = (1.0 - v) * p1 + v * p2;
         let mut phi = Float::atan2(
@@ -172,7 +172,7 @@ impl Shape for Hyperboloid {
             }
             t_shape_hit = t1;
             // Compute hyperboloid inverse mapping
-            p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+            p_hit = ray.o + ray.d * Float::from(t_shape_hit);
             v = (p_hit.z - p1.z) / (p2.z - p1.z);
             let pr = (1.0 - v) * p1 + v * p2;
             phi = Float::atan2(
@@ -228,9 +228,9 @@ impl Shape for Hyperboloid {
         let py = oy + t_shape_hit * dy;
         let pz = oz + t_shape_hit * dz;
         let p_error = Vector3f::new(
-            px.get_absolute_error(),
-            py.get_absolute_error(),
-            pz.get_absolute_error(),
+            px.get_absolute_error() as Float,
+            py.get_absolute_error() as Float,
+            pz.get_absolute_error() as Float,
         );
         let mut isect = SurfaceInteraction::new(
             &p_hit,
@@ -249,7 +249,7 @@ impl Shape for Hyperboloid {
             .base
             .object_to_world
             .transform_surface_interaction(&isect);
-        return Some((t_shape_hit.v, isect));
+        return Some((t_shape_hit.into(), isect));
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
@@ -261,8 +261,8 @@ impl Shape for Hyperboloid {
         // Initialize _EFloat_ ray coordinate values
         let p1 = self.p1;
         let p2 = self.p2;
-        let ah = self.ah;
-        let ch = self.ch;
+        let ah = EFloat::from(self.ah);
+        let ch = EFloat::from(self.ch);
         let z_min = self.z_min;
         let z_max = self.z_max;
         let phi_max = self.phi_max;
@@ -278,7 +278,7 @@ impl Shape for Hyperboloid {
         let c = ah * (ox * ox) + ah * (oy * oy) - ch * (oz * oz) - EFloat::from(1.0);
 
         // Solve quadratic equation for _t_ values
-        let t_max = ray.t_max.get();
+        let t_max: f32 = ray.t_max.get() as f32;
 
         if let Some((t0, t1)) = EFloat::quadratic(a, b, c) {
             // pbrt-r3:
@@ -304,7 +304,7 @@ impl Shape for Hyperboloid {
             }
 
             // Compute hyperboloid inverse mapping
-            let mut p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+            let mut p_hit = ray.o + ray.d * Float::from(t_shape_hit);
             let mut v = (p_hit.z - p1.z) / (p2.z - p1.z);
             let pr = (1.0 - v) * p1 + v * p2;
             let mut phi = Float::atan2(
@@ -325,7 +325,7 @@ impl Shape for Hyperboloid {
                 }
                 t_shape_hit = t1;
                 // Compute hyperboloid inverse mapping
-                p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+                p_hit = ray.o + ray.d * Float::from(t_shape_hit);
                 v = (p_hit.z - p1.z) / (p2.z - p1.z);
                 let pr = (1.0 - v) * p1 + v * p2;
                 phi = Float::atan2(

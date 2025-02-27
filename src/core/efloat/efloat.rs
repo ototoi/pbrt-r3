@@ -152,8 +152,10 @@ impl ops::Div<EFloat> for EFloat {
                 self.lower_bound() / ef.upper_bound(),
                 self.upper_bound() / ef.upper_bound(),
             ];
-            let low = next_float_down_32(f32::min(f32::min(div[0], div[1]), f32::min(div[2], div[3])));
-            let high = next_float_up_32(f32::max(f32::max(div[0], div[1]), f32::max(div[2], div[3])));
+            let low =
+                next_float_down_32(f32::min(f32::min(div[0], div[1]), f32::min(div[2], div[3])));
+            let high =
+                next_float_up_32(f32::max(f32::max(div[0], div[1]), f32::max(div[2], div[3])));
             return EFloat { v, low, high };
         }
     }
@@ -194,5 +196,17 @@ impl From<f64> for EFloat {
 impl From<(f64, f64)> for EFloat {
     fn from(value: (f64, f64)) -> Self {
         EFloat::from_f64(value.0, value.1)
+    }
+}
+
+impl From<EFloat> for f32 {
+    fn from(value: EFloat) -> f32 {
+        value.v
+    }
+}
+
+impl From<EFloat> for f64 {
+    fn from(value: EFloat) -> f64 {
+        value.v as f64
     }
 }

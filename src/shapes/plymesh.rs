@@ -265,19 +265,27 @@ pub fn create_ply_mesh(
                                     if (flags & VERTEX_P) != 0 {
                                         p.reserve(vertex_list.len());
                                         for v in vertex_list.iter() {
-                                            p.push(Vector3f::new(v.x, v.y, v.z));
+                                            p.push(Vector3f::new(
+                                                v.x as Float,
+                                                v.y as Float,
+                                                v.z as Float,
+                                            ));
                                         }
                                     }
                                     if (flags & VERTEX_N) != 0 {
                                         n.reserve(vertex_list.len());
                                         for v in vertex_list.iter() {
-                                            n.push(Normal3f::new(v.nx, v.ny, v.nz));
+                                            n.push(Normal3f::new(
+                                                v.nx as Float,
+                                                v.ny as Float,
+                                                v.nz as Float,
+                                            ));
                                         }
                                     }
                                     if (flags & VERTEX_UV) != 0 {
                                         uv.reserve(vertex_list.len());
                                         for v in vertex_list.iter() {
-                                            uv.push(Vector2f::new(v.u, v.v));
+                                            uv.push(Vector2f::new(v.u as Float, v.v as Float));
                                         }
                                     }
                                 }

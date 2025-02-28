@@ -13,7 +13,7 @@ pub struct GridDensityMedium {
     ny: u32,
     nz: u32,
     world_to_medium: Transform,
-    density: Vec<f32>,
+    density: Vec<Float>,
     sigma_t: Float,
     inv_max_density: Float,
 }
@@ -27,7 +27,7 @@ impl GridDensityMedium {
         ny: u32,
         nz: u32,
         medium_to_world: &Transform,
-        data: &[f32],
+        data: &[Float],
     ) -> Self {
         let sigma_a = *sigma_a;
         let sigma_s = *sigma_s;
@@ -68,7 +68,7 @@ impl GridDensityMedium {
         }
     }
 
-    fn d(&self, p: &Point3i) -> f32 {
+    fn d(&self, p: &Point3i) -> Float {
         let nx = self.nx as i32;
         let ny = self.ny as i32;
         let nz = self.nz as i32;
@@ -80,7 +80,7 @@ impl GridDensityMedium {
         self.density[index as usize]
     }
 
-    fn density(&self, p: &Point3f) -> f32 {
+    fn density(&self, p: &Point3f) -> Float {
         // Compute voxel coordinates and offsets for _p_
         let nx = self.nx as i32;
         let ny = self.ny as i32;

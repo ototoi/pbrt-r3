@@ -1,5 +1,3 @@
-use vector3::Vector3f;
-
 use crate::core::imageio::*;
 use crate::core::pbrt::*;
 
@@ -216,7 +214,7 @@ impl Light for InfiniteAreaLight {
         let cd = concentric_sample_disk(u2);
 
         let bound = self.get_bound();
-        let world_center: Vector3<f32> = bound.center;
+        let world_center = bound.center;
         let world_radius = bound.radius;
 
         let p_disk = world_center + world_radius * (cd.x * v1 + cd.y * v2);

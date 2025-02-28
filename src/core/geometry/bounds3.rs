@@ -7,8 +7,7 @@ pub struct Bounds3<T> {
     pub max: Vector3<T>,
 }
 
-pub type Bounds3f = Bounds3<f32>;
-pub type Bounds3d = Bounds3<f64>;
+pub type Bounds3f = Bounds3<Float>;
 pub type Bounds3i = Bounds3<i32>;
 
 impl<T: Copy + PartialOrd> Bounds3<T> {
@@ -223,8 +222,8 @@ impl Default for Bounds3i {
 impl Default for Bounds3f {
     fn default() -> Self {
         Bounds3f {
-            min: Point3f::new(std::f32::MAX, std::f32::MAX, std::f32::MAX),
-            max: Point3f::new(std::f32::MIN, std::f32::MIN, std::f32::MIN),
+            min: Point3f::new(Float::MAX, Float::MAX, Float::MAX),
+            max: Point3f::new(Float::MIN, Float::MIN, Float::MIN),
         }
     }
 }

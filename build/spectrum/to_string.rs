@@ -1,9 +1,11 @@
-pub fn to_string(name: &str, samples: &[f32], samples_name: &str) -> String {
+use super::config::*;
+
+pub fn to_string(name: &str, samples: &[Float], samples_name: &str) -> String {
     let mut contents = String::from("");
 
     let l = samples.len();
     contents += "#[rustfmt::skip]\n";
-    contents += &format!("pub const {}: [f32; {}] = [\n", name, samples_name);
+    contents += &format!("pub const {}: [Float; {}] = [\n", name, samples_name);
     for i in 0..l {
         let mut indent = String::from("");
         if (i % 10) == 0 {
@@ -26,10 +28,10 @@ pub fn to_string(name: &str, samples: &[f32], samples_name: &str) -> String {
     return contents;
 }
 
-pub fn cie_to_string(name: &str, samples: &[f32]) -> String {
+pub fn cie_to_string(name: &str, samples: &[Float]) -> String {
     return to_string(name, samples, "CIE_SAMPLES");
 }
 
-pub fn spectrum_to_string(name: &str, samples: &[f32]) -> String {
+pub fn spectrum_to_string(name: &str, samples: &[Float]) -> String {
     return to_string(name, samples, "SPECTRAL_SAMPLES");
 }

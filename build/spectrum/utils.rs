@@ -1,16 +1,16 @@
 use super::config::*;
 
 #[inline]
-pub fn lerp(t: f32, v1: f32, v2: f32) -> f32 {
+pub fn lerp(t: Float, v1: Float, v2: Float) -> Float {
     return (1.0 - t) * v1 + t * v2;
 }
 
 pub fn average_spectrum_samples(
-    lambda: &[f32],
-    vals: &[f32],
-    lambda_start: f32,
-    lambda_end: f32,
-) -> f32 {
+    lambda: &[Float],
+    vals: &[Float],
+    lambda_start: Float,
+    lambda_end: Float,
+) -> Float {
     let n = lambda.len();
     for i in 0..n - 1 {
         assert!(lambda[i] <= lambda[i + 1]);
@@ -18,16 +18,16 @@ pub fn average_spectrum_samples(
     assert!(lambda_start <= lambda_end);
 
     // Handle cases with out-of-bounds range or single sample only
-    if lambda_end as f32 <= lambda[0] {
+    if lambda_end as Float <= lambda[0] {
         return vals[0];
     }
-    if lambda_start as f32 >= lambda[n - 1] {
+    if lambda_start as Float >= lambda[n - 1] {
         return vals[n - 1];
     }
     if n == 1 {
         return vals[0];
     }
-    let mut sum: f32 = 0.0;
+    let mut sum: Float = 0.0;
     // Add contributions of constant segments before/after samples
     if lambda_start < lambda[0] {
         sum += vals[0] * (lambda[0] - lambda_start);
@@ -44,7 +44,7 @@ pub fn average_spectrum_samples(
     assert!((i + 1) <= n);
 
     // Loop over wavelength sample segments and add contributions
-    let interp = |w: f32, i: usize| {
+    let interp = |w: Float, i: usize| {
         return lerp(
             (w - lambda[i]) / (lambda[i + 1] - lambda[i]),
             vals[i],
@@ -52,8 +52,8 @@ pub fn average_spectrum_samples(
         );
     };
     while i + 1 < n && lambda_end >= lambda[i] {
-        let seg_lambda_start = f32::max(lambda_start, lambda[i]);
-        let seg_lambda_end = f32::min(lambda_end, lambda[i + 1]);
+        let seg_lambda_start = Float::max(lambda_start, lambda[i]);
+        let seg_lambda_end = Float::min(lambda_end, lambda[i + 1]);
         sum += 0.5
             * (interp(seg_lambda_start, i) + interp(seg_lambda_end, i))
             * (seg_lambda_end - seg_lambda_start);
@@ -62,18 +62,18 @@ pub fn average_spectrum_samples(
     return sum / (lambda_end - lambda_start);
 }
 
-pub fn sample_spectrum(lambda: &[f32], vals: &[f32]) -> [f32; SPECTRAL_SAMPLES] {
-    let mut x: [f32; SPECTRAL_SAMPLES] = [0.0; SPECTRAL_SAMPLES];
+pub fn sample_spectrum(lambda: &[Float], vals: &[Float]) -> [Float; SPECTRAL_SAMPLES] {
+    let mut x: [Float; SPECTRAL_SAMPLES] = [0.0; SPECTRAL_SAMPLES];
     for i in 0..SPECTRAL_SAMPLES {
         let wl0 = lerp(
-            (i as f32) / (SPECTRAL_SAMPLES as f32),
-            SAMPLED_LAMBDA_START as f32,
-            SAMPLED_LAMBDA_END as f32,
+            (i as Float) / (SPECTRAL_SAMPLES as Float),
+            SAMPLED_LAMBDA_START as Float,
+            SAMPLED_LAMBDA_END as Float,
         );
         let wl1 = lerp(
-            ((i + 1) as f32) / (SPECTRAL_SAMPLES as f32),
-            SAMPLED_LAMBDA_START as f32,
-            SAMPLED_LAMBDA_END as f32,
+            ((i + 1) as Float) / (SPECTRAL_SAMPLES as Float),
+            SAMPLED_LAMBDA_START as Float,
+            SAMPLED_LAMBDA_END as Float,
         );
         x[i] = average_spectrum_samples(lambda, vals, wl0, wl1);
     }

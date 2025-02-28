@@ -54,7 +54,7 @@ impl<T: Copy + Add<T, Output = T> + Mul<Float, Output = T>> Texture<T>
             // Compute closed-form box-filtered _Checkerboard2DTexture_ value
 
             // Evaluate single check if filter is entirely inside one of them
-            let ds: f32 = Float::max(Float::abs(dstdx[0]), Float::abs(dstdy[0]));
+            let ds = Float::max(Float::abs(dstdx[0]), Float::abs(dstdy[0]));
             let dt = Float::max(Float::abs(dstdx[1]), Float::abs(dstdy[1]));
             let s0 = st[0] - ds;
             let s1 = st[0] + ds;

@@ -91,13 +91,14 @@ fn read_image_pfm_core(input: &[u8]) -> IResult<&[u8], (Vec<RGBSpectrum>, Point2
     let mut rgb = Vec::with_capacity(width as usize * height as usize);
     if n_channels == 1 {
         for f in data {
+            let f = f as Float;
             rgb.push(RGBSpectrum::rgb_from_rgb(&[f, f, f]));
         }
     } else {
         for i in 0..(width * height) as usize {
-            let r = data[i * 3];
-            let g = data[i * 3 + 1];
-            let b = data[i * 3 + 2];
+            let r = data[i * 3] as Float;
+            let g = data[i * 3 + 1] as Float;
+            let b = data[i * 3 + 2] as Float;
             rgb.push(RGBSpectrum::rgb_from_rgb(&[r, g, b]));
         }
     }

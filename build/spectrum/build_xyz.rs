@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 
 pub fn build_core(path: &str) {
-    let mut m: Vec<(&str, [f32; SPECTRAL_SAMPLES])> = Vec::new();
+    let mut m: Vec<(&str, [Float; SPECTRAL_SAMPLES])> = Vec::new();
     m.push((
         "CIE_X",
         sample_spectrum(&cie_data::CIE_LAMBDA, &cie_data::CIE_X),
@@ -25,6 +25,9 @@ pub fn build_core(path: &str) {
     ));
 
     let mut contents = String::from("");
+    contents += "use crate::core::pbrt::Float;\n";
+    contents += "\n";
+
     contents += &format!("const SPECTRAL_SAMPLES: usize = {};\n", SPECTRAL_SAMPLES);
     contents += "\n";
     for (key, v) in m.iter() {
@@ -37,9 +40,9 @@ pub fn build_core(path: &str) {
 }
 
 pub fn build() {
-    let depends = ["build/spectrum/cie_data.rs"];
+    println!("cargo:rerun-if-changed=build/spectrum/cie_data.rs;build/spectrum/build_xyz.rs");
+    let depends = ["build/spectrum/cie_data.rs", "build/spectrum/build_xyz.rs"];
     let target = "spectrum_data_xyz.rs";
-    //println!("cargo:rerun-if-changed=build/spectrum/cie_data.rs");
     let out_dir = env::var("OUT_DIR").unwrap();
     let path = Path::new(&out_dir).join(target);
     let path = String::from(path.to_str().unwrap());

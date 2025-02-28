@@ -210,17 +210,17 @@ fn write_mesh_to_ply(mesh: &Mesh, file_name: &Path) -> Result<(), PbrtError> {
         let mut vertices = Vec::new();
         for i in 0..vertex_count {
             let mut vertex = DefaultElement::new();
-            vertex.set_property("x".to_string(), Property::Float(p[i].x));
-            vertex.set_property("y".to_string(), Property::Float(p[i].y));
-            vertex.set_property("z".to_string(), Property::Float(p[i].z));
+            vertex.set_property("x".to_string(), Property::Float(p[i].x as f32));
+            vertex.set_property("y".to_string(), Property::Float(p[i].y as f32));
+            vertex.set_property("z".to_string(), Property::Float(p[i].z as f32));
             if n.len() > 0 {
-                vertex.set_property("nx".to_string(), Property::Float(n[i].x));
-                vertex.set_property("ny".to_string(), Property::Float(n[i].y));
-                vertex.set_property("nz".to_string(), Property::Float(n[i].z));
+                vertex.set_property("nx".to_string(), Property::Float(n[i].x as f32));
+                vertex.set_property("ny".to_string(), Property::Float(n[i].y as f32));
+                vertex.set_property("nz".to_string(), Property::Float(n[i].z as f32));
             }
             if uv.len() > 0 {
-                vertex.set_property("u".to_string(), Property::Float(uv[i].x));
-                vertex.set_property("v".to_string(), Property::Float(uv[i].y));
+                vertex.set_property("u".to_string(), Property::Float(uv[i].x as f32));
+                vertex.set_property("v".to_string(), Property::Float(uv[i].y as f32));
             }
             vertices.push(vertex);
         }

@@ -14,7 +14,7 @@ fn mp(
     sin_theta_i: Float,
     sin_theta_o: Float,
     v: Float,
-) -> f32 {
+) -> Float {
     const LN2: Float = std::f32::consts::LN_2 as Float;
 
     let a = cos_theta_i * cos_theta_o / v;
@@ -51,7 +51,7 @@ fn i0(x: Float) -> Float {
         if i > 1 {
             ifact *= i;
         }
-        val += x2i / (i4 as f32 * sqr(ifact as f32));
+        val += x2i / (i4 as Float * sqr(ifact as Float));
         x2i *= x * x;
         i4 *= 4;
     }
@@ -376,7 +376,7 @@ impl HairBSDF {
         return ap_pdf;
     }
 
-    fn sigma_a_from_concentration(ce: Float, cp: f32) -> Spectrum {
+    fn sigma_a_from_concentration(ce: Float, cp: Float) -> Spectrum {
         let mut sigma_a = [0.0; 3];
         let eumelanin_sigma_a = [0.419, 0.697, 1.37];
         let pheomelanin_sigma_a = [0.187, 0.4, 1.05];
@@ -386,7 +386,7 @@ impl HairBSDF {
         return Spectrum::from(sigma_a);
     }
 
-    fn sigma_a_from_reflectance(c: &Spectrum, beta_n: f32) -> Spectrum {
+    fn sigma_a_from_reflectance(c: &Spectrum, beta_n: Float) -> Spectrum {
         let mut sigma_a = Spectrum::default();
         for i in 0..sigma_a.len() {
             sigma_a[i] = sqr(Float::ln(c[i])

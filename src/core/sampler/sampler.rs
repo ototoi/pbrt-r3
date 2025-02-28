@@ -22,7 +22,7 @@ pub trait Sampler {
     fn get_1d(&mut self) -> Float;
     fn get_2d(&mut self) -> Point2f;
     fn get_camera_sample(&mut self, p: &Point2i) -> CameraSample {
-        let p_film = Point2f::new(p.x as f32, p.y as f32) + self.get_2d();
+        let p_film = Point2f::new(p.x as Float, p.y as Float) + self.get_2d();
         let p_lens = self.get_2d();
         let time = self.get_1d();
         //let _ = self.get_1d();

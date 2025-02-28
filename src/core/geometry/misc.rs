@@ -1,7 +1,5 @@
 use crate::core::pbrt::*;
 
-use super::vector3::Vector3f;
-
 #[inline]
 pub fn offset_ray_origin(p: &Point3f, p_error: &Vector3f, n: &Normal3f, w: &Vector3f) -> Point3f {
     let d = Vector3f::dot(&n.abs(), p_error);

@@ -28,6 +28,6 @@ pub fn blackbody_normalized(lambda: &[Float], t: Float) -> Vec<Float> {
     for i in 0..n {
         le[i] /= max_l[0];
     }
-    let le: Vec<Float> = le.iter().map(|x| *x as f32).collect();
+    let le: Vec<Float> = le.iter().map(|x| *x as Float).collect();
     return le;
 }

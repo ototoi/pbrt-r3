@@ -51,8 +51,8 @@ pub fn sobol_sample_float(a: i64, dimension: u32, scramble: u32) -> f32 {
         i += 1;
         i %= SOBOL_MATRICES_32.len();
     }
-    let fv = ((v as f64) * 2.3283064365386963e-10) as Float;
-    return f32::min(fv, ONE_MINUS_EPSILON);
+    let fv = ((v as f64) * 2.3283064365386963e-10) as f32;
+    return f32::min(fv, FLOAT_ONE_MINUS_EPSILON);
 }
 
 pub fn sobol_sample_double(a: i64, dimension: u32, scramble: u64) -> f64 {

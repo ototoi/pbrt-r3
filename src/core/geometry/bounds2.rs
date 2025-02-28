@@ -6,8 +6,7 @@ pub struct Bounds2<T> {
     pub max: Vector2<T>,
 }
 
-pub type Bounds2f = Bounds2<f32>;
-pub type Bounds2d = Bounds2<f64>;
+pub type Bounds2f = Bounds2<Float>;
 pub type Bounds2i = Bounds2<i32>;
 
 impl<T: Copy + PartialOrd> Bounds2<T> {
@@ -160,8 +159,8 @@ impl Default for Bounds2i {
 impl Default for Bounds2f {
     fn default() -> Self {
         Bounds2f {
-            min: Point2f::new(std::f32::MAX, std::f32::MAX),
-            max: Point2f::new(std::f32::MIN, std::f32::MIN),
+            min: Point2f::new(Float::MAX, Float::MAX),
+            max: Point2f::new(Float::MIN, Float::MIN),
         }
     }
 }

@@ -9,6 +9,8 @@ default-run = "pbrt-r3"
 default = []
 profile = []
 stats = []
+float-as-double = []
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

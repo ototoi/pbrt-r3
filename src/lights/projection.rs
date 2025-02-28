@@ -104,7 +104,7 @@ impl Light for ProjectionLight {
         return spec * self.intensity * (2.0 * PI * (1.0 - self.cos_total_width));
     }
 
-    fn pdf_li(&self, _inter: &Interaction, _wi: &vector3::Vector3f) -> Float {
+    fn pdf_li(&self, _inter: &Interaction, _wi: &Vector3f) -> Float {
         return 0.0;
     }
 

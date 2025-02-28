@@ -25,7 +25,7 @@ pub struct FilmTile {
     pub pixel_bounds: Bounds2i,
     pub filter_radius: Vector2f,
     pub inv_filter_radius: Vector2f,
-    pub filter_table: Arc<RwLock<[f32; FT_SZ]>>,
+    pub filter_table: Arc<RwLock<[Float; FT_SZ]>>,
     pub pixels: Vec<FilmTilePixel>,
     pub max_sample_luminance: Float,
 }
@@ -34,7 +34,7 @@ impl FilmTile {
     pub fn new(
         pixel_bounds: &Bounds2i,
         filter_radius: &Vector2f,
-        filter_table: &Arc<RwLock<[f32; FT_SZ]>>,
+        filter_table: &Arc<RwLock<[Float; FT_SZ]>>,
         max_sample_luminance: Float,
     ) -> Self {
         let inv_filter_radius = Vector2f::new(1.0 / filter_radius.x, 1.0 / filter_radius.y);
@@ -105,11 +105,11 @@ impl FilmTile {
 
         let filter_table_size = FT_W;
         let mut ifx: Vec<i32> = vec![0; delta.x as usize];
-        let lx = inv_filter_radius.x * (filter_table_size - 1) as f32;
+        let lx = inv_filter_radius.x * (filter_table_size - 1) as Float;
         for x in p0.x..p1.x {
-            let d = Float::abs(x as f32 + 0.5 - p_film_discrete.x);
+            let d = Float::abs(x as Float + 0.5 - p_film_discrete.x);
             let id = if d <= filter_radius.x {
-                i32::min(f32::floor(d * lx) as i32, (filter_table_size - 1) as i32)
+                i32::min(Float::floor(d * lx) as i32, (filter_table_size - 1) as i32)
             } else {
                 -1
             };
@@ -117,11 +117,11 @@ impl FilmTile {
         }
 
         let mut ify: Vec<i32> = vec![0; delta.y as usize];
-        let ly = inv_filter_radius.y * (filter_table_size - 1) as f32;
+        let ly = inv_filter_radius.y * (filter_table_size - 1) as Float;
         for y in p0.y..p1.y {
-            let d = Float::abs(y as f32 + 0.5 - p_film_discrete.y);
+            let d = Float::abs(y as Float + 0.5 - p_film_discrete.y);
             let id = if d <= filter_radius.y {
-                i32::min(f32::floor(d * ly) as i32, (filter_table_size - 1) as i32)
+                i32::min(Float::floor(d * ly) as i32, (filter_table_size - 1) as i32)
             } else {
                 -1
             };
@@ -146,7 +146,7 @@ impl FilmTile {
             }
         }
         {
-            let sum = weights.iter().sum::<f32>();
+            let sum = weights.iter().sum::<Float>();
             if sum <= 0.0 {
                 return;
             }

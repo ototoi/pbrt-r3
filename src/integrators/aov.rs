@@ -57,7 +57,12 @@ fn get_aov_target(name: &str) -> Result<AOVTarget, PbrtError> {
 
 fn v2c(v: &Vector3f) -> Spectrum {
     let v = 0.5 * *v + Vector3f::from(0.5);
-    return Spectrum::new(v[0], v[1], v[2]).clamp(0.0, 1.0);
+    let rgb = [v.x, v.y, v.z];
+    return spectrum_from_rgb(&rgb);
+}
+
+fn spectrum_from_rgb(rgb: &[Float; 3]) -> Spectrum {
+    return Spectrum::from(rgb).clamp(0.0, 1.0);
 }
 
 pub struct AOVIntegrator {
@@ -109,11 +114,12 @@ impl SamplerIntegrator for AOVIntegrator {
             match self.target {
                 AOVTarget::Distance => {
                     let dist = r.ray.t_max.get() / r.ray.d.length();
-                    return Spectrum::new(dist, dist, dist) * scale;
+                    return spectrum_from_rgb(&[dist, dist, dist]) * scale;
                 }
                 AOVTarget::Depth => {
                     let dist = si.p - r.ray.o;
-                    return Spectrum::new(dist.length(), dist.length(), dist.length()) * scale;
+                    let dist = dist.length();
+                    return spectrum_from_rgb(&[dist, dist, dist]) * scale;
                 }
                 AOVTarget::N => {
                     return v2c(&si.n) * scale;
@@ -123,7 +129,7 @@ impl SamplerIntegrator for AOVIntegrator {
                 }
                 AOVTarget::UV => {
                     let v = si.uv;
-                    return Spectrum::new(v[0], v[1], 0.0) * scale;
+                    return spectrum_from_rgb(&[v[0], v[1], 0.0]) * scale;
                 }
                 AOVTarget::RDXC => {
                     let v = r.rx_origin;

@@ -50,8 +50,8 @@ impl From<(&[f64], (usize, usize))> for F32MIPMapImage {
     }
 }
 
-impl From<(&[Spectrum], (usize, usize))> for F32MIPMapImage {
-    fn from(v: (&[Spectrum], (usize, usize))) -> Self {
+impl From<(&[RGBSpectrum], (usize, usize))> for F32MIPMapImage {
+    fn from(v: (&[RGBSpectrum], (usize, usize))) -> Self {
         let mut data = vec![0.0; 3 * v.0.len()];
         for i in 0..v.0.len() {
             let c = v.0[i].to_rgb();

@@ -1,50 +1,55 @@
 use crate::core::misc::*;
+use crate::core::pbrt::Float;
 
 use std::ops;
 
 #[derive(Debug, PartialEq, Default, Copy, Clone)]
 pub struct EFloat {
-    pub v: f32,
-    pub low: f32,
-    pub high: f32,
+    pub v: Float,
+    pub low: Float,
+    pub high: Float,
 }
 
 impl EFloat {
-    pub fn from_f32(v: f32, err: f32) -> Self {
+    pub fn from_float(v: Float, err: Float) -> Self {
         if err == 0.0 {
             EFloat { v, low: v, high: v }
         } else {
             EFloat {
                 v,
-                low: next_float_down_32(v - err),
-                high: next_float_up_32(v + err),
+                low: next_float_down(v - err),
+                high: next_float_up(v + err),
             }
         }
     }
 
-    pub fn from_f64(v: f64, err: f64) -> Self {
-        return Self::from_f32(v as f32, err as f32);
+    pub fn from_f32(v: f32, err: f32) -> Self {
+        return Self::from_float(v as Float, err as Float);
     }
 
-    pub fn upper_bound(&self) -> f32 {
+    pub fn from_f64(v: f64, err: f64) -> Self {
+        return Self::from_float(v as Float, err as Float);
+    }
+
+    pub fn upper_bound(&self) -> Float {
         self.high
     }
 
-    pub fn lower_bound(&self) -> f32 {
+    pub fn lower_bound(&self) -> Float {
         self.low
     }
 
-    pub fn get_absolute_error(&self) -> f32 {
-        return next_float_up_32(f32::max(
-            f32::abs(self.high - self.v),
-            f32::abs(self.v - self.low),
+    pub fn get_absolute_error(&self) -> Float {
+        return next_float_up(Float::max(
+            Float::abs(self.high - self.v),
+            Float::abs(self.v - self.low),
         ));
     }
 
     pub fn sqrt(&self) -> Self {
-        let v = f32::sqrt(self.v);
-        let low = next_float_down_32(f32::sqrt(self.low));
-        let high = next_float_up_32(f32::sqrt(self.high));
+        let v = Float::sqrt(self.v);
+        let low = next_float_down(Float::sqrt(self.low));
+        let high = next_float_up(Float::sqrt(self.high));
         EFloat { v, low, high }
     }
 
@@ -57,16 +62,15 @@ impl EFloat {
             let high = -self.low;
             EFloat { v, low, high }
         } else {
-            let v = f32::abs(self.v);
+            let v = Float::abs(self.v);
             let low = 0.0;
-            let high = f32::max(-self.low, self.high);
+            let high = Float::max(-self.low, self.high);
             EFloat { v, low, high }
         }
     }
 
     pub fn quadratic(a: EFloat, b: EFloat, c: EFloat) -> Option<(EFloat, EFloat)> {
         const EPS: f64 = f64::EPSILON;
-        // Find quadratic discriminant
         let av = a.v as f64;
         let bv = b.v as f64;
         let cv = c.v as f64;
@@ -77,7 +81,6 @@ impl EFloat {
         let root_discrim = discrim.sqrt();
         let float_root_discrim = EFloat::from_f64(root_discrim, EPS * root_discrim);
 
-        // Compute quadratic _t_ values
         let q = if b.v < 0.0 {
             (b - float_root_discrim) * -0.5
         } else {
@@ -98,8 +101,8 @@ impl ops::Add<EFloat> for EFloat {
     fn add(self, ef: EFloat) -> EFloat {
         return EFloat {
             v: self.v + ef.v,
-            low: next_float_down_32(self.low + ef.low),
-            high: next_float_up_32(self.high + ef.high),
+            low: next_float_down(self.low + ef.low),
+            high: next_float_up(self.high + ef.high),
         };
     }
 }
@@ -109,8 +112,8 @@ impl ops::Sub<EFloat> for EFloat {
     fn sub(self, ef: EFloat) -> EFloat {
         return EFloat {
             v: self.v - ef.v,
-            low: next_float_down_32(self.low - ef.high),
-            high: next_float_up_32(self.high - ef.low),
+            low: next_float_down(self.low - ef.high),
+            high: next_float_up(self.high - ef.low),
         };
     }
 }
@@ -125,13 +128,13 @@ impl ops::Mul<EFloat> for EFloat {
             self.low * ef.high,
             self.high * ef.high,
         ];
-        let low = next_float_down_32(f32::min(
-            f32::min(prod[0], prod[1]),
-            f32::min(prod[2], prod[3]),
+        let low = next_float_down(Float::min(
+            Float::min(prod[0], prod[1]),
+            Float::min(prod[2], prod[3]),
         ));
-        let high = next_float_up_32(f32::max(
-            f32::max(prod[0], prod[1]),
-            f32::max(prod[2], prod[3]),
+        let high = next_float_up(Float::max(
+            Float::max(prod[0], prod[1]),
+            Float::max(prod[2], prod[3]),
         ));
         return EFloat { v, low, high };
     }
@@ -142,8 +145,8 @@ impl ops::Div<EFloat> for EFloat {
     fn div(self, ef: EFloat) -> EFloat {
         let v = self.v / ef.v;
         if ef.low < 0.0 && ef.high > 0.0 {
-            let low = -f32::INFINITY;
-            let high = f32::INFINITY;
+            let low = -Float::INFINITY;
+            let high = Float::INFINITY;
             return EFloat { v, low, high };
         } else {
             let div = [
@@ -152,26 +155,30 @@ impl ops::Div<EFloat> for EFloat {
                 self.lower_bound() / ef.upper_bound(),
                 self.upper_bound() / ef.upper_bound(),
             ];
-            let low =
-                next_float_down_32(f32::min(f32::min(div[0], div[1]), f32::min(div[2], div[3])));
-            let high =
-                next_float_up_32(f32::max(f32::max(div[0], div[1]), f32::max(div[2], div[3])));
+            let low = next_float_down(Float::min(
+                Float::min(div[0], div[1]),
+                Float::min(div[2], div[3]),
+            ));
+            let high = next_float_up(Float::max(
+                Float::max(div[0], div[1]),
+                Float::max(div[2], div[3]),
+            ));
             return EFloat { v, low, high };
         }
     }
 }
 
-impl ops::Mul<f32> for EFloat {
+impl ops::Mul<Float> for EFloat {
     type Output = EFloat;
-    fn mul(self, f: f32) -> EFloat {
-        return self * EFloat::from_f32(f, 0.0);
+    fn mul(self, f: Float) -> EFloat {
+        return self * EFloat::from_float(f, 0.0);
     }
 }
 
-impl ops::Mul<EFloat> for f32 {
+impl ops::Mul<EFloat> for Float {
     type Output = EFloat;
     fn mul(self, rhs: EFloat) -> EFloat {
-        return EFloat::from_f32(self, 0.0) * rhs;
+        return EFloat::from_float(self, 0.0) * rhs;
     }
 }
 
@@ -201,7 +208,7 @@ impl From<(f64, f64)> for EFloat {
 
 impl From<EFloat> for f32 {
     fn from(value: EFloat) -> f32 {
-        value.v
+        value.v as f32
     }
 }
 

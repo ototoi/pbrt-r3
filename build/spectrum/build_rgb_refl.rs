@@ -107,7 +107,10 @@ pub fn build_core(path: &str) {
 
 pub fn build() {
     println!("cargo:rerun-if-changed=build/spectrum/rgb_data.rs;build/spectrum/build_rgb_refl.rs");
-    let depends = ["build/spectrum/rgb_data.rs", "build/spectrum/build_rgb_refl.rs"];
+    let depends = [
+        "build/spectrum/rgb_data.rs",
+        "build/spectrum/build_rgb_refl.rs",
+    ];
     let target = "spectrum_data_rgb_refl.rs";
     let out_dir = env::var("OUT_DIR").unwrap();
     let path = Path::new(&out_dir).join(target);

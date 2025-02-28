@@ -76,7 +76,7 @@ impl Shape for Paraboloid {
         let c = k * (ox * ox + oy * oy) - oz;
 
         // Solve quadratic equation for _t_ values
-        let t_max: f32 = ray.t_max.get() as f32;
+        let t_max = ray.t_max.get();
 
         let (t0, t1) = EFloat::quadratic(a, b, c)?;
         // pbrt-r3:
@@ -220,7 +220,7 @@ impl Shape for Paraboloid {
         let c = k * (ox * ox + oy * oy) - oz;
 
         // Solve quadratic equation for _t_ values
-        let t_max: f32 = ray.t_max.get() as f32;
+        let t_max = ray.t_max.get();
 
         if let Some((t0, t1)) = EFloat::quadratic(a, b, c) {
             // pbrt-r3:

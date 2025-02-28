@@ -1,5 +1,10 @@
+#[allow(unused_imports)]
 use super::rgb::RGBSpectrum;
+#[allow(unused_imports)]
+use super::sampled::SampledSpectrum;
+
+#[cfg(not(feature = "sampled-spectrum"))]
 pub type Spectrum = RGBSpectrum;
 
-//use super::sampled::SampledSpectrum;
-//pub type Spectrum = SampledSpectrum;
+#[cfg(feature = "sampled-spectrum")]
+pub type Spectrum = SampledSpectrum;

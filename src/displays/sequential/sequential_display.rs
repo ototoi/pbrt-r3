@@ -84,7 +84,7 @@ impl Display for SequentialDisplay {
         {
             let buffer = self.buffer.read().unwrap();
             for i in 0..buffer.len() {
-                pixels.push(buffer[i]);
+                pixels.push(buffer[i] as Float);
             }
         }
         let bounds = Bounds2i::from((

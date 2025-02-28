@@ -3,7 +3,7 @@ use log::warn;
 use crate::core::pbrt::*;
 use std::fs::read_to_string;
 
-pub fn read_float_file(path: &str) -> Result<Vec<f32>, PbrtError> {
+pub fn read_float_file(path: &str) -> Result<Vec<Float>, PbrtError> {
     let s = read_to_string(path)
         .map_err(|_| PbrtError::error(&format!("Unable to open file \"{}\".", path)))?;
     let mut values = Vec::new();
@@ -11,7 +11,7 @@ pub fn read_float_file(path: &str) -> Result<Vec<f32>, PbrtError> {
         let line_number = i + 1;
         let line = line.trim();
         if line.find('#').is_none() {
-            let mut vv: Vec<f32> = line
+            let mut vv: Vec<Float> = line
                 .split_ascii_whitespace()
                 .map(|token| -> f32 {
                     if let Ok(f) = token.parse::<f32>() {
@@ -24,6 +24,7 @@ pub fn read_float_file(path: &str) -> Result<Vec<f32>, PbrtError> {
                     }
                     return 0.0;
                 })
+                .map(|f| f as Float)
                 .collect();
             values.append(&mut vv);
         }

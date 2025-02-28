@@ -1,6 +1,10 @@
 use crate::core::geometry::*;
 
+#[cfg(not(feature = "float-as-double"))]
 pub type Float = f32;
+#[cfg(feature = "float-as-double")]
+pub type Float = f64;
+
 pub type Vector2i = Vector2<i32>;
 pub type Point2i = Vector2<i32>;
 pub type Vector2f = Vector2<Float>;

@@ -62,18 +62,18 @@ impl Film {
     ) -> Self {
         let x0 = i32::max(
             0,
-            Float::floor(resolution.x as f32 * crop_window.min.x) as i32,
+            Float::floor(resolution.x as Float * crop_window.min.x) as i32,
         ); //ceil -> floor
         let y0 = i32::max(
             0,
-            Float::floor(resolution.y as f32 * crop_window.min.y) as i32,
+            Float::floor(resolution.y as Float * crop_window.min.y) as i32,
         ); //ceil -> floor
         let x1 = i32::min(
-            Float::ceil(resolution.x as f32 * crop_window.max.x) as i32,
+            Float::ceil(resolution.x as Float * crop_window.max.x) as i32,
             resolution[0],
         );
         let y1 = i32::min(
-            Float::ceil(resolution.y as f32 * crop_window.max.y) as i32,
+            Float::ceil(resolution.y as Float * crop_window.max.y) as i32,
             resolution[1],
         );
 
@@ -101,8 +101,8 @@ impl Film {
                         //let yy = (y as f32 + 0.5) * (radius.y / FT_W as f32);
 
                         //fixed
-                        let xx = (x as f32) * (radius.x / (FT_W - 1) as f32);
-                        let yy = (y as f32) * (radius.y / (FT_W - 1) as f32);
+                        let xx = (x as Float) * (radius.x / (FT_W - 1) as Float);
+                        let yy = (y as Float) * (radius.y / (FT_W - 1) as Float);
                         filter_table[y * FT_W + x] = f.evaluate(&Vector2f::new(xx, yy));
                     }
                 }
@@ -161,16 +161,16 @@ impl Film {
         let x1 = f32::ceil(self.cropped_pixel_bounds.max.x as f32 + 0.5 + radius.x) as i32;
         let y1 = f32::ceil(self.cropped_pixel_bounds.max.y as f32 + 0.5 + radius.y) as i32;
         */
-        let x0 = f32::floor(self.cropped_pixel_bounds.min.x as f32 - radius.x) as i32;
-        let y0 = f32::floor(self.cropped_pixel_bounds.min.y as f32 - radius.y) as i32;
-        let x1 = f32::ceil(self.cropped_pixel_bounds.max.x as f32 + radius.x) as i32;
-        let y1 = f32::ceil(self.cropped_pixel_bounds.max.y as f32 + radius.y) as i32;
+        let x0 = Float::floor(self.cropped_pixel_bounds.min.x as Float - radius.x) as i32;
+        let y0 = Float::floor(self.cropped_pixel_bounds.min.y as Float - radius.y) as i32;
+        let x1 = Float::ceil(self.cropped_pixel_bounds.max.x as Float + radius.x) as i32;
+        let y1 = Float::ceil(self.cropped_pixel_bounds.max.y as Float + radius.y) as i32;
         Bounds2i::new(&Vector2i::new(x0, y0), &Vector2i::new(x1, y1))
     }
 
     pub fn get_physical_extent(&self) -> Bounds2f {
-        let aspect = self.full_resolution.y as f32 / self.full_resolution.x as f32;
-        let x = f32::sqrt(self.diagonal * self.diagonal / (1.0 + aspect * aspect));
+        let aspect = self.full_resolution.y as Float / self.full_resolution.x as Float;
+        let x = Float::sqrt(self.diagonal * self.diagonal / (1.0 + aspect * aspect));
         let y = aspect * x;
         Bounds2f::new(
             &Point2f::new(-x / 2.0, -y / 2.0),
@@ -301,9 +301,9 @@ impl Film {
                     let filter_weight_sum = pixel.filter_weight_sum;
                     if filter_weight_sum > 0.0 {
                         let inv_wt = 1.0 / filter_weight_sum;
-                        c[0] = f32::max(0.0, c[0] * inv_wt);
-                        c[1] = f32::max(0.0, c[1] * inv_wt);
-                        c[2] = f32::max(0.0, c[2] * inv_wt);
+                        c[0] = Float::max(0.0, c[0] * inv_wt);
+                        c[1] = Float::max(0.0, c[1] * inv_wt);
+                        c[2] = Float::max(0.0, c[2] * inv_wt);
                     }
 
                     let splat_pixel = &splat_pixels[src_index];
@@ -316,9 +316,9 @@ impl Film {
                     let bx = x - tx0;
                     let idx = by * twidth + bx;
 
-                    buffer[3 * idx + 0] = c[0] * scale;
-                    buffer[3 * idx + 1] = c[1] * scale;
-                    buffer[3 * idx + 2] = c[2] * scale;
+                    buffer[3 * idx + 0] = (c[0] * scale) as f32;
+                    buffer[3 * idx + 1] = (c[1] * scale) as f32;
+                    buffer[3 * idx + 2] = (c[2] * scale) as f32;
                 }
             }
         }
@@ -439,9 +439,9 @@ impl Film {
                 let filter_weight_sum = pixel.filter_weight_sum;
                 if filter_weight_sum > 0.0 {
                     let inv_wt = 1.0 / filter_weight_sum;
-                    c[0] = f32::max(0.0, c[0] * inv_wt);
-                    c[1] = f32::max(0.0, c[1] * inv_wt);
-                    c[2] = f32::max(0.0, c[2] * inv_wt);
+                    c[0] = Float::max(0.0, c[0] * inv_wt);
+                    c[1] = Float::max(0.0, c[1] * inv_wt);
+                    c[2] = Float::max(0.0, c[2] * inv_wt);
                 }
 
                 let splat_pixel = &splat_pixels[offset];
@@ -544,7 +544,7 @@ pub fn create_film(
     let crop = get_crop_window(params)?;
     let scale = params.find_one_float("scale", 1.0);
     let diagonal = params.find_one_float("diagonal", 35.0);
-    let maxsampleluminance = params.find_one_float("maxsampleluminance", f32::INFINITY);
+    let maxsampleluminance = params.find_one_float("maxsampleluminance", Float::INFINITY);
     let resolution = Point2i::from((xres, yres));
     let film = Film::new(
         &resolution,

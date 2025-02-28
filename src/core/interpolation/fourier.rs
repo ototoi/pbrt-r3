@@ -84,6 +84,6 @@ pub fn sample_fourier(ak: &[Float], recip: &[Float], u: Float) -> (Float, Float,
     if flip {
         phi = (2.0 * PI) as f64 - phi;
     }
-    let pdf = INV_2_PI / ak[0] * f as f32;
+    let pdf = INV_2_PI / ak[0] * f as Float;
     return (f as Float, pdf, phi as Float);
 }

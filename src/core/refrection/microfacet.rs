@@ -35,9 +35,9 @@ impl BxDF for MicrofacetReflection {
         wh = wh.normalize();
 
         // pbrt-r3:
-        debug_assert!(!Float::is_finite(wh.x));
-        debug_assert!(!Float::is_finite(wh.y));
-        debug_assert!(!Float::is_finite(wh.z));
+        debug_assert!(Float::is_finite(wh.x));
+        debug_assert!(Float::is_finite(wh.y));
+        debug_assert!(Float::is_finite(wh.z));
         // pbrt-r3:
 
         // For the Fresnel call, make sure that wh is in the same hemisphere

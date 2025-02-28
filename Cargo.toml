@@ -1,6 +1,6 @@
 [package]
 name = "pbrt-r3"
-version = "3.0.8"
+version = "3.0.9"
 edition = "2021"
 build = "build/main.rs"
 default-run = "pbrt-r3"
@@ -9,6 +9,9 @@ default-run = "pbrt-r3"
 default = []
 profile = []
 stats = []
+float-as-double = []
+sampled-spectrum = []
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -25,9 +28,13 @@ rust-crypto = "0.2.36"
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0.104"
 
-#[profile.release]
-#lto = true
-#strip = true
+[dev-dependencies]
+libm = "0.2.11"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
 
 [lints.clippy]
 needless_return = "allow"

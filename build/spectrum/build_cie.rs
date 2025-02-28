@@ -8,6 +8,9 @@ use std::path::Path;
 pub fn build_core(path: &str) {
     let mut contents = String::from("");
     //contents += "use super::super::spectrum;\n";
+    contents += "use crate::core::pbrt::Float;\n";
+    contents += "\n";
+
     contents += &format!(
         "pub const CIE_SAMPLES: usize = {};\n",
         cie_data::CIE_SAMPLES
@@ -24,7 +27,7 @@ pub fn build_core(path: &str) {
 
     contents += "\n";
     contents += &format!(
-        "pub const CIE_Y_INTEGRAL: f32 = {};\n",
+        "pub const CIE_Y_INTEGRAL: Float = {};\n",
         cie_data::CIE_Y_INTEGRAL
     );
 
@@ -32,9 +35,9 @@ pub fn build_core(path: &str) {
 }
 
 pub fn build() {
-    let depends = ["build/spectrum/cie_data.rs"];
+    println!("cargo:rerun-if-changed=build/spectrum/cie_data.rs;build/spectrum/build_cie.rs");
+    let depends = ["build/spectrum/cie_data.rs", "build/spectrum/build_cie.rs"];
     let target = "spectrum_data_cie.rs";
-    //println!("cargo:rerun-if-changed=build/spectrum/cie_data.rs");
     let out_dir = env::var("OUT_DIR").unwrap();
     let path = Path::new(&out_dir).join(target);
     let path = String::from(path.to_str().unwrap());

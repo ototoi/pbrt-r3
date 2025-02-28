@@ -52,8 +52,8 @@ impl PerspectiveCamera {
             .raster_to_camera
             .transform_point(&Point3f::new(0.0, 0.0, 0.0));
         let mut max = base.raster_to_camera.transform_point(&Point3f::new(
-            full_resolution.x as f32,
-            full_resolution.y as f32,
+            full_resolution.x as Float,
+            full_resolution.y as Float,
             0.0,
         ));
         min *= 1.0 / min.z;

@@ -98,7 +98,7 @@ impl Shape for Cone {
         }
 
         // Compute cone inverse mapping
-        let mut p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+        let mut p_hit = ray.o + ray.d * Float::from(t_shape_hit);
         let mut phi = Float::atan2(p_hit.y, p_hit.x);
         if phi < 0.0 {
             phi += 2.0 * PI;
@@ -114,7 +114,7 @@ impl Shape for Cone {
             }
             t_shape_hit = t1;
             // Compute cone inverse mapping
-            p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+            p_hit = ray.o + ray.d * Float::from(t_shape_hit);
             phi = Float::atan2(p_hit.y, p_hit.x);
             if phi < 0.0 {
                 phi += 2.0 * PI;
@@ -160,9 +160,9 @@ impl Shape for Cone {
         let py = oy + t_shape_hit * dy;
         let pz = oz + t_shape_hit * dz;
         let p_error = Vector3f::new(
-            px.get_absolute_error(),
-            py.get_absolute_error(),
-            pz.get_absolute_error(),
+            px.get_absolute_error() as Float,
+            py.get_absolute_error() as Float,
+            pz.get_absolute_error() as Float,
         );
         let mut isect = SurfaceInteraction::new(
             &p_hit,
@@ -181,7 +181,7 @@ impl Shape for Cone {
             .base
             .object_to_world
             .transform_surface_interaction(&isect);
-        return Some((t_shape_hit.v, isect));
+        return Some((t_shape_hit.into(), isect));
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
@@ -234,7 +234,7 @@ impl Shape for Cone {
             }
 
             // Compute cone inverse mapping
-            let mut p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+            let mut p_hit = ray.o + ray.d * Float::from(t_shape_hit);
             let mut phi = Float::atan2(p_hit.y, p_hit.x);
             if phi < 0.0 {
                 phi += 2.0 * PI;
@@ -250,7 +250,7 @@ impl Shape for Cone {
                 }
                 t_shape_hit = t1;
                 // Compute cone inverse mapping
-                p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+                p_hit = ray.o + ray.d * Float::from(t_shape_hit);
                 phi = Float::atan2(p_hit.y, p_hit.x);
                 if phi < 0.0 {
                     phi += 2.0 * PI;

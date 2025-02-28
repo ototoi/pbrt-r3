@@ -283,13 +283,13 @@ impl Shape for Triangle {
         if e0 == 0.0 || e1 == 0.0 || e2 == 0.0 {
             let p2txp1ty = p2t.x as f64 * p1t.y as f64;
             let p2typ1tx = p2t.y as f64 * p1t.x as f64;
-            e0 = (p2typ1tx - p2txp1ty) as f32;
+            e0 = (p2typ1tx - p2txp1ty) as Float;
             let p0txp2ty = p0t.x as f64 * p2t.y as f64;
             let p0typ2tx = p0t.y as f64 * p2t.x as f64;
-            e1 = (p0typ2tx - p0txp2ty) as f32;
+            e1 = (p0typ2tx - p0txp2ty) as Float;
             let p1txp0ty = p1t.x as f64 * p0t.y as f64;
             let p1typ0tx = p1t.y as f64 * p0t.x as f64;
-            e2 = (p1typ0tx - p1txp0ty) as f32;
+            e2 = (p1typ0tx - p1txp0ty) as Float;
         }
 
         // Perform triangle edge and determinant tests
@@ -507,13 +507,13 @@ impl Shape for Triangle {
         if e0 == 0.0 || e1 == 0.0 || e2 == 0.0 {
             let p2txp1ty = p2t.x as f64 * p1t.y as f64;
             let p2typ1tx = p2t.y as f64 * p1t.x as f64;
-            e0 = (p2typ1tx - p2txp1ty) as f32;
+            e0 = (p2typ1tx - p2txp1ty) as Float;
             let p0txp2ty = p0t.x as f64 * p2t.y as f64;
             let p0typ2tx = p0t.y as f64 * p2t.x as f64;
-            e1 = (p0typ2tx - p0txp2ty) as f32;
+            e1 = (p0typ2tx - p0txp2ty) as Float;
             let p1txp0ty = p1t.x as f64 * p0t.y as f64;
             let p1typ0tx = p1t.y as f64 * p0t.x as f64;
-            e2 = (p1typ0tx - p1txp0ty) as f32;
+            e2 = (p1typ0tx - p1txp0ty) as Float;
         }
 
         // Perform triangle edge and determinant tests

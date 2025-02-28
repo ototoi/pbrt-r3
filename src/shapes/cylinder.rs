@@ -103,7 +103,7 @@ impl Shape for Cylinder {
         }
 
         // Compute cylinder hit point and $\phi$
-        let mut p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+        let mut p_hit = ray.o + ray.d * Float::from(t_shape_hit);
 
         // Refine cylinder intersection point
         {
@@ -126,7 +126,7 @@ impl Shape for Cylinder {
             }
             t_shape_hit = t1;
             // Compute cylinder inverse mapping
-            p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+            p_hit = ray.o + ray.d * Float::from(t_shape_hit);
             {
                 let hit_rad = Float::sqrt(p_hit.x * p_hit.x + p_hit.y * p_hit.y);
                 p_hit.x *= radius / hit_rad;
@@ -192,7 +192,7 @@ impl Shape for Cylinder {
             .base
             .object_to_world
             .transform_surface_interaction(&isect);
-        return Some((t_shape_hit.v, isect));
+        return Some((t_shape_hit.into(), isect));
     }
 
     fn intersect_p(&self, r: &Ray) -> bool {
@@ -243,7 +243,7 @@ impl Shape for Cylinder {
             }
 
             // Compute cylinder hit point and $\phi$
-            let mut p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+            let mut p_hit = ray.o + ray.d * Float::from(t_shape_hit);
 
             // Refine cylinder intersection point
             {
@@ -266,7 +266,7 @@ impl Shape for Cylinder {
                 }
                 t_shape_hit = t1;
                 // Compute cylinder inverse mapping
-                p_hit = ray.o + ray.d * t_shape_hit.v; //TODO
+                p_hit = ray.o + ray.d * Float::from(t_shape_hit);
                 {
                     let hit_rad = Float::sqrt(p_hit.x * p_hit.x + p_hit.y * p_hit.y);
                     p_hit.x *= radius / hit_rad;

@@ -69,7 +69,7 @@ impl Light for PointLight {
         let ray = Ray::from((
             &self.p_light,
             &uniform_sample_sphere(u1),
-            f32::INFINITY,
+            Float::INFINITY,
             time,
             &medium,
         ));

@@ -178,7 +178,7 @@ impl ParamSet {
         add_values(&mut self.keys, &mut self.ints, key, v);
     }
 
-    pub fn add_float(&mut self, key: &str, v: f32) {
+    pub fn add_float(&mut self, key: &str, v: Float) {
         add_value(&mut self.keys, &mut self.floats, key, v);
     }
 
@@ -401,19 +401,19 @@ impl ParamSet {
 
     pub fn find_one_point3f(&self, key: &str, value: &Point3f) -> Point3f {
         let v = vec![value.x, value.y, value.z];
-        let a: &[f32] = &self.find_one_point(key, &v);
+        let a: &[Float] = &self.find_one_point(key, &v);
         return Point3f::from(a);
     }
 
     pub fn find_one_vector3f(&self, key: &str, value: &Vector3f) -> Vector3f {
         let v = vec![value.x, value.y, value.z];
-        let a: &[f32] = &self.find_one_point(key, &v);
+        let a: &[Float] = &self.find_one_point(key, &v);
         return Vector3f::from(a);
     }
 
     pub fn find_one_normal3f(&self, key: &str, value: &Normal3f) -> Normal3f {
         let v = vec![value.x, value.y, value.z];
-        let a: &[f32] = &self.find_one_point(key, &v);
+        let a: &[Float] = &self.find_one_point(key, &v);
         return Normal3f::from(a);
     }
 

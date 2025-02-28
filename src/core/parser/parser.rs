@@ -3,6 +3,7 @@ use super::read_file::{read_file_with_include, read_file_without_include};
 use super::remove_comment::remove_comment;
 use crate::core::api::ParseContext;
 use crate::core::param_set::ParamSet;
+use crate::core::pbrt::Float;
 use crate::core::pbrt::PbrtError;
 
 use nom::bytes;
@@ -436,7 +437,10 @@ fn parse_op_float_n<'a>(s: &'a str, opname: &str, n: usize) -> IResult<&'a str, 
         ),
     ))(s)?;
     let mut args = ParamSet::new();
-    let v: Vec<f32> = a.iter().map(|x| (*x).parse::<f32>().unwrap()).collect();
+    let v: Vec<Float> = a
+        .iter()
+        .map(|x| (*x).parse::<f32>().unwrap() as Float)
+        .collect();
     args.add_floats("args", &v);
     return Ok((s, OPNode::new(op, Some(args), None)));
 }
@@ -458,7 +462,10 @@ fn parse_op_floats<'a>(s: &'a str, opname: &str) -> IResult<&'a str, OPNode> {
         ),
     ))(s)?;
     let mut args = ParamSet::new();
-    let v: Vec<f32> = a.iter().map(|x| (*x).parse::<f32>().unwrap()).collect();
+    let v: Vec<Float> = a
+        .iter()
+        .map(|x| (*x).parse::<f32>().unwrap() as Float)
+        .collect();
     args.add_floats("arg1", &v);
     return Ok((s, OPNode::new(op, Some(args), None)));
 }

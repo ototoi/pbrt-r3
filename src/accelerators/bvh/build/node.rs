@@ -7,6 +7,21 @@ use crate::core::pbrt::*;
 
 use std::sync::Arc;
 
+// pbrt-r3:
+const BOUND_EPS: Float = (f32::EPSILON * 2.0) as Float;
+fn inflate_bound(b: &Bounds3f, delta: Float) -> Bounds3f {
+    let mut min = b.min;
+    let mut max = b.max;
+    min.x -= delta;
+    min.y -= delta;
+    min.z -= delta;
+    max.x += delta;
+    max.y += delta;
+    max.z += delta;
+    return Bounds3f::new(&min, &max);
+}
+// pbrt-r3
+
 pub fn recursive_build(
     primitive_info: &mut [BVHPrimitiveInfo],
     ordered_indices: &mut Vec<usize>,
@@ -98,7 +113,8 @@ fn create_bvh_node_indices(
         .iter()
         .enumerate()
         .map(|(i, p)| -> BVHPrimitiveInfo {
-            let b = p.as_ref().world_bound().clone();
+            let b = p.world_bound();
+            let b = inflate_bound(&b, BOUND_EPS);
             let c = (b.min + b.max) * 0.5;
             return BVHPrimitiveInfo::new(i, &b, &c);
         })

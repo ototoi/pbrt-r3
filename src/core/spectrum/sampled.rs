@@ -5,6 +5,7 @@ use super::convert::*;
 use super::load::*;
 use super::rgb::RGBSpectrum;
 use super::utils::*;
+use crate::core::pbrt::lerp;
 use crate::core::pbrt::*;
 
 use std::ops;
@@ -277,6 +278,17 @@ impl SampledSpectrum {
     }
     pub fn is_empty(&self) -> bool {
         return false;
+    }
+
+    pub fn lerp(t: Float, s1: &Self, s2: &Self) -> Self {
+        let a = &s1.c;
+        let b = &s2.c;
+        let c: Vec<_> = a
+            .iter()
+            .zip(b.iter())
+            .map(|(aa, bb)| lerp(t, *aa, *bb))
+            .collect();
+        return SampledSpectrum::from(c);
     }
 }
 

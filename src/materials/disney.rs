@@ -168,18 +168,193 @@ impl BxDF for DisneyRetro {
 ///////////////////////////////////////////////////////////////////////////
 // DisneySheen
 
+pub struct DisneySheen {
+    r: Spectrum,
+}
+impl DisneySheen {
+    pub fn new(r: Spectrum) -> Self {
+        Self { r }
+    }
+}
+impl BxDF for DisneySheen {
+    fn f(&self, wo: &Vector3f, wi: &Vector3f) -> Spectrum {
+        let fo = schlick_weight(abs_cos_theta(wo));
+        let fi = schlick_weight(abs_cos_theta(wi));
+        return self.r * INV_PI * (1.0 - fo / 2.0) * (1.0 - fi / 2.0);
+    }
+    fn sample_f(
+        &self,
+        wo: &Vector3f,
+        u: &Vector2f,
+    ) -> Option<(Spectrum, Vector3f, Float, BxDFType)> {
+        self.sample_f_default(wo, u)
+    }
+    fn rho(&self, _wo: &Vector3f, _samples: &[Point2f]) -> Spectrum {
+        self.r
+    }
+    fn rho2(&self, _samples: &[(Point2f, Point2f)]) -> Spectrum {
+        self.r
+    }
+    fn pdf(&self, wo: &Vector3f, wi: &Vector3f) -> Float {
+        return self.pdf_default(wo, wi);
+    }
+    fn get_type(&self) -> BxDFType {
+        BSDF_REFLECTION | BSDF_DIFFUSE
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // DisneyClearcoat
+
+pub struct DisneyClearcoat {
+    r: Spectrum,
+    gloss: Float,
+}
+impl DisneyClearcoat {
+    pub fn new(r: Spectrum, gloss: Float) -> Self {
+        Self { r, gloss }
+    }
+}
+impl BxDF for DisneyClearcoat {
+    fn f(&self, wo: &Vector3f, wi: &Vector3f) -> Spectrum {
+        unimplemented!()
+    }
+    fn sample_f(
+        &self,
+        wo: &Vector3f,
+        u: &Vector2f,
+    ) -> Option<(Spectrum, Vector3f, Float, BxDFType)> {
+        self.sample_f_default(wo, u)
+    }
+    fn rho(&self, _wo: &Vector3f, _samples: &[Point2f]) -> Spectrum {
+        self.r
+    }
+    fn rho2(&self, _samples: &[(Point2f, Point2f)]) -> Spectrum {
+        self.r
+    }
+    fn pdf(&self, wo: &Vector3f, wi: &Vector3f) -> Float {
+        return self.pdf_default(wo, wi);
+    }
+    fn get_type(&self) -> BxDFType {
+        BSDF_REFLECTION | BSDF_GLOSSY
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // DisneyFresnel
 
+// Specialized Fresnel function used for the specular component, based on
+// a mixture between dielectric and the Schlick Fresnel approximation.
+pub struct DisneyFresnel {
+    r0: Spectrum,
+    metallic: Float,
+    eta: Float,
+}
+impl DisneyFresnel {
+    pub fn new(r0: Spectrum, metallic: Float, eta: Float) -> Self {
+        Self { r0, metallic, eta }
+    }
+}
+impl Fresnel for DisneyFresnel {
+    fn evaluate(&self, cos_i: Float) -> Spectrum {
+        let r0 = lerp(self.metallic, schlick_r0_from_eta(self.eta), self.r0.y());
+        return self.r0 + (Spectrum::from(r0) - self.r0) * schlick_weight(cos_i);
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // DisneyMicrofacetDistribution
+pub struct DisneyMicrofacetDistribution {
+    base: TrowbridgeReitzDistribution,
+}
+impl DisneyMicrofacetDistribution {
+    pub fn new(alpha_x: Float, alpha_y: Float, samplevis: bool) -> Self {
+        Self {
+            base: TrowbridgeReitzDistribution::new(alpha_x, alpha_y, samplevis),
+        }
+    }
+}
+impl MicrofacetDistribution for DisneyMicrofacetDistribution {
+    fn d(&self, wh: &Vector3f) -> Float {
+        self.base.d(wh)
+    }
+    fn lambda(&self, w: &Vector3f) -> Float {
+        self.base.lambda(w)
+    }
+    fn g(&self, wo: &Vector3f, wi: &Vector3f) -> Float {
+        // Disney uses the separable masking-shadowing model.
+        return self.base.g1(wo) * self.base.g1(wi);
+    }
+    fn sample_wh(&self, wo: &Vector3f, u: &Point2f) -> Vector3f {
+        self.base.sample_wh(wo, u)
+    }
+    fn pdf(&self, wo: &Vector3f, wh: &Vector3f) -> Float {
+        self.base.pdf(wo, wh)
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // DisneyBSSRDF
 
+#[derive(Clone, Debug)]
+pub struct DisneyBSSRDF {
+    base: BaseSeparableBSSRDF,
+    r: Spectrum,
+    d: Spectrum,
+}
+impl DisneyBSSRDF {
+    pub fn new(
+        r: &Spectrum,
+        d: &Spectrum,
+        po: &SurfaceInteraction,
+        eta: Float,
+        material: BSSRDFMaterialRawPointer,
+        mode: TransportMode,
+    ) -> Self {
+        Self {
+            base: BaseSeparableBSSRDF::new(po, eta, material, mode),
+            r: *r,
+            d: *d,
+        }
+    }
+}
+impl BSSRDF for DisneyBSSRDF {
+    fn s(&self, pi: &SurfaceInteraction, wi: &Vector3f) -> Spectrum {
+        unimplemented!()
+    }
+    fn sample_s(
+        &self,
+        scene: &Scene,
+        u1: Float,
+        u2: &Point2f,
+        arena: &mut MemoryArena,
+    ) -> Option<(Spectrum, SurfaceInteraction, Float)> {
+        unimplemented!()
+    }
+}
+impl SeparableBSSRDF for DisneyBSSRDF {
+    fn as_separable(&self) -> &BaseSeparableBSSRDF {
+        &self.base
+    }
+    fn sr(&self, d: Float) -> Spectrum {
+        unimplemented!()
+    }
+    fn sample_sr(&self, ch: usize, u: Float) -> Float {
+        unimplemented!()
+    }
+    fn pdf_sr(&self, ch: usize, r: Float) -> Float {
+        unimplemented!()
+    }
+    fn sp(&self, pi: &SurfaceInteraction) -> Spectrum {
+        self.r
+    }
+    fn sw(&self, wi: &Vector3f) -> Spectrum {
+        self.d
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// DisneyMaterial Declarations
 pub struct DisneyMaterial {
     color: Arc<dyn Texture<Spectrum>>,
     metallic: Arc<dyn Texture<Float>>,

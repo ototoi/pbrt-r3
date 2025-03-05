@@ -1,7 +1,5 @@
-use std::fmt::Debug;
-
-use super::functions::*;
 use crate::core::pbrt::*;
+use std::fmt::Debug;
 
 pub trait BSSRDF: Debug {
     fn s(&self, pi: &SurfaceInteraction, wi: &Vector3f) -> Spectrum;
@@ -31,11 +29,5 @@ impl BaseBSSRDF {
             time: po.time,
             eta,
         }
-    }
-
-    pub fn sw(&self, w: &Vector3f) -> Spectrum {
-        let eta = self.eta;
-        let c = 1.0 - 2.0 * fresnel_moment1(1.0 / eta);
-        return Spectrum::from((1.0 - fr_dielectric(cos_theta(w), 1.0, eta)) / (c * PI));
     }
 }

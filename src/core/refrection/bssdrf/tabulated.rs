@@ -8,14 +8,14 @@ use crate::core::pbrt::*;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct TabulatedBSSRDF {
+pub struct TabulatedBSSRDFCore {
     base: BaseSeparableBSSRDF,
     table: Arc<BSSRDFTable>,
     sigma_t: Spectrum,
     rho: Spectrum,
 }
 
-impl TabulatedBSSRDF {
+impl TabulatedBSSRDFCore {
     pub fn new(
         po: &SurfaceInteraction,
         eta: Float,
@@ -27,7 +27,7 @@ impl TabulatedBSSRDF {
     ) -> Self {
         let sigma_t = *sigma_a + *sigma_s;
         let rho = Self::get_rho(sigma_s, &sigma_t);
-        TabulatedBSSRDF {
+        TabulatedBSSRDFCore {
             base: BaseSeparableBSSRDF::new(po, eta, material, mode),
             table: table.clone(),
             sigma_t,
@@ -89,9 +89,12 @@ impl TabulatedBSSRDF {
     }
 }
 
-impl BSSRDF for TabulatedBSSRDF {
+impl BSSRDF for TabulatedBSSRDFCore {
     fn s(&self, pi: &SurfaceInteraction, wi: &Vector3f) -> Spectrum {
-        return self.s_as_separable(pi, wi);
+        let eta = self.base.base.eta;
+        let wo = self.base.base.wo;
+        let ft = fr_dielectric(cos_theta(&wo), 1.0, eta);
+        return (self.sp(pi) * self.sw(wi)) * (1.0 - ft);
     }
 
     fn sample_s(
@@ -101,11 +104,23 @@ impl BSSRDF for TabulatedBSSRDF {
         u2: &Point2f,
         arena: &mut MemoryArena,
     ) -> Option<(Spectrum, SurfaceInteraction, Float)> {
-        return self.sample_s_as_separable(scene, u1, u2, arena);
+        if let Some((sp, mut si, pdf)) = self.sample_sp(scene, u1, u2, arena) {
+            if !sp.is_black() {
+                let mut b = arena.alloc_bsdf(&si, 1.0);
+                let adapter: Arc<dyn BxDF> =
+                    Arc::new(SeparableBSSRDFAdapter::new(self.as_separable()));
+                b.add(&adapter);
+                let bsdf = Arc::new(b);
+                si.bsdf = Some(bsdf);
+                si.wo = si.shading.n;
+            }
+            return Some((sp, si, pdf));
+        }
+        return None;
     }
 }
 
-impl SeparableBSSRDF for TabulatedBSSRDF {
+impl SeparableBSSRDF for TabulatedBSSRDFCore {
     fn sr(&self, r: Float) -> Spectrum {
         let n_samples = Spectrum::N_SAMPLES;
         let mut values = Spectrum::zero().to_rgb();
@@ -141,7 +156,20 @@ impl SeparableBSSRDF for TabulatedBSSRDF {
         return Float::max(0.0, sr / eff);
     }
 
-    fn as_separable(&self) -> &BaseSeparableBSSRDF {
-        return &self.base;
+    fn sw(&self, w: &Vector3f) -> Spectrum {
+        
     }
+
+    fn get_mode(&self) -> TransportMode {
+        return self.base.mode;
+    }
+
+    fn get_eta(&self) -> Float {
+        return self.base.base.eta;
+    }
+}
+
+#[derive(Debug)]
+pub struct TabulatedBSSRDF {
+    core: Arc<TabulatedBSSRDFCore>,
 }

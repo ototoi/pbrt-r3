@@ -3,21 +3,30 @@ use std::sync::Arc;
 
 pub type BSSRDFMaterialRawPointer = *const dyn Material;
 
+pub trait SeparableBSSRDF: BSSRDF {
+    fn sr(&self, d: Float) -> Spectrum;
+    fn sample_sr(&self, ch: usize, u: Float) -> Float;
+    fn pdf_sr(&self, ch: usize, r: Float) -> Float;
+    fn sw(&self, w: &Vector3f) -> Spectrum;
+    fn get_mode(&self) -> TransportMode;
+    fn get_eta(&self) -> Float;
+}
+
 pub struct SeparableBSSRDFAdapter {
-    bssrdf: BaseSeparableBSSRDF,
+    bssrdf: Arc<dyn SeparableBSSRDF>,
 }
 
 impl SeparableBSSRDFAdapter {
-    pub fn new(bssrdf: &BaseSeparableBSSRDF) -> Self {
-        SeparableBSSRDFAdapter { bssrdf: *bssrdf }
+    pub fn new(bssrdf: Arc<dyn SeparableBSSRDF>) -> Self {
+        SeparableBSSRDFAdapter { bssrdf }
     }
 }
 
 impl BxDF for SeparableBSSRDFAdapter {
     fn f(&self, _wo: &Vector3f, wi: &Vector3f) -> Spectrum {
         let f = self.bssrdf.sw(wi);
-        if self.bssrdf.mode == TransportMode::Radiance {
-            let eta = self.bssrdf.base.eta;
+        if self.bssrdf.get_mode() == TransportMode::Radiance {
+            let eta = self.bssrdf.get_eta();
             return f * (eta * eta);
         } else {
             return f;
@@ -44,10 +53,64 @@ impl BxDF for SeparableBSSRDFAdapter {
         return format!(
             "SeparableBSSRDFAdapter {:?} {:?}",
             self.get_type(),
-            self.bssrdf.mode
+            self.bssrdf.get_mode()
         );
     }
 }
+
+/*
+pub trait SeparableBSSRDF: BSSRDF {
+    fn s_as_separable(&self, pi: &SurfaceInteraction, wi: &Vector3f) -> Spectrum {
+        let eta = self.get_eta();
+        let wo = self.get_wo();
+        let ft = fr_dielectric(cos_theta(&wo), 1.0, eta);
+        return (self.sp(pi) * self.sw(wi)) * (1.0 - ft);
+    }
+
+    fn sample_s_as_separable(
+        &self,
+        scene: &Scene,
+        u1: Float,
+        u2: &Point2f,
+        arena: &mut MemoryArena,
+    ) -> Option<(Spectrum, SurfaceInteraction, Float)> {
+        if let Some((sp, mut si, pdf)) = self.sample_sp(scene, u1, u2, arena) {
+            if !sp.is_black() {
+                let mut b = arena.alloc_bsdf(&si, 1.0);
+                let adapter: Arc<dyn BxDF> =
+                    Arc::new(SeparableBSSRDFAdapter::new(self.as_separable()));
+                b.add(&adapter);
+                let bsdf = Arc::new(b);
+                si.bsdf = Some(bsdf);
+                si.wo = si.shading.n;
+            }
+            return Some((sp, si, pdf));
+        }
+        return None;
+    }
+
+    fn sw(&self, w: &Vector3f) -> Spectrum;
+
+    fn sp(&self, pi: &SurfaceInteraction) -> Spectrum {
+        let p = self.get_p();
+        return self.sr(Vector3f::distance(&p, &pi.p));
+    }
+
+    
+
+    
+
+    // SeparableBSSRDF Interface
+    fn sr(&self, d: Float) -> Spectrum;
+    fn sample_sr(&self, ch: usize, u: Float) -> Float;
+    fn pdf_sr(&self, ch: usize, r: Float) -> Float;
+
+    fn get_mode(&self) -> TransportMode;
+    fn get_eta(&self) -> Float;
+    fn get_p(&self) -> Point3f;
+    fn get_wo(&self) -> Vector3f;
+}
+*/
 
 #[derive(Clone, Copy, Debug)]
 pub struct BaseSeparableBSSRDF {
@@ -78,74 +141,12 @@ impl BaseSeparableBSSRDF {
             mode,
         }
     }
-
-    pub fn sw(&self, w: &Vector3f) -> Spectrum {
-        return self.base.sw(w);
-    }
-
-    pub fn projection_axis(&self, u1: Float) -> (Vector3f, Vector3f, Vector3f, Float) {
-        if u1 < 0.5 {
-            let vx = self.ss;
-            let vy = self.ts;
-            let vz = self.ns;
-            let u1 = u1 * 2.0;
-            return (vx, vy, vz, u1);
-        } else if u1 < 0.75 {
-            let vx = self.ts;
-            let vy = self.ns;
-            let vz = self.ss;
-            let u1 = (u1 - 0.5) * 4.0;
-            return (vx, vy, vz, u1);
-        } else {
-            let vx = self.ns;
-            let vy = self.ss;
-            let vz = self.ts;
-            let u1 = (u1 - 0.75) * 4.0;
-            return (vx, vy, vz, u1);
-        }
-    }
 }
 
-pub trait SeparableBSSRDF: BSSRDF {
-    fn s_as_separable(&self, pi: &SurfaceInteraction, wi: &Vector3f) -> Spectrum {
-        let separable = self.as_separable();
-        let eta = separable.base.eta;
-        let base = &separable.base;
-        let ft = fr_dielectric(cos_theta(&base.wo), 1.0, eta);
-        return (self.sp(pi) * self.sw(wi)) * (1.0 - ft);
-    }
-
-    fn sample_s_as_separable(
-        &self,
-        scene: &Scene,
-        u1: Float,
-        u2: &Point2f,
-        arena: &mut MemoryArena,
-    ) -> Option<(Spectrum, SurfaceInteraction, Float)> {
-        if let Some((sp, mut si, pdf)) = self.sample_sp(scene, u1, u2, arena) {
-            if !sp.is_black() {
-                let mut b = arena.alloc_bsdf(&si, 1.0);
-                let adapter: Arc<dyn BxDF> =
-                    Arc::new(SeparableBSSRDFAdapter::new(self.as_separable()));
-                b.add(&adapter);
-                let bsdf = Arc::new(b);
-                si.bsdf = Some(bsdf);
-                si.wo = si.shading.n;
-            }
-            return Some((sp, si, pdf));
-        }
-        return None;
-    }
-
-    fn sw(&self, w: &Vector3f) -> Spectrum {
-        let separable = self.as_separable();
-        return separable.base.sw(w);
-    }
-
+/* 
     fn sp(&self, pi: &SurfaceInteraction) -> Spectrum {
-        let separable = self.as_separable();
-        let base = &separable.base;
-        return self.sr(Vector3f::distance(&base.p, &pi.p));
+        let p = self.base.p;
+        return self.sr(Vector3f::distance(&p, &pi.p));
     }
 
     fn sample_sp(
@@ -155,8 +156,7 @@ pub trait SeparableBSSRDF: BSSRDF {
         u2: &Point2f,
         _arena: &mut MemoryArena,
     ) -> Option<(Spectrum, SurfaceInteraction, Float)> {
-        let separable = self.as_separable();
-        let (vx, vy, vz, u1) = separable.projection_axis(u1);
+        let (vx, vy, vz, u1) = self.projection_axis(u1);
         let n_samples = 3; //TODO
                            // Choose spectral channel for BSSRDF sampling
         let ch = usize::clamp((u1 * n_samples as Float) as usize, 0, n_samples - 1);
@@ -183,8 +183,8 @@ pub trait SeparableBSSRDF: BSSRDF {
         //println!("l:{:?}", l);
 
         // Compute BSSRDF sampling ray segment
-        let p = separable.base.p + r * (vx * Float::cos(phi) + vy * Float::sin(phi)) - l * vz * 0.5;
-        let time = separable.base.time;
+        let p = self.base.p + r * (vx * Float::cos(phi) + vy * Float::sin(phi)) - l * vz * 0.5;
+        let time = self.base.time;
         let mut base = SurfaceInteraction {
             p: p,
             time: time,
@@ -212,7 +212,7 @@ pub trait SeparableBSSRDF: BSSRDF {
                         let ptr = material as BSSRDFMaterialRawPointer;
                         // Append admissible intersection to _IntersectionChain_
                         #[allow(clippy::vtable_address_comparisons)]
-                        if std::ptr::eq(ptr, separable.material) {
+                        if std::ptr::eq(ptr, self.material) {
                             chain.push(si);
                         }
                     }
@@ -237,24 +237,23 @@ pub trait SeparableBSSRDF: BSSRDF {
         return Some((f, pi, pdf));
     }
 
-    fn pdf_sp(&self, pi: &SurfaceInteraction) -> Float {
+    pub fn pdf_sp(&self, pi: &SurfaceInteraction) -> Float {
         // Express $\pti-\pto$ and $\bold{n}_i$ with respect to local coordinates at
         // $\pto$
-        let separable = self.as_separable();
-        let po = &separable.base;
+        let po = &self.base;
         let d = po.p - pi.p;
 
         assert!(pi.n.length() > 0.0);
 
         let d_local = Vector3f::new(
-            Vector3f::dot(&separable.ss, &d),
-            Vector3f::dot(&separable.ts, &d),
-            Vector3f::dot(&separable.ns, &d),
+            Vector3f::dot(&self.ss, &d),
+            Vector3f::dot(&self.ts, &d),
+            Vector3f::dot(&self.ns, &d),
         );
         let n_local = Vector3f::new(
-            Vector3f::dot(&separable.ss, &pi.n),
-            Vector3f::dot(&separable.ts, &pi.n),
-            Vector3f::dot(&separable.ns, &pi.n),
+            Vector3f::dot(&self.ss, &pi.n),
+            Vector3f::dot(&self.ts, &pi.n),
+            Vector3f::dot(&self.ns, &pi.n),
         );
         // Compute BSSRDF profile radius under projection along each axis
         let r_proj = [
@@ -279,11 +278,81 @@ pub trait SeparableBSSRDF: BSSRDF {
         return pdf;
     }
 
-    // SeparableBSSRDF Interface
-    fn sr(&self, d: Float) -> Spectrum;
-    fn sample_sr(&self, ch: usize, u: Float) -> Float;
-    fn pdf_sr(&self, ch: usize, r: Float) -> Float;
-
-    //
-    fn as_separable(&self) -> &BaseSeparableBSSRDF;
+    pub fn projection_axis(&self, u1: Float) -> (Vector3f, Vector3f, Vector3f, Float) {
+        if u1 < 0.5 {
+            let vx = self.ss;
+            let vy = self.ts;
+            let vz = self.ns;
+            let u1 = u1 * 2.0;
+            return (vx, vy, vz, u1);
+        } else if u1 < 0.75 {
+            let vx = self.ts;
+            let vy = self.ns;
+            let vz = self.ss;
+            let u1 = (u1 - 0.5) * 4.0;
+            return (vx, vy, vz, u1);
+        } else {
+            let vx = self.ns;
+            let vy = self.ss;
+            let vz = self.ts;
+            let u1 = (u1 - 0.75) * 4.0;
+            return (vx, vy, vz, u1);
+        }
+    }
 }
+
+impl BSSRDF for BaseSeparableBSSRDF {
+    fn s(&self, pi: &SurfaceInteraction, wi: &Vector3f) -> Spectrum {
+        let eta = self.base.eta;
+        let wo = self.base.wo;
+        let ft = fr_dielectric(cos_theta(&wo), 1.0, eta);
+        return (self.sp(pi) * self.sw(wi)) * (1.0 - ft);
+    }
+
+    fn sample_s(
+        &self,
+        scene: &Scene,
+        u1: Float,
+        u2: &Point2f,
+        arena: &mut MemoryArena,
+    ) -> Option<(Spectrum, SurfaceInteraction, Float)> {
+        if let Some((sp, mut si, pdf)) = self.sample_sp(scene, u1, u2, arena) {
+            if !sp.is_black() {
+                let mut b = arena.alloc_bsdf(&si, 1.0);
+                let adapter: Arc<dyn BxDF> =
+                    Arc::new(SeparableBSSRDFAdapter::new(self.as_separable()));
+                b.add(&adapter);
+                let bsdf = Arc::new(b);
+                si.bsdf = Some(bsdf);
+                si.wo = si.shading.n;
+            }
+            return Some((sp, si, pdf));
+        }
+        return None;
+    }
+}
+
+impl SeparableBSSRDF for BaseSeparableBSSRDF {
+    fn sr(&self, _d: Float) -> Spectrum {
+        unimplemented!()
+    }
+    fn sample_sr(&self, _ch: usize, _u: Float) -> Float {
+        unimplemented!()
+    }
+    fn pdf_sr(&self, _ch: usize, _r: Float) -> Float  {
+        unimplemented!()
+    }
+    fn sw(&self, _w: &Vector3f) -> Spectrum {
+        unimplemented!()
+    }
+
+    fn get_mode(&self) -> TransportMode {
+        self.mode
+    }
+
+    fn get_eta(&self) -> Float {
+        self.base.eta
+    }
+}
+
+    */

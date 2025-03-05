@@ -8,14 +8,14 @@ use crate::core::pbrt::*;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct TabulatedBSSRDFCore {
-    base: BaseSeparableBSSRDF,
+pub struct TabulatedBSSRDF {
+    base: Arc<BaseSeparableBSSRDF>,
     table: Arc<BSSRDFTable>,
     sigma_t: Spectrum,
     rho: Spectrum,
 }
 
-impl TabulatedBSSRDFCore {
+impl TabulatedBSSRDF {
     pub fn new(
         po: &SurfaceInteraction,
         eta: Float,
@@ -27,8 +27,9 @@ impl TabulatedBSSRDFCore {
     ) -> Self {
         let sigma_t = *sigma_a + *sigma_s;
         let rho = Self::get_rho(sigma_s, &sigma_t);
-        TabulatedBSSRDFCore {
-            base: BaseSeparableBSSRDF::new(po, eta, material, mode),
+        let base = Arc::new(BaseSeparableBSSRDF::new(po, eta, material, mode));
+        TabulatedBSSRDF {
+            base,
             table: table.clone(),
             sigma_t,
             rho,
@@ -88,11 +89,8 @@ impl TabulatedBSSRDFCore {
         return (0.0, 1.0);
     }
 
-    fn s(&self, pi: &SurfaceInteraction, wi: &Vector3f) -> Spectrum {
-        let eta = self.base.base.eta;
-        let wo = self.base.base.wo;
-        let ft = fr_dielectric(cos_theta(&wo), 1.0, eta);
-        return (self.sp(pi) * self.sw(wi)) * (1.0 - ft);
+    fn sw(&self, w: &Vector3f) -> Spectrum {
+        return self.base.sw(w);
     }
 
     fn sp(&self, pi: &SurfaceInteraction) -> Spectrum {
@@ -216,7 +214,7 @@ impl TabulatedBSSRDFCore {
         // Return combined probability from all BSSRDF sampling strategies
         let mut pdf = 0.0;
         let axis_prob = [0.25, 0.25, 0.5];
-        let n_samples = 3; //TODO
+        let n_samples = Spectrum::N_SAMPLES;
         let ch_prob = 1.0 / (n_samples as Float);
         for axis in 0..3 {
             for ch in 0..n_samples {
@@ -265,45 +263,12 @@ impl TabulatedBSSRDFCore {
     }
 }
 
-impl SeparableBSSRDF for TabulatedBSSRDFCore {
-    fn sw(&self, w: &Vector3f) -> Spectrum {
-        return self.base.base.sw(w);
-    }
-
-    fn get_mode(&self) -> TransportMode {
-        return self.base.mode;
-    }
-
-    fn get_eta(&self) -> Float {
-        return self.base.base.eta;
-    }
-}
-
-#[derive(Debug)]
-pub struct TabulatedBSSRDF {
-    core: Arc<TabulatedBSSRDFCore>,
-}
-
-impl TabulatedBSSRDF {
-    pub fn new(
-        po: &SurfaceInteraction,
-        eta: Float,
-        material: BSSRDFMaterialRawPointer,
-        mode: TransportMode,
-        sigma_a: &Spectrum,
-        sigma_s: &Spectrum,
-        table: &Arc<BSSRDFTable>,
-    ) -> Self {
-        let core = Arc::new(TabulatedBSSRDFCore::new(
-            po, eta, material, mode, sigma_a, sigma_s, table,
-        ));
-        TabulatedBSSRDF { core }
-    }
-}
-
 impl BSSRDF for TabulatedBSSRDF {
     fn s(&self, pi: &SurfaceInteraction, wi: &Vector3f) -> Spectrum {
-        return self.core.s(pi, wi);
+        let eta = self.base.base.eta;
+        let wo = self.base.base.wo;
+        let ft = fr_dielectric(cos_theta(&wo), 1.0, eta);
+        return (self.sp(pi) * self.sw(wi)) * (1.0 - ft);
     }
 
     fn sample_s(
@@ -313,11 +278,11 @@ impl BSSRDF for TabulatedBSSRDF {
         u2: &Point2f,
         arena: &mut MemoryArena,
     ) -> Option<(Spectrum, SurfaceInteraction, Float)> {
-        if let Some((sp, mut si, pdf)) = self.core.sample_sp(scene, u1, u2, arena) {
+        if let Some((sp, mut si, pdf)) = self.sample_sp(scene, u1, u2, arena) {
             if !sp.is_black() {
                 let mut b = arena.alloc_bsdf(&si, 1.0);
                 let adapter: Arc<dyn BxDF> =
-                    Arc::new(SeparableBSSRDFAdapter::new(self.core.clone()));
+                    Arc::new(SeparableBSSRDFAdapter::new(self.base.clone()));
                 b.add(&adapter);
                 let bsdf = Arc::new(b);
                 si.bsdf = Some(bsdf);

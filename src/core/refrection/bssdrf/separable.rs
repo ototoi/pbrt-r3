@@ -107,3 +107,19 @@ impl BaseSeparableBSSRDF {
         }
     }
 }
+
+impl SeparableBSSRDF for BaseSeparableBSSRDF {
+    fn sw(&self, w: &Vector3f) -> Spectrum {
+        let eta = self.base.eta;
+        let c = 1.0 - 2.0 * fresnel_moment1(1.0 / eta);
+        return Spectrum::from((1.0 - fr_dielectric(cos_theta(w), 1.0, eta)) / (c * PI));
+    }
+
+    fn get_mode(&self) -> TransportMode {
+        return self.mode;
+    }
+
+    fn get_eta(&self) -> Float {
+        return self.base.eta;
+    }
+}

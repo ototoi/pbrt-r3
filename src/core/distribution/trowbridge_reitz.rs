@@ -90,6 +90,7 @@ pub fn trowbridge_reitz_sample(
     return Vector3f::new(-slope_x, -slope_y, 1.0).normalize();
 }
 
+#[derive(Debug, Clone)]
 pub struct TrowbridgeReitzDistribution {
     alphax: Float,
     alphay: Float,

@@ -285,5 +285,9 @@ pub trait SeparableBSSRDF: BSSRDF {
     fn pdf_sr(&self, ch: usize, r: Float) -> Float;
 
     //
+    fn get_eta(&self) -> Float;
+    
+
+    //
     fn as_separable(&self) -> &BaseSeparableBSSRDF;
 }

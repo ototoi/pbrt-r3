@@ -142,7 +142,19 @@ impl DisneyRetro {
 }
 impl BxDF for DisneyRetro {
     fn f(&self, wo: &Vector3f, wi: &Vector3f) -> Spectrum {
-        unimplemented!()
+        let wh = *wo + *wi;
+        if wh.x == 0.0 && wh.y == 0.0 && wh.z == 0.0 {
+            return Spectrum::zero();
+        }
+        let wh = wh.normalize();
+        let cos_theta_d = wi.dot(&wh);
+
+        let fo = schlick_weight(abs_cos_theta(wo));
+        let fi = schlick_weight(abs_cos_theta(wi));
+        let rr = 2.0 * self.roughness * cos_theta_d * cos_theta_d;
+
+        // Burley 2015, eq (4).
+        return self.r * INV_PI * rr * (fo + fi + fo * fi * (rr - 1.0));
     }
     fn sample_f(
         &self,
@@ -178,9 +190,14 @@ impl DisneySheen {
 }
 impl BxDF for DisneySheen {
     fn f(&self, wo: &Vector3f, wi: &Vector3f) -> Spectrum {
-        let fo = schlick_weight(abs_cos_theta(wo));
-        let fi = schlick_weight(abs_cos_theta(wi));
-        return self.r * INV_PI * (1.0 - fo / 2.0) * (1.0 - fi / 2.0);
+        let wh = *wo + *wi;
+        if wh.x == 0.0 && wh.y == 0.0 && wh.z == 0.0 {
+            return Spectrum::zero();
+        }
+        let wh = wh.normalize();
+        let cos_theta_d = wi.dot(&wh);
+
+        return self.r * schlick_weight(cos_theta_d);
     }
     fn sample_f(
         &self,
@@ -207,33 +224,97 @@ impl BxDF for DisneySheen {
 // DisneyClearcoat
 
 pub struct DisneyClearcoat {
-    r: Spectrum,
+    weight: Float,
     gloss: Float,
 }
 impl DisneyClearcoat {
-    pub fn new(r: Spectrum, gloss: Float) -> Self {
-        Self { r, gloss }
+    pub fn new(weight: Float, gloss: Float) -> Self {
+        Self { weight, gloss }
     }
 }
+
+#[inline]
+fn gtr1(cos_theta: Float, alpha: Float) -> Float {
+    let alpha2 = alpha * alpha;
+    let cos_theta2 = cos_theta * cos_theta;
+    return (alpha2 - 1.0) / (PI * Float::ln(alpha2) * (1.0 + (alpha2 - 1.0) * cos_theta2));
+}
+
+// Smith masking/shadowing term.
+#[inline]
+fn smith_g_ggx(cos_theta: Float, alpha: Float) -> Float {
+    let alpha2 = alpha * alpha;
+    let cos_theta2 = cos_theta * cos_theta;
+    return 1.0 / (cos_theta + Float::sqrt(alpha2 + cos_theta2 - alpha2 * cos_theta2));
+}
+
 impl BxDF for DisneyClearcoat {
     fn f(&self, wo: &Vector3f, wi: &Vector3f) -> Spectrum {
-        unimplemented!()
+        let wh = *wo + *wi;
+        if wh.x == 0.0 && wh.y == 0.0 && wh.z == 0.0 {
+            return Spectrum::zero();
+        }
+        let wh = wh.normalize();
+
+        // Clearcoat has ior = 1.5 hardcoded -> F0 = 0.04. It then uses the
+        // GTR1 distribution, which has even fatter tails than Trowbridge-Reitz
+        // (which is GTR2).
+        let dr = gtr1(abs_cos_theta(&wh), self.gloss);
+        let fr = fr_schlick(0.04, Vector3f::dot(wo, &wh));
+        // The geometric term always based on alpha = 0.25.
+        let gr = smith_g_ggx(abs_cos_theta(wo), 0.25) * smith_g_ggx(abs_cos_theta(wi), 0.25);
+        return (self.weight * gr * fr * dr / 4.0).into();
     }
     fn sample_f(
         &self,
         wo: &Vector3f,
         u: &Vector2f,
     ) -> Option<(Spectrum, Vector3f, Float, BxDFType)> {
-        self.sample_f_default(wo, u)
+        // TODO: double check all this: there still seem to be some very
+        // occasional fireflies with clearcoat; presumably there is a bug
+        // somewhere.
+        if wo.z == 0.0 {
+            return None;
+        }
+
+        let alpha2 = self.gloss * self.gloss;
+        let cos_theta = Float::sqrt(Float::max(
+            0.0,
+            1.0 - Float::powf(alpha2, 1.0 - u[0]) / (1.0 - alpha2),
+        ));
+        let sin_theta = Float::sqrt(Float::max(0.0, 1.0 - cos_theta * cos_theta));
+        let phi = 2.0 * PI * u[1];
+        let mut wh = spherical_direction(sin_theta, cos_theta, phi);
+        if !same_hemisphere(wo, &wh) {
+            wh = -wh;
+        }
+        let wi = reflect(wo, &wh);
+        if !same_hemisphere(wo, &wi) {
+            return None;
+        }
+        let pdf = self.pdf(wo, &wi);
+        let f = self.f(wo, &wi);
+        let t = self.get_type();
+        return Some((f, wi, pdf, t));
     }
-    fn rho(&self, _wo: &Vector3f, _samples: &[Point2f]) -> Spectrum {
-        self.r
-    }
-    fn rho2(&self, _samples: &[(Point2f, Point2f)]) -> Spectrum {
-        self.r
-    }
+    // fn rho(&self, wo: &Vector3f, samples: &[Point2f]) -> Spectrum;
+    // fn rho2(&self, _samples: &[(Point2f, Point2f)]) -> Spectrum;
     fn pdf(&self, wo: &Vector3f, wi: &Vector3f) -> Float {
-        return self.pdf_default(wo, wi);
+        if !same_hemisphere(wo, wi) {
+            return 0.0;
+        }
+        let wh = *wo + *wi;
+        if wh.x == 0.0 && wh.y == 0.0 && wh.z == 0.0 {
+            return 0.0;
+        }
+        let wh = wh.normalize();
+
+        // The sampling routine samples wh exactly from the GTR1 distribution.
+        // Thus, the final value of the PDF is just the value of the
+        // distribution for wh converted to a mesure with respect to the
+        // surface normal.
+        let dr = gtr1(abs_cos_theta(&wh), self.gloss);
+        return dr + abs_cos_theta(&wh) / (4.0 * abs_cos_theta(wo));
     }
     fn get_type(&self) -> BxDFType {
         BSDF_REFLECTION | BSDF_GLOSSY
@@ -264,13 +345,15 @@ impl Fresnel for DisneyFresnel {
 
 ///////////////////////////////////////////////////////////////////////////
 // DisneyMicrofacetDistribution
+
+#[derive(Clone, Debug)]
 pub struct DisneyMicrofacetDistribution {
     base: TrowbridgeReitzDistribution,
 }
 impl DisneyMicrofacetDistribution {
-    pub fn new(alpha_x: Float, alpha_y: Float, samplevis: bool) -> Self {
+    pub fn new(alpha_x: Float, alpha_y: Float) -> Self {
         Self {
-            base: TrowbridgeReitzDistribution::new(alpha_x, alpha_y, samplevis),
+            base: TrowbridgeReitzDistribution::new(alpha_x, alpha_y, true),
         }
     }
 }
@@ -296,6 +379,10 @@ impl MicrofacetDistribution for DisneyMicrofacetDistribution {
 ///////////////////////////////////////////////////////////////////////////
 // DisneyBSSRDF
 
+// Implementation of the empirical BSSRDF described in "Extending the
+// Disney BRDF to a BSDF with integrated subsurface scattering" (Brent
+// Burley) and "Approximate Reflectance Profiles for Efficient Subsurface
+// Scattering (Christensen and Burley).
 #[derive(Clone, Debug)]
 pub struct DisneyBSSRDF {
     base: BaseSeparableBSSRDF,
@@ -304,23 +391,47 @@ pub struct DisneyBSSRDF {
 }
 impl DisneyBSSRDF {
     pub fn new(
-        r: &Spectrum,
-        d: &Spectrum,
+        r: Spectrum,
+        d: Spectrum,
         po: &SurfaceInteraction,
         eta: Float,
         material: BSSRDFMaterialRawPointer,
         mode: TransportMode,
     ) -> Self {
+        // 0.2 factor comes from personal communication from Brent Burley
+        // and Matt Chiang.
+        let d = d * 0.2;
         Self {
             base: BaseSeparableBSSRDF::new(po, eta, material, mode),
-            r: *r,
-            d: *d,
+            r,
+            d,
         }
     }
 }
 impl BSSRDF for DisneyBSSRDF {
     fn s(&self, pi: &SurfaceInteraction, wi: &Vector3f) -> Spectrum {
-        unimplemented!()
+        // Fade based on relative orientations of the two surface normals to
+        // better handle surface cavities. (Details via personal communication
+        // from Brent Burley; these details aren't published in the course
+        // notes.)
+        //
+        // TODO: test
+        // TODO: explain
+        let po = &self.base.base;
+        let a = (pi.p - po.p).normalize();
+        let mut fade = 1.0;
+        let n = self.base.ns;
+        let cos_theta = a.dot(&n);
+        if cos_theta > 0.0 {
+            // Point on or above surface plane
+            let sin_theta = Float::sqrt(Float::max(0.0, 1.0 - cos_theta * cos_theta));
+            let a2 = n * sin_theta - (a - n * cos_theta) * (cos_theta / sin_theta);
+            fade = a2.dot(&pi.shading.n).max(0.0);
+        }
+
+        let fo = schlick_weight(abs_cos_theta(&po.wo));
+        let fi = schlick_weight(abs_cos_theta(wi));
+        return fade * (1.0 - fo / 2.0) * (1.0 - fi / 2.0) / PI * self.sp(pi);
     }
     fn sample_s(
         &self,
@@ -329,7 +440,19 @@ impl BSSRDF for DisneyBSSRDF {
         u2: &Point2f,
         arena: &mut MemoryArena,
     ) -> Option<(Spectrum, SurfaceInteraction, Float)> {
-        unimplemented!()
+        if let Some((sp, mut si, pdf)) = self.sample_sp(scene, u1, u2, arena) {
+            if !sp.is_black() {
+                let mut b = arena.alloc_bsdf(&si, 1.0);
+                let adapter: Arc<dyn BxDF> =
+                    Arc::new(SeparableBSSRDFAdapter::new(self.as_separable()));
+                b.add(&adapter);
+                let bsdf = Arc::new(b);
+                si.bsdf = Some(bsdf);
+                si.wo = si.shading.n;
+            }
+            return Some((sp, si, pdf));
+        }
+        return None;
     }
 }
 impl SeparableBSSRDF for DisneyBSSRDF {
@@ -340,9 +463,11 @@ impl SeparableBSSRDF for DisneyBSSRDF {
         unimplemented!()
     }
     fn sample_sr(&self, ch: usize, u: Float) -> Float {
+        //
         unimplemented!()
     }
     fn pdf_sr(&self, ch: usize, r: Float) -> Float {
+        //
         unimplemented!()
     }
     fn sp(&self, pi: &SurfaceInteraction) -> Spectrum {
@@ -350,6 +475,9 @@ impl SeparableBSSRDF for DisneyBSSRDF {
     }
     fn sw(&self, wi: &Vector3f) -> Spectrum {
         self.d
+    }
+    fn get_eta(&self) -> Float {
+        self.base.base.eta
     }
 }
 
@@ -419,7 +547,7 @@ impl Material for DisneyMaterial {
         &self,
         si: &mut SurfaceInteraction,
         arena: &mut MemoryArena,
-        _: TransportMode,
+        mode: TransportMode,
         _: bool,
     ) {
         // Perform bump mapping with _bumpMap_, if present
@@ -439,6 +567,7 @@ impl Material for DisneyMaterial {
         let dt = self.diff_trans.evaluate(si) * (1.0 / 2.0); // 0: all diffuse is reflected -> 1, transmitted
         let rough = self.roughness.evaluate(si);
         let lum = c.y();
+        let thin = self.thin;
         // normalize lum. to isolate hue+sat
         let c_tint = if lum > 0.0 {
             c * (1.0 / lum)
@@ -456,25 +585,49 @@ impl Material for DisneyMaterial {
         };
 
         if diffuse_weight > 0.0 {
-            if self.thin {
+            if thin {
                 let flat = self.flatness.evaluate(si);
                 // Blend between DisneyDiffuse and fake subsurface based on
                 // flatness.  Additionally, weight using diffTrans.
-                // DisneyDiffuse
-                // DisneyFakeSS
+                let r: Arc<dyn BxDF> = Arc::new(DisneyDiffuse::new(
+                    diffuse_weight * (1.0 - flat) * (1.0 - dt) * c,
+                ));
+                b.add(&r);
+                let r: Arc<dyn BxDF> = Arc::new(DisneyFakeSS::new(
+                    diffuse_weight * flat * (1.0 - dt) * c,
+                    rough,
+                ));
+                b.add(&r);
             } else {
                 let sd = self.scatter_distance.evaluate(si);
                 if sd.is_black() {
-                    // DisneyDiffuse
+                    // No subsurface scattering; use regular (Fresnel modified)
+                    // diffuse.
+                    let r: Arc<dyn BxDF> = Arc::new(DisneyDiffuse::new(diffuse_weight * c));
+                    b.add(&r);
                 } else {
-                    // SpecularTransmission
+                    // Use a BSSRDF instead.
+                    let r: Arc<dyn BxDF> =
+                        Arc::new(SpecularTransmission::new(&Spectrum::one(), 1.0, e, mode));
+                    b.add(&r);
+                    todo!();
+                    //let r: Arc<dyn BxDF> = Arc::new(DisneyBSSRDF::new(diffuse_weight * c, sd, si, e, BSSRDFMaterialRawPointer::Disney, TransportMode::Radiance));//todo
                     // DisneyBSSRDF
                 }
             }
 
             // Retro-reflection.
+            {
+                let r: Arc<dyn BxDF> = Arc::new(DisneyRetro::new(diffuse_weight * c, rough));
+                b.add(&r);
+            }
 
             // Sheen (if enabled)
+            if sheen_weight > 0.0 {
+                let r: Arc<dyn BxDF> =
+                    Arc::new(DisneySheen::new(diffuse_weight * sheen_weight * c_sheen));
+                b.add(&r);
+            }
         }
 
         // Create the microfacet distribution for metallic and/or specular
@@ -482,19 +635,70 @@ impl Material for DisneyMaterial {
         let aspect = Float::sqrt(1.0 - self.anisotropic.evaluate(si) * 0.9);
         let ax = Float::max(0.001, rough * rough / aspect);
         let ay = Float::max(0.001, rough * rough * aspect);
-        //let distrib = MicrofacetDistribution::new("ggx", ax, ay, true);
+
+        let distrib = DisneyMicrofacetDistribution::new(ax, ay);
 
         // Specular is Trowbridge-Reitz with a modified Fresnel function.
-        let spec_tint = self.specular_tint.evaluate(si);
+        {
+            let distrib: Box<dyn MicrofacetDistribution> = Box::new(distrib.clone());
+
+            let spec_tint = self.specular_tint.evaluate(si);
+            let cspec0 = Spectrum::lerp(
+                metallic_weight,
+                &(schlick_r0_from_eta(e) * Spectrum::lerp(spec_tint, &Spectrum::one(), &c_tint)),
+                &c,
+            );
+            let fresnel: Box<dyn Fresnel> =
+                Box::new(DisneyFresnel::new(cspec0, metallic_weight, e));
+            let r: Arc<dyn BxDF> = Arc::new(MicrofacetReflection::new(
+                &Spectrum::from(1.0),
+                distrib,
+                fresnel,
+            ));
+            b.add(&r);
+        }
 
         // Clearcoat
+        let cc = self.clearcoat.evaluate(si);
+        if cc > 0.0 {
+            let gloss = lerp(self.clearcoat_gloss.evaluate(si), 0.1, 0.001);
+            let r: Arc<dyn BxDF> = Arc::new(DisneyClearcoat::new(cc, gloss));
+            b.add(&r);
+        }
 
         // BTDF
         if strans > 0.0 {
-            // SpecularTransmission
+            // Walter et al's model, with the provided transmissive term scaled
+            // by sqrt(color), so that after two refractions, we're back to the
+            // provided color.
+            let t = strans * c.sqrt();
+            if thin {
+                // Scale roughness based on IOR (Burley 2015, Figure 15).
+                let rscaled = (0.65 * e - 0.35) * rough;
+                let ax = Float::max(0.001, sqr(rscaled) / aspect);
+                let ay = Float::max(0.001, sqr(rscaled) * aspect);
+                let scaled_distrib: Box<dyn MicrofacetDistribution> =
+                    Box::new(TrowbridgeReitzDistribution::new(ax, ay, true));
+                let r: Arc<dyn BxDF> = Arc::new(MicrofacetTransmission::new(
+                    &t,
+                    scaled_distrib,
+                    1.0,
+                    e,
+                    mode,
+                ));
+                b.add(&r);
+            } else {
+                let distrib: Box<dyn MicrofacetDistribution> = Box::new(distrib.clone());
+
+                let r: Arc<dyn BxDF> =
+                    Arc::new(MicrofacetTransmission::new(&t, distrib, 1.0, e, mode));
+                b.add(&r);
+            }
         }
-        if self.thin {
+        if thin {
             // Lambertian, weighted by (1 - diffTrans)
+            let r: Arc<dyn BxDF> = Arc::new(LambertianTransmission::new(&(dt * c)));
+            b.add(&r);
         }
         si.bsdf = Some(Arc::new(b));
     }

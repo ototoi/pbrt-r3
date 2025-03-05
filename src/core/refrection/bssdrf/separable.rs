@@ -3,10 +3,7 @@ use std::sync::Arc;
 
 pub type BSSRDFMaterialRawPointer = *const dyn Material;
 
-pub trait SeparableBSSRDF: BSSRDF {
-    fn sr(&self, d: Float) -> Spectrum;
-    fn sample_sr(&self, ch: usize, u: Float) -> Float;
-    fn pdf_sr(&self, ch: usize, r: Float) -> Float;
+pub trait SeparableBSSRDF {
     fn sw(&self, w: &Vector3f) -> Spectrum;
     fn get_mode(&self) -> TransportMode;
     fn get_eta(&self) -> Float;
@@ -96,9 +93,9 @@ pub trait SeparableBSSRDF: BSSRDF {
         return self.sr(Vector3f::distance(&p, &pi.p));
     }
 
-    
 
-    
+
+
 
     // SeparableBSSRDF Interface
     fn sr(&self, d: Float) -> Spectrum;
@@ -141,9 +138,31 @@ impl BaseSeparableBSSRDF {
             mode,
         }
     }
+
+    pub fn projection_axis(&self, u1: Float) -> (Vector3f, Vector3f, Vector3f, Float) {
+        if u1 < 0.5 {
+            let vx = self.ss;
+            let vy = self.ts;
+            let vz = self.ns;
+            let u1 = u1 * 2.0;
+            return (vx, vy, vz, u1);
+        } else if u1 < 0.75 {
+            let vx = self.ts;
+            let vy = self.ns;
+            let vz = self.ss;
+            let u1 = (u1 - 0.5) * 4.0;
+            return (vx, vy, vz, u1);
+        } else {
+            let vx = self.ns;
+            let vy = self.ss;
+            let vz = self.ts;
+            let u1 = (u1 - 0.75) * 4.0;
+            return (vx, vy, vz, u1);
+        }
+    }
 }
 
-/* 
+/*
     fn sp(&self, pi: &SurfaceInteraction) -> Spectrum {
         let p = self.base.p;
         return self.sr(Vector3f::distance(&p, &pi.p));
@@ -278,27 +297,7 @@ impl BaseSeparableBSSRDF {
         return pdf;
     }
 
-    pub fn projection_axis(&self, u1: Float) -> (Vector3f, Vector3f, Vector3f, Float) {
-        if u1 < 0.5 {
-            let vx = self.ss;
-            let vy = self.ts;
-            let vz = self.ns;
-            let u1 = u1 * 2.0;
-            return (vx, vy, vz, u1);
-        } else if u1 < 0.75 {
-            let vx = self.ts;
-            let vy = self.ns;
-            let vz = self.ss;
-            let u1 = (u1 - 0.5) * 4.0;
-            return (vx, vy, vz, u1);
-        } else {
-            let vx = self.ns;
-            let vy = self.ss;
-            let vz = self.ts;
-            let u1 = (u1 - 0.75) * 4.0;
-            return (vx, vy, vz, u1);
-        }
-    }
+
 }
 
 impl BSSRDF for BaseSeparableBSSRDF {

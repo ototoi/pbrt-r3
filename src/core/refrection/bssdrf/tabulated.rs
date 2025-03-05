@@ -100,41 +100,6 @@ impl TabulatedBSSRDFCore {
         return self.sr(Vector3f::distance(&p, &pi.p));
     }
 
-    fn sr(&self, r: Float) -> Spectrum {
-        let n_samples = Spectrum::N_SAMPLES;
-        let mut values = Spectrum::zero().to_rgb();
-        for ch in 0..n_samples {
-            let (sr, _) = self.sr_core(ch, r);
-            values[ch] = Float::max(0.0, sr);
-        }
-        return Spectrum::from(values).clamp_zero();
-    }
-
-    fn sample_sr(&self, ch: usize, u: Float) -> Float {
-        if self.sigma_t[ch] == 0.0 {
-            return -1.0;
-        }
-        let rho = self.rho[ch];
-        let table = self.table.as_ref();
-        if let Some((value, _, _)) = sample_catmull_rom_2d(
-            &table.rho_samples,
-            &table.radius_samples,
-            &table.profile,
-            &table.profile_cdf,
-            rho,
-            u,
-        ) {
-            return value / self.sigma_t[ch];
-        } else {
-            return -1.0;
-        }
-    }
-
-    fn pdf_sr(&self, ch: usize, r: Float) -> Float {
-        let (sr, eff) = self.sr_core(ch, r);
-        return Float::max(0.0, sr / eff);
-    }
-
     fn sample_sp(
         &self,
         scene: &Scene,
@@ -143,8 +108,8 @@ impl TabulatedBSSRDFCore {
         _arena: &mut MemoryArena,
     ) -> Option<(Spectrum, SurfaceInteraction, Float)> {
         let (vx, vy, vz, u1) = self.base.projection_axis(u1);
-        let n_samples = 3; //TODO
-                           // Choose spectral channel for BSSRDF sampling
+        let n_samples = Spectrum::N_SAMPLES;
+        // Choose spectral channel for BSSRDF sampling
         let ch = usize::clamp((u1 * n_samples as Float) as usize, 0, n_samples - 1);
         let u1 = u1 * n_samples as Float - ch as Float;
 
@@ -263,6 +228,41 @@ impl TabulatedBSSRDFCore {
         }
         return pdf;
     }
+
+    fn sr(&self, r: Float) -> Spectrum {
+        let n_samples = Spectrum::N_SAMPLES;
+        let mut values = Spectrum::zero().to_rgb();
+        for ch in 0..n_samples {
+            let (sr, _) = self.sr_core(ch, r);
+            values[ch] = Float::max(0.0, sr);
+        }
+        return Spectrum::from(values).clamp_zero();
+    }
+
+    fn sample_sr(&self, ch: usize, u: Float) -> Float {
+        if self.sigma_t[ch] == 0.0 {
+            return -1.0;
+        }
+        let rho = self.rho[ch];
+        let table = self.table.as_ref();
+        if let Some((value, _, _)) = sample_catmull_rom_2d(
+            &table.rho_samples,
+            &table.radius_samples,
+            &table.profile,
+            &table.profile_cdf,
+            rho,
+            u,
+        ) {
+            return value / self.sigma_t[ch];
+        } else {
+            return -1.0;
+        }
+    }
+
+    fn pdf_sr(&self, ch: usize, r: Float) -> Float {
+        let (sr, eff) = self.sr_core(ch, r);
+        return Float::max(0.0, sr / eff);
+    }
 }
 
 impl SeparableBSSRDF for TabulatedBSSRDFCore {
@@ -328,40 +328,3 @@ impl BSSRDF for TabulatedBSSRDF {
         return None;
     }
 }
-
-/*
-    fn sp(&self, pi: &SurfaceInteraction) -> Spectrum {
-        return self.core.sp(pi);
-    }
-
-    fn sw(&self, w: &Vector3f) -> Spectrum {
-        return self.core.sw(w);
-    }
-
-    fn sample_sp(
-        &self,
-        scene: &Scene,
-        u1: Float,
-        u2: &Point2f,
-        arena: &mut MemoryArena,
-    ) -> Option<(Spectrum, SurfaceInteraction, Float)> {
-        return self.core.sample_sp(scene, u1, u2, arena);
-    }
-
-    fn pdf_sp(&self, pi: &SurfaceInteraction) -> Float {
-        return self.core.pdf_sp(pi);
-    }
-
-    fn eta(&self) -> Float {
-        return self.core.base.base.eta;
-    }
-
-    fn mode(&self) -> TransportMode {
-        return self.core.base.mode;
-    }
-
-    fn as_separable(&self) -> Arc<dyn SeparableBSSRDF> {
-        return self.core.clone();
-    }
-}
-    */

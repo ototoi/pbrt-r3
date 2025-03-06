@@ -1,7 +1,7 @@
 use super::config::*;
 
 #[inline]
-pub fn lerp(t: Float, v1: Float, v2: Float) -> Float {
+fn lerp(t: Float, v1: Float, v2: Float) -> Float {
     return (1.0 - t) * v1 + t * v2;
 }
 

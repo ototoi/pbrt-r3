@@ -1,6 +1,7 @@
 use super::convert::*;
 use super::sampled::SampledSpectrum;
 use super::utils::*;
+use crate::core::pbrt::lerp;
 use crate::core::pbrt::*;
 use std::ops;
 
@@ -191,6 +192,18 @@ impl RGBSpectrum {
     }
     pub fn is_empty(&self) -> bool {
         return false;
+    }
+
+    pub fn lerp(t: Float, s1: &Self, s2: &Self) -> Self {
+        let a = &s1.c;
+        let b = &s2.c;
+        return RGBSpectrum {
+            c: [
+                lerp(t, a[0], b[0]),
+                lerp(t, a[1], b[1]),
+                lerp(t, a[2], b[2]),
+            ],
+        };
     }
 }
 

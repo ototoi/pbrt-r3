@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct TabulatedBSSRDF {
-    base: BaseSeparableBSSRDF,
+    base: Arc<BaseSeparableBSSRDF>,
     table: Arc<BSSRDFTable>,
     sigma_t: Spectrum,
     rho: Spectrum,
@@ -27,8 +27,9 @@ impl TabulatedBSSRDF {
     ) -> Self {
         let sigma_t = *sigma_a + *sigma_s;
         let rho = Self::get_rho(sigma_s, &sigma_t);
+        let base = Arc::new(BaseSeparableBSSRDF::new(po, eta, material, mode));
         TabulatedBSSRDF {
-            base: BaseSeparableBSSRDF::new(po, eta, material, mode),
+            base,
             table: table.clone(),
             sigma_t,
             rho,
@@ -87,11 +88,33 @@ impl TabulatedBSSRDF {
         }
         return (0.0, 1.0);
     }
+
+    fn sw(&self, w: &Vector3f) -> Spectrum {
+        return sw(self.base.base.eta, w);
+    }
+
+    fn sr(&self, r: Float) -> Spectrum {
+        let n_samples = Spectrum::N_SAMPLES;
+        let mut values = Spectrum::zero().to_rgb();
+        for ch in 0..n_samples {
+            let (sr, _) = self.sr_core(ch, r);
+            values[ch] = Float::max(0.0, sr);
+        }
+        return Spectrum::from(values).clamp_zero();
+    }
+
+    fn pdf_sr(&self, ch: usize, r: Float) -> Float {
+        let (sr, eff) = self.sr_core(ch, r);
+        return Float::max(0.0, sr / eff);
+    }
 }
 
 impl BSSRDF for TabulatedBSSRDF {
     fn s(&self, pi: &SurfaceInteraction, wi: &Vector3f) -> Spectrum {
-        return self.s_as_separable(pi, wi);
+        let eta = self.base.base.eta;
+        let wo = self.base.base.wo;
+        let ft = fr_dielectric(cos_theta(&wo), 1.0, eta);
+        return (self.sp(pi) * self.sw(wi)) * (1.0 - ft);
     }
 
     fn sample_s(
@@ -101,19 +124,44 @@ impl BSSRDF for TabulatedBSSRDF {
         u2: &Point2f,
         arena: &mut MemoryArena,
     ) -> Option<(Spectrum, SurfaceInteraction, Float)> {
-        return self.sample_s_as_separable(scene, u1, u2, arena);
+        if let Some((sp, mut si, pdf)) = self.sample_sp(scene, u1, u2, arena) {
+            if !sp.is_black() {
+                let mut b = arena.alloc_bsdf(&si, 1.0);
+                let adapter: Arc<dyn BxDF> = Arc::new(SeparableBSSRDFAdapter::new(
+                    self.base.base.eta,
+                    self.base.mode,
+                ));
+                b.add(&adapter);
+                let bsdf = Arc::new(b);
+                si.bsdf = Some(bsdf);
+                si.wo = si.shading.n;
+            }
+            return Some((sp, si, pdf));
+        }
+        return None;
     }
 }
 
 impl SeparableBSSRDF for TabulatedBSSRDF {
-    fn sr(&self, r: Float) -> Spectrum {
-        let n_samples = Spectrum::N_SAMPLES;
-        let mut values = Spectrum::zero().to_rgb();
-        for ch in 0..n_samples {
-            let (sr, _) = self.sr_core(ch, r);
-            values[ch] = Float::max(0.0, sr);
-        }
-        return Spectrum::from(values).clamp_zero();
+    fn projection_axis(&self, u1: Float) -> (Vector3f, Vector3f, Vector3f, Float) {
+        return self.base.projection_axis(u1);
+    }
+
+    fn get_p(&self) -> Point3f {
+        return self.base.base.p;
+    }
+
+    fn get_time(&self) -> Float {
+        return self.base.base.time;
+    }
+
+    fn get_material(&self) -> BSSRDFMaterialRawPointer {
+        return self.base.material;
+    }
+
+    fn sp(&self, pi: &SurfaceInteraction) -> Spectrum {
+        let p = self.base.base.p;
+        return self.sr(Vector3f::distance(&p, &pi.p));
     }
 
     fn sample_sr(&self, ch: usize, u: Float) -> Float {
@@ -136,12 +184,44 @@ impl SeparableBSSRDF for TabulatedBSSRDF {
         }
     }
 
-    fn pdf_sr(&self, ch: usize, r: Float) -> Float {
-        let (sr, eff) = self.sr_core(ch, r);
-        return Float::max(0.0, sr / eff);
-    }
+    fn pdf_sp(&self, pi: &SurfaceInteraction) -> Float {
+        // Express $\pti-\pto$ and $\bold{n}_i$ with respect to local coordinates at
+        // $\pto$
+        let po = &self.base.base;
+        let d = po.p - pi.p;
 
-    fn as_separable(&self) -> &BaseSeparableBSSRDF {
-        return &self.base;
+        assert!(pi.n.length() > 0.0);
+
+        let d_local = Vector3f::new(
+            Vector3f::dot(&self.base.ss, &d),
+            Vector3f::dot(&self.base.ts, &d),
+            Vector3f::dot(&self.base.ns, &d),
+        );
+        let n_local = Vector3f::new(
+            Vector3f::dot(&self.base.ss, &pi.n),
+            Vector3f::dot(&self.base.ts, &pi.n),
+            Vector3f::dot(&self.base.ns, &pi.n),
+        );
+        // Compute BSSRDF profile radius under projection along each axis
+        let r_proj = [
+            Float::sqrt(d_local.y * d_local.y + d_local.z * d_local.z),
+            Float::sqrt(d_local.z * d_local.z + d_local.x * d_local.x),
+            Float::sqrt(d_local.x * d_local.x + d_local.y * d_local.y),
+        ];
+
+        // Return combined probability from all BSSRDF sampling strategies
+        let mut pdf = 0.0;
+        let axis_prob = [0.25, 0.25, 0.5];
+        let n_samples = Spectrum::N_SAMPLES;
+        let ch_prob = 1.0 / (n_samples as Float);
+        for axis in 0..3 {
+            for ch in 0..n_samples {
+                pdf += self.pdf_sr(ch, r_proj[axis])
+                    * Float::abs(n_local[axis])
+                    * ch_prob
+                    * axis_prob[axis];
+            }
+        }
+        return pdf;
     }
 }

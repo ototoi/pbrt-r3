@@ -1,7 +1,7 @@
 // Imported from spectrum.cpp
 
+use pbrt_r3::core::pbrt::lerp;
 use pbrt_r3::core::pbrt::*;
-use pbrt_r3::core::spectrum::utils::lerp;
 use pbrt_r3::core::spectrum::utils::*;
 
 fn near_equal(a: Float, b: Float, e: Float) -> bool {

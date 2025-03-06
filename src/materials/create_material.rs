@@ -1,5 +1,6 @@
 use log::warn;
 
+use super::disney::*;
 use super::fourier::*;
 use super::glass::*;
 use super::hair::*;
@@ -58,6 +59,9 @@ pub fn create_material(name: &str, mp: &TextureParams) -> Result<Arc<dyn Materia
         }
         "fourier" => {
             return create_fourier_material(mp);
+        }
+        "disney" => {
+            return create_disney_material(mp);
         }
         _ => {
             if name != "" {

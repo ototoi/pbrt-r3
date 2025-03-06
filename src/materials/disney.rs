@@ -385,7 +385,7 @@ impl MicrofacetDistribution for DisneyMicrofacetDistribution {
 // Scattering (Christensen and Burley).
 #[derive(Clone, Debug)]
 pub struct DisneyBSSRDF {
-    base: BaseSeparableBSSRDF,
+    base: Arc<BaseSeparableBSSRDF>,
     r: Spectrum,
     d: Spectrum,
 }
@@ -401,13 +401,27 @@ impl DisneyBSSRDF {
         // 0.2 factor comes from personal communication from Brent Burley
         // and Matt Chiang.
         let d = d * 0.2;
-        Self {
-            base: BaseSeparableBSSRDF::new(po, eta, material, mode),
-            r,
-            d,
-        }
+        let base = Arc::new(BaseSeparableBSSRDF::new(po, eta, material, mode));
+        Self { base, r, d }
+    }
+
+    fn sr(&self, r: Float) -> Spectrum {
+        let r = r.max(1e-6); // Avoid singularity at r == 0.
+        let d = self.d;
+        return self.r * Spectrum::exp(&(Spectrum::from(-r) / d))
+            + Spectrum::exp(&(Spectrum::from(-r) / (3.0 * d))) / (8.0 * PI * d * r);
+    }
+
+    fn pdf_sr(&self, ch: usize, r: Float) -> Float {
+        let r = r.max(1e-6); // Avoid singularity at r == 0.
+                             // Weight the two individual PDFs as per the sampling frequency in
+                             // Sample_Sr().
+        let d = self.d;
+        return 0.25 * Float::exp(-r / d[ch]) / (2.0 * PI * d[ch] * r)
+            + 0.75 * Float::exp(-r / (3.0 * d[ch])) / (6.0 * PI * d[ch] * r);
     }
 }
+
 impl BSSRDF for DisneyBSSRDF {
     fn s(&self, pi: &SurfaceInteraction, wi: &Vector3f) -> Spectrum {
         // Fade based on relative orientations of the two surface normals to
@@ -433,6 +447,7 @@ impl BSSRDF for DisneyBSSRDF {
         let fi = schlick_weight(abs_cos_theta(wi));
         return fade * (1.0 - fo / 2.0) * (1.0 - fi / 2.0) / PI * self.sp(pi);
     }
+
     fn sample_s(
         &self,
         scene: &Scene,
@@ -443,8 +458,10 @@ impl BSSRDF for DisneyBSSRDF {
         if let Some((sp, mut si, pdf)) = self.sample_sp(scene, u1, u2, arena) {
             if !sp.is_black() {
                 let mut b = arena.alloc_bsdf(&si, 1.0);
-                let adapter: Arc<dyn BxDF> =
-                    Arc::new(SeparableBSSRDFAdapter::new(self.as_separable()));
+                let adapter: Arc<dyn BxDF> = Arc::new(SeparableBSSRDFAdapter::new(
+                    self.base.base.eta,
+                    self.base.mode,
+                ));
                 b.add(&adapter);
                 let bsdf = Arc::new(b);
                 si.bsdf = Some(bsdf);
@@ -455,29 +472,110 @@ impl BSSRDF for DisneyBSSRDF {
         return None;
     }
 }
+
 impl SeparableBSSRDF for DisneyBSSRDF {
-    fn as_separable(&self) -> &BaseSeparableBSSRDF {
-        &self.base
+    fn projection_axis(&self, u1: Float) -> (Vector3f, Vector3f, Vector3f, Float) {
+        self.base.projection_axis(u1)
     }
-    fn sr(&self, d: Float) -> Spectrum {
-        unimplemented!()
+
+    fn get_p(&self) -> Point3f {
+        self.base.base.p
     }
-    fn sample_sr(&self, ch: usize, u: Float) -> Float {
-        //
-        unimplemented!()
+
+    fn get_time(&self) -> Float {
+        self.base.base.time
     }
-    fn pdf_sr(&self, ch: usize, r: Float) -> Float {
-        //
-        unimplemented!()
+
+    fn get_material(&self) -> BSSRDFMaterialRawPointer {
+        self.base.material
     }
+
     fn sp(&self, pi: &SurfaceInteraction) -> Spectrum {
-        self.r
+        let p = self.base.base.p;
+        return self.sr(Vector3f::distance(&p, &pi.p));
     }
-    fn sw(&self, wi: &Vector3f) -> Spectrum {
-        self.d
+
+    fn sample_sr(&self, ch: usize, u: Float) -> Float {
+        // The good news is that diffusion profile implemented in Sr is
+        // normalized---integrating in polar coordinates, we have:
+        //
+        // int_0^2pi int_0^Infinity Sr(r) r dr dphi == 1.
+        //
+        // The CDF can be found in closed-form. It is:
+        //
+        // 1 - e^(-x/d) / 4 - (3 / 4) e^(-x / (3d)).
+        //
+        // Unfortunately, inverting the CDF requires solving a cubic, which
+        // would be nice to sidestep. Therefore, following Christensen and
+        // Burley's suggestion (section 6), we will sample from each of the two
+        // exponential terms individually (which can be done directly) and then
+        // compute an overall PDF using MIS.  There are a few details to work
+        // through...
+        //
+        // For the first exponential term, we can find:
+        // normalized PDF: e^(-r/d) / (2 Pi d r)
+        // CDF: 1 - e^(-r/d)
+        // sampling recipe: r = d log(1 / (1 - u))
+        //
+        // For the second:
+        // PDF: e^(-r/(3d)) / (6 Pi d r)
+        // CDF: 1 - e^(-r/(3d))
+        // sampling: r = 3 d log(1 / (1 - u))
+        //
+        // The last question is what fraction of samples to use for each
+        // technique.  The second exponential has 3x the contribution to the
+        // final value as the first does, so therefore we'll take three samples
+        // from that for every one sample we take from the first.
+        if u <= 0.25 {
+            // Sample the first exponential
+            let u = Float::min(u * 4.0, ONE_MINUS_EPSILON);
+            return self.d[ch] * Float::ln(1.0 / (1.0 - u));
+        } else {
+            // Second exponenital
+            let u = Float::min((u - 0.25) / 0.75, ONE_MINUS_EPSILON);
+            return 3.0 * self.d[ch] * Float::ln(1.0 / (1.0 - u));
+        }
     }
-    fn get_eta(&self) -> Float {
-        self.base.base.eta
+
+    fn pdf_sp(&self, pi: &SurfaceInteraction) -> Float {
+        // Express $\pti-\pto$ and $\bold{n}_i$ with respect to local coordinates at
+        // $\pto$
+        let po = &self.base.base;
+        let d = po.p - pi.p;
+
+        assert!(pi.n.length() > 0.0);
+
+        let d_local = Vector3f::new(
+            Vector3f::dot(&self.base.ss, &d),
+            Vector3f::dot(&self.base.ts, &d),
+            Vector3f::dot(&self.base.ns, &d),
+        );
+        let n_local = Vector3f::new(
+            Vector3f::dot(&self.base.ss, &pi.n),
+            Vector3f::dot(&self.base.ts, &pi.n),
+            Vector3f::dot(&self.base.ns, &pi.n),
+        );
+        // Compute BSSRDF profile radius under projection along each axis
+        let r_proj = [
+            Float::sqrt(d_local.y * d_local.y + d_local.z * d_local.z),
+            Float::sqrt(d_local.z * d_local.z + d_local.x * d_local.x),
+            Float::sqrt(d_local.x * d_local.x + d_local.y * d_local.y),
+        ];
+
+        // Return combined probability from all BSSRDF sampling strategies
+        let mut pdf = 0.0;
+        let axis_prob = [0.25, 0.25, 0.5];
+        let n_samples = Spectrum::N_SAMPLES;
+        let ch_prob = 1.0 / (n_samples as Float);
+        for axis in 0..3 {
+            for ch in 0..n_samples {
+                pdf += self.pdf_sr(ch, r_proj[axis])
+                    * Float::abs(n_local[axis])
+                    * ch_prob
+                    * axis_prob[axis];
+            }
+        }
+        return pdf;
     }
 }
 

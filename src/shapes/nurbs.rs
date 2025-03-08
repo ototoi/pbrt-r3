@@ -125,11 +125,11 @@ fn nurbs_evaluate_surface(
 }
 
 fn get_points(params: &ParamSet) -> Vec<Float> {
-    let p = params.get_floats("P");
+    let p = params.get_points("P");
     if !p.is_empty() {
         return p;
     }
-    let p = params.get_floats("Pw");
+    let p = params.get_points("Pw");
     if !p.is_empty() {
         return p;
     }

@@ -18,6 +18,7 @@ impl Homogeneous3 {
     }
 }
 
+/* 
 fn knot_offset(knot: &[Float], order: usize, t: Float) -> usize {
     let first_knot = order - 1;
     assert!(first_knot < knot.len());
@@ -122,6 +123,106 @@ fn nurbs_evaluate_surface(
     let (_p, dpdv) = nurbs_evaluate(v_order, v_knot, &iso, 1, v);
 
     return (Point3f::new(p.x / p.w, p.y / p.w, p.z / p.w), dpdu, dpdv);
+}
+*/
+
+fn nurbs_evaluate(
+    order: usize,
+    knot: &[Float],
+    cp: &[Homogeneous3],
+    t: Float,
+) -> Homogeneous3 {
+    let n = cp.len();
+    assert!(order >= 2);
+    assert_eq!(knot.len(), order + n);
+
+    unimplemented!("nurbs_evaluate");
+}
+
+fn create_tesselated_mesh(
+    o2w: &Transform,
+    w2o: &Transform,
+    reverse_orientation: bool,
+    nu: usize,
+    uorder: usize,
+    uknots: &[Float],
+    urange: (Float, Float),
+    diceu: usize,
+    nv: usize,
+    vorder: usize,
+    vknots: &[Float],
+    vrange: (Float, Float),
+    dicev: usize,
+    pw: &[Homogeneous3],
+) -> Result<Vec<Arc<dyn Shape>>, PbrtError> {
+    let u0: f32 = uknots[uorder as usize - 1];
+    let u1: f32 = uknots[nu];
+    let v0: f32 = vknots[vorder as usize - 1];
+    let v1: f32 = vknots[nv];
+
+    let u0 = urange.0;
+    let u1 = urange.1;
+    let v0 = vrange.0;
+    let v1 = vrange.1;
+
+    let mut ueval = vec![0.0; diceu];
+    let mut veval = vec![0.0; dicev];
+    let mut eval_ps = vec![Point3f::default(); diceu * dicev];
+    let mut eval_ns = vec![Normal3f::default(); diceu * dicev];
+    let mut uvs = vec![Point2f::default(); diceu * dicev];
+    for i in 0..diceu {
+        ueval[i] = lerp(i as Float / (diceu - 1) as Float, u0, u1);
+    }
+    for i in 0..dicev {
+        veval[i] = lerp(i as Float / (dicev - 1) as Float, v0, v1);
+    }
+    for v in 0..dicev {
+        for u in 0..diceu {
+            let uu = ueval[u];
+            let vv = veval[v];
+            uvs[v * diceu + u] = Point2f::new(uu, vv);
+            //let (p, dpdu, dpdv) =
+            //    nurbs_evaluate_surface(uorder, &uknots, nu, uu, vorder, &vknots, nv, vv, &pw);
+
+            //eval_ps[v * diceu + u] = p;
+            //eval_ns[v * diceu + u] = Vector3f::cross(&dpdu, &dpdv).normalize();
+        }
+    }
+
+    // Generate points-polygons mesh
+    let ntris = 2 * (diceu - 1) * (dicev - 1);
+    let mut vertex_indices = vec![0; 3 * ntris];
+    let mut index = 0;
+    let vn = |u: u32, v: u32| -> u32 { v * diceu as u32 + u };
+    for v in 0..dicev - 1 {
+        for u in 0..diceu - 1 {
+            let u = u as u32;
+            let v = v as u32;
+            vertex_indices[index] = vn(u, v);
+            vertex_indices[index + 1] = vn(u + 1, v);
+            vertex_indices[index + 2] = vn(u + 1, v + 1);
+            index += 3;
+
+            vertex_indices[index] = vn(u, v);
+            vertex_indices[index + 1] = vn(u + 1, v + 1);
+            vertex_indices[index + 2] = vn(u, v + 1);
+            index += 3;
+        }
+    }
+    //println!("vertex_indices: {:?}", vertex_indices);
+    let params = ParamSet::new();
+    let mesh = create_triangle_mesh(
+        o2w,
+        w2o,
+        reverse_orientation,
+        vertex_indices,
+        eval_ps,
+        Vec::new(),
+        eval_ns,
+        uvs,
+        &params,
+    );
+    return Ok(mesh);
 }
 
 fn get_points(params: &ParamSet) -> Vec<Float> {
@@ -242,75 +343,23 @@ pub fn create_nurbs(
         }
     }
 
-    let u0: f32 = uknots[uorder as usize - 1];
-    let u1: f32 = uknots[nu];
-    let v0: f32 = vknots[vorder as usize - 1];
-    let v1: f32 = vknots[nv];
+    let u0: f32 = uknots.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+    let u1: f32 = uknots.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+    let v0: f32 = vknots.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+    let v1: f32 = vknots.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+    let u0 = params.find_one_float("u0", u0);//
+    let u1 = params.find_one_float("u1", u1);//
+    let v0 = params.find_one_float("v0", v0);//
+    let v1 = params.find_one_float("v1", v1);//
 
-    let u0 = params.find_one_float("u0", u0);
-    let u1 = params.find_one_float("u1", u1);
-    let v0 = params.find_one_float("v0", v0);
-    let v1 = params.find_one_float("v1", v1);
+    let diceu = params.find_one_int("diceu", 30);//pbrt-r3
+    let dicev = params.find_one_int("dicev", 30);//pbrt-r3
 
-    // Compute NURBS dicing rates
-    let diceu = params.find_one_int("diceu", 30) as usize;
-    let dicev = params.find_one_int("dicev", 30) as usize;
+    let diceu = diceu.max(2) as usize;
+    let dicev = dicev.max(2) as usize;
 
-    let mut ueval = vec![0.0; diceu];
-    let mut veval = vec![0.0; dicev];
-    let mut eval_ps = vec![Point3f::default(); diceu * dicev];
-    let mut eval_ns = vec![Normal3f::default(); diceu * dicev];
-    let mut uvs = vec![Point2f::default(); diceu * dicev];
-    for i in 0..diceu {
-        ueval[i] = lerp(i as Float / (diceu - 1) as Float, u0, u1);
-    }
-    for i in 0..dicev {
-        veval[i] = lerp(i as Float / (dicev - 1) as Float, v0, v1);
-    }
-    for v in 0..dicev {
-        for u in 0..diceu {
-            let uu = ueval[u];
-            let vv = veval[v];
-            uvs[v * diceu + u] = Point2f::new(uu, vv);
-            let (p, dpdu, dpdv) =
-                nurbs_evaluate_surface(uorder, &uknots, nu, uu, vorder, &vknots, nv, vv, &pw);
+    let urange = (u0, u1);
+    let vrange = (v0, v1);
 
-            eval_ps[v * diceu + u] = p;
-            eval_ns[v * diceu + u] = Vector3f::cross(&dpdu, &dpdv).normalize();
-        }
-    }
-
-    // Generate points-polygons mesh
-    let ntris = 2 * (diceu - 1) * (dicev - 1);
-    let mut vertex_indices = vec![0; 3 * ntris];
-    let mut index = 0;
-    let vn = |u: u32, v: u32| -> u32 { v * diceu as u32 + u };
-    for v in 0..dicev - 1 {
-        for u in 0..diceu - 1 {
-            let u = u as u32;
-            let v = v as u32;
-            vertex_indices[index] = vn(u, v);
-            vertex_indices[index + 1] = vn(u + 1, v);
-            vertex_indices[index + 2] = vn(u + 1, v + 1);
-            index += 3;
-
-            vertex_indices[index] = vn(u, v);
-            vertex_indices[index + 1] = vn(u + 1, v + 1);
-            vertex_indices[index + 2] = vn(u, v + 1);
-            index += 3;
-        }
-    }
-    let params = ParamSet::new();
-    let mesh = create_triangle_mesh(
-        o2w,
-        w2o,
-        reverse_orientation,
-        vertex_indices,
-        eval_ps,
-        Vec::new(),
-        eval_ns,
-        uvs,
-        &params,
-    );
-    return Ok(mesh);
+    return create_tesselated_mesh(o2w, w2o, reverse_orientation, nu, uorder, &uknots, urange, diceu, nv, vorder, &vknots, vrange, dicev, &pw);
 }

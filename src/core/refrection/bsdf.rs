@@ -137,6 +137,7 @@ impl BSDF {
 
         let wo = self.world_to_local(wo_w);
         if wo.z == 0.0 || !is_finite(&wo) {
+            assert!(is_finite(&wo));
             return None;
         }
         let mut sampled_type = found_bxdf.get_type();
@@ -208,6 +209,7 @@ impl BSDF {
         let wo = self.world_to_local(wo_w);
 
         if wo.z == 0.0 || !is_finite(&wo) {
+            assert!(is_finite(&wo));
             return Spectrum::zero();
         }
 
@@ -238,6 +240,7 @@ impl BSDF {
         let wo = self.world_to_local(wo_w);
 
         if wo.z == 0.0 || !is_finite(&wo) {
+            assert!(is_finite(&wo));
             return 0.0;
         }
 

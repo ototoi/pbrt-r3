@@ -111,11 +111,13 @@ fn random_walk(
                 // Sample BSDF at current vertex and compute reverse probability
                 if let Some((f, wi, pdf, t)) = bsdf.sample_f(&wo, &sampler.get_2d(), BSDF_ALL) {
                     pdf_fwd = pdf;
+                    assert!(pdf_fwd.is_finite());
                     if f.is_black() || pdf == 0.0 {
                         break;
                     }
                     beta *= f * (Vector3f::abs_dot(&wi, &isect.shading.n) / pdf_fwd);
                     pdf_rev = bsdf.pdf(&wi, &wo, BSDF_ALL);
+                    assert!(pdf_rev.is_finite());
                     assert!(pdf_rev >= 0.0);
                     if (t & BSDF_SPECULAR) != 0 {
                         vertex.delta.set(true);

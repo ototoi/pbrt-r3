@@ -219,6 +219,7 @@ impl SurfaceInteraction {
             let tx =
                 -(Vector3f::dot(&n, &ray.rx_origin) - d) / Vector3f::dot(&n, &ray.rx_direction);
             if !tx.is_finite() {
+                assert!(false);
                 self.compute_differentials_fail();
                 return;
             }
@@ -226,6 +227,7 @@ impl SurfaceInteraction {
             let ty =
                 -(Vector3f::dot(&n, &ray.ry_origin) - d) / Vector3f::dot(&n, &ray.ry_direction);
             if !ty.is_finite() {
+                assert!(false);
                 self.compute_differentials_fail();
                 return;
             }

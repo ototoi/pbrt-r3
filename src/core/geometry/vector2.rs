@@ -153,6 +153,17 @@ impl<T: std::ops::Mul<Output = T> + Copy> ops::Mul<T> for Vector2<T> {
     }
 }
 
+impl<T: std::ops::Div<Output = T> + Copy> ops::Div<T> for Vector2<T> {
+    type Output = Vector2<T>;
+    #[inline]
+    fn div(self, rhs: T) -> Vector2<T> {
+        return Vector2 {
+            x: self.x / rhs,
+            y: self.y / rhs,
+        };
+    }
+}
+
 impl ops::Mul<Vector2<f32>> for f32 {
     type Output = Vector2<f32>;
     #[inline]

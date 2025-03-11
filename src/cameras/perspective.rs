@@ -297,7 +297,7 @@ impl Camera for PerspectiveCamera {
         let vis = VisibilityTester::from((inter.clone(), lens_intr.clone()));
         let wi = p_lens_world - inter.get_p();
         let dist = wi.length();
-        let wi = wi * (1.0 / dist);
+        let wi = wi / dist;
 
         // Compute PDF for importance arriving at _ref_
 

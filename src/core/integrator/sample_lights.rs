@@ -33,7 +33,7 @@ pub fn uniform_sample_all_lights(
                         false,
                     );
                 }
-                l += ld * (1.0 / (n_samples as Float));
+                l += ld / (n_samples as Float);
             }
             _ => {
                 // Use a single sample for illumination from _light_
@@ -102,7 +102,7 @@ pub fn uniform_sample_one_light(
         arena,
         handle_media,
         false,
-    ) * (1.0 / light_pdf);
+    ) / light_pdf;
 }
 
 pub fn estimate_direct(
@@ -172,7 +172,7 @@ pub fn estimate_direct(
 
                         if !li.is_black() {
                             if light.is_delta() {
-                                ld += f * li * (1.0 / light_pdf);
+                                ld += f * li / light_pdf;
                             } else {
                                 let weight = power_heuristic(1, light_pdf, 1, scattering_pdf);
                                 //println!("{:?}: {:?} / {:?}, {:?}", (weight / light_pdf), weight, light_pdf, scattering_pdf);

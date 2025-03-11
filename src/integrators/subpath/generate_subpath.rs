@@ -549,7 +549,7 @@ pub fn connect_bdpt(
                 p_raster = pr;
                 if pdf > 0.0 && !spec.is_black() {
                     // Initialize dynamically sampled vertex and _L_ for $t=1$ case
-                    let sampled_beta = spec * (1.0 / pdf);
+                    let sampled_beta = spec / pdf;
                     let sampled_v =
                         Vertex::create_camera_from_interaction(camera, &vis.p1, &sampled_beta);
                     let qs_beta = qs.beta.get();
@@ -579,7 +579,7 @@ pub fn connect_bdpt(
             if let Some((light_weight, wi, pdf, vis)) = light.sample_li(&inter, &sampler.get_2d()) {
                 if pdf > 0.0 && !light_weight.is_black() {
                     let ei = EndpointInteraction::from_light_interaction(&light, &vis.p1);
-                    let sampled_beta = light_weight * (1.0 / (pdf * light_pdf));
+                    let sampled_beta = light_weight / (pdf * light_pdf);
                     let sampled_v = Vertex::create_light_from_endpoint(&ei, &sampled_beta, 0.0);
                     let pdf_fwd =
                         sampled_v.pdf_light_origin(scene, &pt, light_distr, light_to_index);

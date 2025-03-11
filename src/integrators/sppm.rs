@@ -507,7 +507,7 @@ impl Integrator for SPPMIntegrator {
                                 return;
                             }
                             let mut beta = (le * n_light.abs_dot(&photon_ray.d))
-                                * (1.0 / (light_pdf * pdf_pos * pdf_dir));
+                                / (light_pdf * pdf_pos * pdf_dir);
                             if beta.is_black() {
                                 return;
                             }
@@ -614,7 +614,7 @@ impl Integrator for SPPMIntegrator {
                                             if t < q {
                                                 break;
                                             }
-                                            beta = bnew * (1.0 / (1.0 - q));
+                                            beta = bnew / (1.0 - q);
                                             photon_ray = isect.spawn_ray(&wi).into();
                                         } else {
                                             break;
@@ -688,9 +688,8 @@ impl Integrator for SPPMIntegrator {
                             let pixel_index = yy * width + (x - x0) as usize;
                             let pixel = &pixels.pixels[pixel_index];
                             let pixel = pixel.read().unwrap();
-                            let mut l = pixel.ld * (1.0 / ((iter + 1) as Float));
-                            l += pixel.tau
-                                * (1.0 / (np as Float * PI * pixel.radius * pixel.radius));
+                            let mut l = pixel.ld / ((iter + 1) as Float);
+                            l += pixel.tau / (np as Float * PI * pixel.radius * pixel.radius);
                             image[offset] = l;
                             offset += 1;
                         }

@@ -97,6 +97,13 @@ impl SampledSpectrum {
         }
     }
 
+    pub fn div_scalar(&mut self, s: Float) {
+        let c = &mut self.c;
+        for i in 0..c.len() {
+            c[i] /= s;
+        }
+    }
+
     pub fn to_vec(&self) -> Vec<Float> {
         let c = &self.c;
         return c.to_vec();
@@ -313,6 +320,16 @@ impl ops::Mul<Float> for SampledSpectrum {
     fn mul(self, s: Float) -> SampledSpectrum {
         let mut spc = self;
         spc.mul_scalar(s);
+        return spc;
+    }
+}
+
+impl ops::Div<Float> for SampledSpectrum {
+    type Output = SampledSpectrum;
+    #[inline]
+    fn div(self, s: Float) -> SampledSpectrum {
+        let mut spc = self;
+        spc.div_scalar(s);
         return spc;
     }
 }

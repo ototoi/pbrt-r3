@@ -230,6 +230,14 @@ impl ops::Mul<Float> for RGBSpectrum {
     }
 }
 
+impl ops::Div<Float> for RGBSpectrum {
+    type Output = RGBSpectrum;
+    #[inline]
+    fn div(self, s: Float) -> RGBSpectrum {
+        return RGBSpectrum::from([self[0] / s, self[1] / s, self[2] / s]);
+    }
+}
+
 impl ops::Mul<RGBSpectrum> for Float {
     type Output = RGBSpectrum;
     #[inline]

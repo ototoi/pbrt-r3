@@ -29,7 +29,7 @@ impl BxDF for SpecularReflection {
         let cos_i = cos_theta(&wi);
         let fresnel = self.fresnel.as_ref();
         let spc = fresnel.evaluate(cos_i);
-        let spc = (spc * self.r) * (1.0 / abs_cos_theta(&wi));
+        let spc = (spc * self.r) / abs_cos_theta(&wi);
         return Some((spc, wi, pdf, 0));
     }
 
@@ -95,7 +95,7 @@ impl BxDF for SpecularTransmission {
             if self.mode == TransportMode::Radiance {
                 ft *= (eta_i * eta_i) / (eta_t * eta_t);
             }
-            let f = ft * (1.0 / abs_cos_theta(&wi));
+            let f = ft / abs_cos_theta(&wi);
             return Some((f, wi, pdf, 0));
         } else {
             return None;

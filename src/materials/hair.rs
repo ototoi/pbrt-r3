@@ -469,9 +469,8 @@ impl BxDF for HairBSDF {
         }
 
         // Compute contribution of remaining terms after _pMax_
-        fsum += mp(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, v[P_MAX])
-            * ap[P_MAX]
-            * (1.0 / (2.0 * PI));
+        fsum += mp(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, v[P_MAX]) * ap[P_MAX]
+            / (2.0 * PI);
         let abs_cos_theta_wi = abs_cos_theta(wi);
         if abs_cos_theta_wi > 0.0 {
             fsum *= 1.0 / abs_cos_theta_wi;
@@ -549,9 +548,8 @@ impl BxDF for HairBSDF {
                 * ap_pdf[p]
                 * np(dphi, p, s, gamma_o, gamma_t);
         }
-        pdf += mp(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, v[P_MAX])
-            * ap_pdf[P_MAX]
-            * (1.0 / (2.0 * PI));
+        pdf += mp(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, v[P_MAX]) * ap_pdf[P_MAX]
+            / (2.0 * PI);
         if pdf > 0.0 {
             let spc = self.f(wo, &wi);
             return Some((spc, wi, pdf, 0));
@@ -595,9 +593,8 @@ impl BxDF for HairBSDF {
                 * ap_pdf[p]
                 * np(phi, p, s, gamma_o, gamma_t);
         }
-        pdf += mp(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, v[P_MAX])
-            * ap_pdf[P_MAX]
-            * (1.0 / (2.0 * PI));
+        pdf += mp(cos_theta_i, cos_theta_o, sin_theta_i, sin_theta_o, v[P_MAX]) * ap_pdf[P_MAX]
+            / (2.0 * PI);
         return pdf;
     }
 

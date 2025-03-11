@@ -56,8 +56,8 @@ impl PerspectiveCamera {
             full_resolution.y as Float,
             0.0,
         ));
-        min *= 1.0 / min.z;
-        max *= 1.0 / max.z;
+        min /= min.z;
+        max /= max.z;
         let a = Float::abs((max.x - min.x) * (max.y - min.y));
         PerspectiveCamera {
             base,

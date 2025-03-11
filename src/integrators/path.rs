@@ -230,7 +230,7 @@ impl SamplerIntegrator for PathIntegrator {
                     if sampler.get_1d() < q {
                         break;
                     }
-                    beta *= 1.0 / (1.0 - q);
+                    beta /= 1.0 - q;
                 }
             } else {
                 break;

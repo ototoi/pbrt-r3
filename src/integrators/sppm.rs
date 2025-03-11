@@ -336,7 +336,7 @@ impl Integrator for SPPMIntegrator {
                                                         if tile_sampler.get_1d() > continue_prob {
                                                             break;
                                                         }
-                                                        beta *= 1.0 / continue_prob;
+                                                        beta /= continue_prob;
                                                     }
                                                     ray = isect.spawn_ray(&wi).into();
                                                 } else {

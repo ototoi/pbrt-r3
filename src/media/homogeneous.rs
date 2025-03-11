@@ -73,7 +73,7 @@ impl Medium for HomogeneousMedium {
         for i in 0..Spectrum::N_SAMPLES {
             pdf += density[i];
         }
-        pdf *= 1.0 / (Spectrum::N_SAMPLES as Float);
+        pdf /= Spectrum::N_SAMPLES as Float;
 
         if pdf == 0.0 {
             pdf = 1.0;

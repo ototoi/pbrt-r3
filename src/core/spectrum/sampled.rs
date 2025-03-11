@@ -433,6 +433,13 @@ impl ops::MulAssign<SampledSpectrum> for SampledSpectrum {
     }
 }
 
+impl ops::DivAssign<Float> for SampledSpectrum {
+    #[inline]
+    fn div_assign(&mut self, s: Float) {
+        self.div_scalar(s);
+    }
+}
+
 impl ops::Neg for SampledSpectrum {
     type Output = SampledSpectrum;
     #[inline]

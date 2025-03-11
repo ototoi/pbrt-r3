@@ -178,7 +178,7 @@ impl SamplerIntegrator for PathIntegrator {
                             if s.is_black() || pdf == 0.0 {
                                 break;
                             }
-                            beta *= s * (1.0 / pdf);
+                            beta *= s / pdf;
 
                             let tpi = Interaction::from(&pi);
                             //let pi = tisect.as_surface_interaction().unwrap();

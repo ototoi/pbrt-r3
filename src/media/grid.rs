@@ -150,7 +150,7 @@ impl Medium for GridDensityMedium {
             let inv_max_density = self.inv_max_density;
             let inv_max_density_sigma_t = inv_max_density / sigma_t;
             let sigma_s = self.sigma_s;
-            let sigma_s_t = sigma_s * (1.0 / sigma_t);
+            let sigma_s_t = sigma_s / sigma_t;
             let mut t = tmin;
             loop {
                 t -= Float::ln(1.0 - sampler.get_1d()) * inv_max_density_sigma_t;
@@ -191,7 +191,7 @@ impl Medium for GridDensityMedium {
             let inv_max_density = self.inv_max_density;
             let inv_max_density_sigma_t = inv_max_density / sigma_t;
             //let sigma_s = self.sigma_s;
-            //let sigma_s_t = sigma_s * (1.0 / sigma_t);
+            //let sigma_s_t = sigma_s / sigma_t;
 
             let mut tr = 1.0;
             let mut t = tmin;

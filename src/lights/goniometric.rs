@@ -54,9 +54,8 @@ impl Light for GonioPhotometricLight {
         let _p = ProfilePhase::new(Prof::LightSample);
 
         let wi = (self.p_light - inter.get_p()).normalize();
-        let f = self.intensity
-            * self.scale(&-wi)
-            * (1.0 / Vector3f::distance_squared(&self.p_light, &inter.get_p()));
+        let f = self.intensity * self.scale(&-wi)
+            / Vector3f::distance_squared(&self.p_light, &inter.get_p());
         let pdf = 1.0;
         let p = self.p_light;
         let inter_light =

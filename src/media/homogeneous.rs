@@ -80,9 +80,9 @@ impl Medium for HomogeneousMedium {
         }
 
         let spec = if sampled_medium {
-            tr * self.sigma_s * (1.0 / pdf)
+            tr * self.sigma_s / pdf
         } else {
-            tr * (1.0 / pdf)
+            tr / pdf
         };
         return (spec, mi);
     }

@@ -190,7 +190,7 @@ impl BxDF for FresnelSpecular {
                 }
                 let sampled_type = BSDF_SPECULAR | BSDF_TRANSMISSION;
                 let pdf = 1.0 - f;
-                let spec = ft * (1.0 / abs_cos_theta(&wi));
+                let spec = ft / abs_cos_theta(&wi);
                 return Some((spec, wi, pdf, sampled_type));
             } else {
                 return None;

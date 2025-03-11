@@ -473,7 +473,7 @@ impl BxDF for HairBSDF {
             / (2.0 * PI);
         let abs_cos_theta_wi = abs_cos_theta(wi);
         if abs_cos_theta_wi > 0.0 {
-            fsum *= 1.0 / abs_cos_theta_wi;
+            fsum /= abs_cos_theta_wi;
         }
         assert!(fsum.y().is_finite());
         return fsum;

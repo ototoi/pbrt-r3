@@ -299,6 +299,24 @@ impl<T: std::ops::MulAssign<T> + Copy> ops::MulAssign<T> for Vector3<T> {
     }
 }
 
+impl<T: std::ops::DivAssign<T>> ops::DivAssign<Vector3<T>> for Vector3<T> {
+    #[inline]
+    fn div_assign(&mut self, rhs: Self) {
+        self.x /= rhs.x;
+        self.y /= rhs.y;
+        self.z /= rhs.z;
+    }
+}
+
+impl<T: std::ops::DivAssign<T> + Copy> ops::DivAssign<T> for Vector3<T> {
+    #[inline]
+    fn div_assign(&mut self, rhs: T) {
+        self.x /= rhs;
+        self.y /= rhs;
+        self.z /= rhs;
+    }
+}
+
 impl<T> ops::Index<usize> for Vector3<T> {
     type Output = T;
     #[inline]

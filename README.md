@@ -70,7 +70,7 @@ Rendered images are stored at [pbrt-r3-devkit](https://github.com/ototoi/pbrt-r3
   - **Parser**: In pbrt-v3, a custom parser was implemented. On the other hand, in Rust, the `nom` crate was used to implement the parser.
   - **Progress Bar**: In pbrt-v3, a custom progress bar was implemented, while in pbrt-r3, the `indicatif` crate is used.
   - **Command Line Options**: In pbrt-v3, command line options were implemented independently, while in pbrt-r3, the `clap` crate is used.
-  - **Logging**: In pbrt-v3, Google glog was used, while in pbrt-r3, the `log` and `env_logger` crates are used.
+  - **Logging**: In pbrt-v3, Google's `glog` was used, while in pbrt-r3, the `log` and `env_logger` crates are used.
   - **Others**: In addition to the above, pbrt-r3 uses the following crates:
     - Image loading and saving: `image`
     - Hash functions: `rust-crypto`

@@ -69,7 +69,7 @@ impl SamplerIntegrator for WhittedIntegrator {
                                 let f = bsdf.f(&wo, &wi, BSDF_ALL);
                                 if !f.is_black() && visibility.unoccluded(scene) {
                                     //let dot = Float::max(Vector3f::dot(&wi, &n), 0.0);
-                                    return f * li * (Vector3f::abs_dot(&wi, &n) * (1.0 / pdf));
+                                    return f * li * (Vector3f::abs_dot(&wi, &n) / pdf);
                                 }
                             }
                         }

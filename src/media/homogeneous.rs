@@ -73,16 +73,16 @@ impl Medium for HomogeneousMedium {
         for i in 0..Spectrum::N_SAMPLES {
             pdf += density[i];
         }
-        pdf *= 1.0 / (Spectrum::N_SAMPLES as Float);
+        pdf /= Spectrum::N_SAMPLES as Float;
 
         if pdf == 0.0 {
             pdf = 1.0;
         }
 
         let spec = if sampled_medium {
-            tr * self.sigma_s * (1.0 / pdf)
+            tr * self.sigma_s / pdf
         } else {
-            tr * (1.0 / pdf)
+            tr / pdf
         };
         return (spec, mi);
     }

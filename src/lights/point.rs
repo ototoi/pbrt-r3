@@ -38,7 +38,7 @@ impl Light for PointLight {
     ) -> Option<(Spectrum, Vector3f, Float, VisibilityTester)> {
         let _p = ProfilePhase::new(Prof::LightSample);
 
-        let f = self.intensity * (1.0 / Vector3f::distance_squared(&self.p_light, &inter.get_p()));
+        let f = self.intensity / Vector3f::distance_squared(&self.p_light, &inter.get_p());
         let wi = (self.p_light - inter.get_p()).normalize();
         let pdf = 1.0;
         let p = self.p_light;

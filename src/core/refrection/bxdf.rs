@@ -36,7 +36,7 @@ pub trait BxDF {
                 return Spectrum::zero();
             })
             .fold(Spectrum::zero(), |a, b| a + b)
-            * (1.0 / (samples.len() as Float));
+            / (samples.len() as Float);
         return r;
     }
 
@@ -54,7 +54,7 @@ pub trait BxDF {
                 return Spectrum::zero();
             })
             .fold(Spectrum::zero(), |a, b| a + b)
-            * (1.0 / (PI * samples.len() as Float));
+            / (PI * samples.len() as Float);
         return r;
     }
 

@@ -218,7 +218,7 @@ impl SamplerIntegrator for VolPathIntegrator {
                                 if s.is_black() || pdf == 0.0 {
                                     break;
                                 }
-                                beta *= s * (1.0 / pdf);
+                                beta *= s / pdf;
                                 //beta *= 0.1;
 
                                 // Account for the direct subsurface scattering component
@@ -268,7 +268,7 @@ impl SamplerIntegrator for VolPathIntegrator {
                 if sampler.get_1d() < q {
                     break;
                 }
-                beta *= 1.0 / (1.0 - q);
+                beta /= 1.0 - q;
                 assert!(beta.max_component_value().is_finite());
             }
 

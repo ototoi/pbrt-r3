@@ -71,8 +71,8 @@ impl BaseCamera {
             sshift.p_film.x += eps;
             if let Some((wwtx, rx)) = camera.generate_ray(&sshift) {
                 wtx = wwtx;
-                rx_origin = rd.o + (rx.o - rd.o) * (1.0 / eps);
-                rx_direction = rd.d + (rx.d - rd.d) * (1.0 / eps);
+                rx_origin = rd.o + (rx.o - rd.o) / eps;
+                rx_direction = rd.d + (rx.d - rd.d) / eps;
                 break;
             }
         }
@@ -89,8 +89,8 @@ impl BaseCamera {
             sshift.p_film.y += eps;
             if let Some((wwty, ry)) = camera.generate_ray(&sshift) {
                 wty = wwty;
-                ry_origin = rd.o + (ry.o - rd.o) * (1.0 / eps);
-                ry_direction = rd.d + (ry.d - rd.d) * (1.0 / eps);
+                ry_origin = rd.o + (ry.o - rd.o) / eps;
+                ry_direction = rd.d + (ry.d - rd.d) / eps;
                 break;
             }
         }

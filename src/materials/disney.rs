@@ -668,7 +668,7 @@ impl Material for DisneyMaterial {
         let thin = self.thin;
         // normalize lum. to isolate hue+sat
         let c_tint = if lum > 0.0 {
-            c * (1.0 / lum)
+            c / lum
         } else {
             Spectrum::from(1.0)
         };

@@ -298,7 +298,7 @@ impl Integrator for BDPTIntegrator {
                                                         if mis_weight <= 0.0 {
                                                             Spectrum::zero()
                                                         } else {
-                                                            l_path * (1.0 / mis_weight)
+                                                            l_path / mis_weight
                                                         }
                                                     } else {
                                                         l_path

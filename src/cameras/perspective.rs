@@ -56,8 +56,8 @@ impl PerspectiveCamera {
             full_resolution.y as Float,
             0.0,
         ));
-        min *= 1.0 / min.z;
-        max *= 1.0 / max.z;
+        min /= min.z;
+        max /= max.z;
         let a = Float::abs((max.x - min.x) * (max.y - min.y));
         PerspectiveCamera {
             base,
@@ -297,7 +297,7 @@ impl Camera for PerspectiveCamera {
         let vis = VisibilityTester::from((inter.clone(), lens_intr.clone()));
         let wi = p_lens_world - inter.get_p();
         let dist = wi.length();
-        let wi = wi * (1.0 / dist);
+        let wi = wi / dist;
 
         // Compute PDF for importance arriving at _ref_
 

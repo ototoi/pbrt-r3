@@ -75,6 +75,14 @@ impl RGBSpectrum {
         c[2] *= s;
     }
 
+    #[inline]
+    pub fn div_scalar(&mut self, s: Float) {
+        let c = &mut self.c;
+        c[0] /= s;
+        c[1] /= s;
+        c[2] /= s;
+    }
+
     pub fn to_vec(&self) -> Vec<Float> {
         let c = &self.c;
         return c.to_vec();
@@ -230,6 +238,14 @@ impl ops::Mul<Float> for RGBSpectrum {
     }
 }
 
+impl ops::Div<Float> for RGBSpectrum {
+    type Output = RGBSpectrum;
+    #[inline]
+    fn div(self, s: Float) -> RGBSpectrum {
+        return RGBSpectrum::from([self[0] / s, self[1] / s, self[2] / s]);
+    }
+}
+
 impl ops::Mul<RGBSpectrum> for Float {
     type Output = RGBSpectrum;
     #[inline]
@@ -303,10 +319,7 @@ impl ops::SubAssign<RGBSpectrum> for RGBSpectrum {
 impl ops::MulAssign<Float> for RGBSpectrum {
     #[inline]
     fn mul_assign(&mut self, s: Float) {
-        let a = self;
-        a[0] *= s;
-        a[1] *= s;
-        a[2] *= s;
+        self.mul_scalar(s);
     }
 }
 
@@ -318,6 +331,13 @@ impl ops::MulAssign<RGBSpectrum> for RGBSpectrum {
         a[0] *= b[0];
         a[1] *= b[1];
         a[2] *= b[2];
+    }
+}
+
+impl ops::DivAssign<Float> for RGBSpectrum {
+    #[inline]
+    fn div_assign(&mut self, s: Float) {
+        self.div_scalar(s);
     }
 }
 

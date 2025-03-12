@@ -92,9 +92,8 @@ impl Light for ProjectionLight {
         let inter_light =
             Interaction::from_light_sample(&p, inter.get_time(), &self.base.medium_interface);
         let vis = VisibilityTester::from((inter.clone(), inter_light));
-        let spec = self.intensity
-            * self.projection(&-wi)
-            * (1.0 / Point3f::distance_squared(&self.p_light, &inter.get_p()));
+        let spec = self.intensity * self.projection(&-wi)
+            / Point3f::distance_squared(&self.p_light, &inter.get_p());
         return Some((spec, wi, pdf, vis));
     }
 

@@ -58,7 +58,7 @@ Rendered images are stored at [pbrt-r3-devkit](https://github.com/ototoi/pbrt-r3
 
 ## Differences between pbrt-v3 and pbrt-r3
 
-- **Language**: pbrt-v3 is implemented in C++, while pbrt-r3 is a re-implementation in Rust.
+- **Implementation**: pbrt-v3 is implemented in C++, while pbrt-r3 is a re-implementation in Rust.
   - **Memory Safety**: Rust's ownership model in pbrt-r3 helps prevent common memory safety issues such as null pointer dereferencing and buffer overflows.
   - **Build System**: pbrt-r3 uses Cargo, Rust's package manager and build system, simplifying dependency management and build processes.
   - **Syntax**: Differences arise due to the syntax differences between C++ and Rust.
@@ -70,7 +70,7 @@ Rendered images are stored at [pbrt-r3-devkit](https://github.com/ototoi/pbrt-r3
   - **Parser**: In pbrt-v3, a custom parser was implemented. On the other hand, in Rust, the `nom` crate was used to implement the parser.
   - **Progress Bar**: In pbrt-v3, a custom progress bar was implemented, while in pbrt-r3, the `indicatif` crate is used.
   - **Command Line Options**: In pbrt-v3, command line options were implemented independently, while in pbrt-r3, the `clap` crate is used.
-  - **Logging**: In pbrt-v3, Google glog was used, while in pbrt-r3, the `log` and `env_logger` crates are used.
+  - **Logging**: In pbrt-v3, Google's `glog` was used, while in pbrt-r3, the `log` and `env_logger` crates are used.
   - **Others**: In addition to the above, pbrt-r3 uses the following crates:
     - Image loading and saving: `image`
     - Hash functions: `rust-crypto`
@@ -82,10 +82,10 @@ Rendered images are stored at [pbrt-r3-devkit](https://github.com/ototoi/pbrt-r3
   - **AOV Integrator**: When AOV is specified as an Integrator, it can render some attribute information of the scene (e.g., position, normal, etc.). This is useful for compositing and debugging rendering results.
 - **Unimplemented Features**: Some features are not implemented in pbrt-r3.
   - **PTex texture**: PTex texturing is not implemented in pbrt-r3.
-  - **Other Commands**: Several commands are implemented under `src/tools` in pbrt-v3. However, they are not necessarily needed in pbrt-r3, so their priority is low.
+  - **Tools**: Several commands are implemented under `src/tools` in pbrt-v3. However, they are not necessarily needed in pbrt-r3, so their priority is low.
 - **Bug Fixes**: pbrt-r3 has fixed several bugs from pbrt-v3.
   - Do not make `pdf` negative: There are places where pdf becomes negative due to calculation errors during the pdf calculation process. If left as is, it can cause infinity or negative colors. For example, this was fixed by using `pdf = pdf.max(0.0)`.
-  - Direction of `shading.dpdu/dpdv`: There was a bug where the directions of `shading.dpdu` and `shading.dpdv` were reversed.
+  - Direction of `shading.dpdu/dpdv`: There was a bug where the directions of `shading.dpdu` and `shading.dpdv` were reversed. (See also [#97](https://github.com/ototoi/pbrt-r3/issues/97)
 
 ## Future Plans
 There are some remaining tasks:

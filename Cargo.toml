@@ -4,6 +4,13 @@ version = "3.0.12"
 edition = "2021"
 build = "build/main.rs"
 default-run = "pbrt-r3"
+authors = ["Toru Matsuoka <tx.matsuoka@gmail.com>"]
+categories = ["graphics", "rendering", "command-line-utilities", "concurrency"]
+keywords = ["pbrt", "ray-tracing", "path-tracing", "bdpt", "mlt", "sppm"]
+description = "A Rust implementation of pbrt-v3"
+repository = "https://github.com/ototoi/pbrt-r3"
+license = "BSD-2-Clause"
+readme = "README.md"
 
 [features]
 default = []
@@ -50,4 +57,3 @@ bool_assert_comparison = "allow"
 [[bin]]
 name = "pbrt-r3"
 path = "src/bin/pbrt.rs"
-

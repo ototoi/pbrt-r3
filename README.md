@@ -3,8 +3,6 @@
 [![License](https://img.shields.io/github/license/ototoi/pbrt-r3)](LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/ototoi/pbrt-r3)](https://github.com/ototoi/pbrt-r3/releases/latest)
 
-
-
 ## What is pbrt-r3
 pbrt-r3 is a rust implementation version of the [pbrt-v3](https://github.com/mmp/pbrt-v3).
 
@@ -95,3 +93,5 @@ There are some remaining tasks:
 - Organize License: Correctly describe the license terms.
 - Create Documentation: Create documentation.
 
+## Acknowledgments
+We would like to thank the original authors of pbrt-v3 for their groundbreaking work and for making their code available. Additionally, we appreciate the contributions from the Rust community and the developers of the various crates used in this project.

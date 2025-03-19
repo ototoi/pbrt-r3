@@ -1,4 +1,7 @@
+use crate::core::geometry::*;
 use crate::core::pbrt::*;
+use crate::core::stats::*;
+
 use std::sync::Arc;
 
 thread_local!(static INTERIOR_NODES: StatCounter = StatCounter::new("BVH/Interior nodes"));

@@ -1,4 +1,6 @@
 use crate::core::pbrt::*;
+use crate::core::sampling::*;
+
 use std::sync::Arc;
 
 // LightDistribution defines a general interface for classes that provide

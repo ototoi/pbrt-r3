@@ -1,5 +1,9 @@
 use super::base_camera::BaseCamera;
+use crate::core::film::Film;
+use crate::core::geometry::*;
+use crate::core::medium::*;
 use crate::core::pbrt::*;
+use crate::core::transform::*;
 
 use std::sync::Arc;
 use std::sync::RwLock;

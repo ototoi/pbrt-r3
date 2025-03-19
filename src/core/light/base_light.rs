@@ -1,4 +1,5 @@
-use crate::core::pbrt::*;
+use crate::core::medium::*;
+use crate::core::transform::*;
 
 #[derive(Clone, Default, Debug)]
 pub struct BaseLight {

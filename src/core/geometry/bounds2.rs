@@ -1,3 +1,4 @@
+use super::Vector2;
 use crate::core::pbrt::*;
 
 #[derive(Debug, PartialEq, Copy, Clone)]

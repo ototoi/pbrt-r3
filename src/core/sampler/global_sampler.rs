@@ -1,4 +1,5 @@
 use super::base_sampler::BaseSampler;
+use super::sampler::Sampler;
 use crate::core::pbrt::*;
 
 #[derive(Debug, PartialEq, Default, Clone)]

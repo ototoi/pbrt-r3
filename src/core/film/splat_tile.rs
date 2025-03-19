@@ -1,3 +1,4 @@
+use crate::core::geometry::*;
 use crate::core::pbrt::*;
 
 pub const ST_W: usize = 16;

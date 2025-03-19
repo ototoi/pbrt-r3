@@ -1,5 +1,16 @@
-use super::*;
-use crate::core::pbrt::*;
+use crate::core::error::*;
+use crate::core::light::*;
+use crate::core::medium::*;
+use crate::core::param_set::*;
+use crate::core::shape::*;
+
+use super::diffuse::*;
+use super::distant::*;
+use super::goniometric::*;
+use super::infinite::*;
+use super::point::*;
+use super::projection::*;
+use super::spot::*;
 
 use std::sync::Arc;
 

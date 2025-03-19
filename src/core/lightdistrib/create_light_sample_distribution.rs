@@ -1,4 +1,10 @@
-use crate::core::pbrt::*;
+use super::lightdistrib::*;
+use super::power::*;
+use super::spatial::*;
+use super::uniform::*;
+use crate::core::error::*;
+use crate::core::scene::*;
+
 use log::*;
 use std::sync::Arc;
 

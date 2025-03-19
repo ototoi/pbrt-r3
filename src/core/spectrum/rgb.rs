@@ -1,7 +1,7 @@
 use super::convert::*;
-use super::sampled::SampledSpectrum;
+use super::data::*;
+use super::sampled::*;
 use super::utils::*;
-use crate::core::pbrt::lerp;
 use crate::core::pbrt::*;
 use std::ops;
 
@@ -118,9 +118,7 @@ impl RGBSpectrum {
     }
 
     pub fn rgb_from_xyz(xyz: &[Float]) -> RGBSpectrum {
-        RGBSpectrum {
-            c: convert::xyz_to_rgb(xyz),
-        }
+        RGBSpectrum { c: xyz_to_rgb(xyz) }
     }
 
     pub fn rgb_from_sampled(lambda: &[Float], vals: &[Float]) -> RGBSpectrum {

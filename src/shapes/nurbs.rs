@@ -1,4 +1,8 @@
+use crate::core::error::*;
+use crate::core::param_set::*;
+use crate::core::pbrt::*;
 use crate::core::shape::*;
+
 use std::sync::Arc;
 
 use super::create_triangle_mesh;

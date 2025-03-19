@@ -1,4 +1,7 @@
 use crate::core::pbrt::*;
+use crate::core::reflection::*;
+use crate::core::sampling::*;
+use crate::core::spectrum::*;
 
 pub struct LambertianReflection {
     pub r: Spectrum,

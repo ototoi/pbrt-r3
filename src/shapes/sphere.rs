@@ -1,5 +1,10 @@
 use crate::core::efloat::EFloat;
-use crate::core::pbrt::types::*;
+use crate::core::error::*;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::param_set::*;
+use crate::core::pbrt::*;
+use crate::core::sampling::*;
 use crate::core::shape::*;
 
 const MACHINE_EPSILON: Float = Float::EPSILON * 0.5;

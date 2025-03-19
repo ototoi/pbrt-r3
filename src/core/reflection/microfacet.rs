@@ -1,4 +1,9 @@
+use crate::core::distribution::*;
+use crate::core::geometry::*;
+use crate::core::material::*;
 use crate::core::pbrt::*;
+use crate::core::reflection::*;
+use crate::core::spectrum::*;
 
 pub struct MicrofacetReflection {
     r: Spectrum,

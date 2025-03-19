@@ -1,4 +1,5 @@
 use super::parse_context::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
 use std::cell::RefCell;
 use std::sync::Arc;

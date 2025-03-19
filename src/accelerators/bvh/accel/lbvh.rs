@@ -1,5 +1,10 @@
 use super::super::build::*;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
 use crate::core::pbrt::*;
+use crate::core::primitive::*;
+use crate::core::profile::*;
+use crate::core::stats::*;
 
 use log::*;
 use std::sync::Arc;

@@ -7,7 +7,11 @@ use super::path::*;
 use super::sppm::*;
 use super::volpath::*;
 use super::whitted::*;
-use crate::core::pbrt::*;
+use crate::core::camera::*;
+use crate::core::error::*;
+use crate::core::integrator::*;
+use crate::core::param_set::*;
+use crate::core::sampler::*;
 
 use std::sync::Arc;
 use std::sync::RwLock;

@@ -1,4 +1,9 @@
+use crate::core::error::*;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::transform::*;
 
 pub trait TextureMapping2D {
     fn map(&self, si: &SurfaceInteraction) -> (Point2f, Vector2f, Vector2f);

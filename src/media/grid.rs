@@ -1,4 +1,14 @@
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::medium::*;
+use crate::core::memory::*;
 use crate::core::pbrt::*;
+use crate::core::profile::*;
+use crate::core::sampler::*;
+use crate::core::spectrum::*;
+use crate::core::stats::*;
+use crate::core::transform::*;
+
 use std::sync::Arc;
 
 thread_local!(static DENSITY_BYTES: StatMemoryCounter = StatMemoryCounter::new("Memory/Volume density grid"));

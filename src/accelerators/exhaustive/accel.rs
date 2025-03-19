@@ -1,4 +1,9 @@
+use crate::core::error::*;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::primitive::*;
 
 use std::sync::Arc;
 

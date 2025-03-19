@@ -1,5 +1,14 @@
 use super::alphamask::*;
+use crate::core::error::*;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::profile::*;
+use crate::core::sampling::*;
+use crate::core::shape::*;
+use crate::core::stats::*;
+use crate::core::texture::*;
 
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -1,4 +1,7 @@
+use crate::core::geometry::*;
 use crate::core::pbrt::*;
+use crate::core::profile::*;
+use crate::core::spectrum::*;
 
 use std::sync::{Arc, RwLock};
 

@@ -1,4 +1,8 @@
+use super::lightdistrib::*;
 use crate::core::pbrt::*;
+use crate::core::sampling::*;
+use crate::core::scene::*;
+
 use std::sync::Arc;
 
 pub struct UniformLightDistribution {

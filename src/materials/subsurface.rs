@@ -1,8 +1,18 @@
-use log::warn;
-
+use crate::core::distribution::*;
+use crate::core::error::*;
+use crate::core::interaction::*;
+use crate::core::material::*;
+use crate::core::memory::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
-use crate::media::get_medium_scattering_properties;
+use crate::core::reflection::*;
+use crate::core::spectrum::*;
+use crate::core::texture::*;
+use crate::media::*;
+
 use std::sync::Arc;
+
+use log::*;
 
 struct SubsurfaceMaterial {
     scale: Float,

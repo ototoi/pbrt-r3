@@ -1,4 +1,18 @@
+use crate::core::camera::*;
+use crate::core::error::*;
+use crate::core::geometry::*;
+use crate::core::integrator::*;
+use crate::core::interaction::*;
+use crate::core::material::*;
+use crate::core::memory::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::profile::*;
+use crate::core::reflection::*;
+use crate::core::sampler::*;
+use crate::core::scene::*;
+use crate::core::spectrum::*;
+
 use std::sync::Arc;
 use std::sync::RwLock;
 

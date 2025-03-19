@@ -1,6 +1,6 @@
 // Imported from bounds.cpp
 
-use pbrt_r3::core::pbrt::*;
+use pbrt_r3::core::prelude::*;
 
 #[test]
 fn bounds2_iterator_basic() {

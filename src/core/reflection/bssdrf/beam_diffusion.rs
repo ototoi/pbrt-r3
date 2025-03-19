@@ -1,6 +1,8 @@
 use super::functions::*;
-use crate::core::interpolation::catmul_rom::integrate_catmull_rom;
+use crate::core::interpolation::*;
+use crate::core::medium::*;
 use crate::core::pbrt::*;
+use crate::core::reflection::*;
 
 #[derive(Debug)]
 pub struct BSSRDFTable {

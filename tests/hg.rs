@@ -1,6 +1,6 @@
 // Imported from hg.cpp
 
-use pbrt_r3::core::pbrt::*;
+use pbrt_r3::core::prelude::*;
 
 fn near_equal(a: Float, b: Float, e: Float) -> bool {
     (a - b).abs() < e

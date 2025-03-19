@@ -1,6 +1,8 @@
-use log::warn;
+use log::*;
 
+use crate::core::error::*;
 use crate::core::pbrt::*;
+
 use std::fs::read_to_string;
 
 pub fn read_float_file(path: &str) -> Result<Vec<Float>, PbrtError> {

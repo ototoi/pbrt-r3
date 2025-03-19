@@ -1,4 +1,6 @@
+use crate::core::interaction::*;
 use crate::core::pbrt::*;
+use crate::core::transform::*;
 
 pub trait TextureMapping3D {
     fn map(&self, si: &SurfaceInteraction) -> (Point3f, Vector3f, Vector3f);

@@ -1,4 +1,15 @@
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::material::*;
+use crate::core::medium::*;
+use crate::core::memory::*;
 use crate::core::pbrt::*;
+use crate::core::primitive::*;
+use crate::core::reflection::*;
+use crate::core::shape::*;
+use crate::core::spectrum::*;
+use crate::core::transform::*;
+
 use std::sync::{Arc, Weak};
 
 #[derive(Default, Debug, Clone, Copy)]

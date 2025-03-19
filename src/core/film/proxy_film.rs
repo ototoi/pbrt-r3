@@ -1,4 +1,9 @@
+use super::film::*;
+use super::film_tile::*;
+use crate::core::geometry::*;
 use crate::core::pbrt::*;
+use crate::core::spectrum::*;
+
 use std::sync::Arc;
 use std::sync::RwLock;
 

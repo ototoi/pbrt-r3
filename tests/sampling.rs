@@ -1,9 +1,10 @@
 // Imported from sampling.cpp
 
-use pbrt_r3::core::lowdiscrepancy::primes::PRIMES;
-use pbrt_r3::core::lowdiscrepancy::radical_inverse::reverse_bits32;
-use pbrt_r3::core::pbrt::maxmin::{multiply_generator, sample_generator_matrix};
-use pbrt_r3::core::pbrt::*;
+use pbrt_r3::core::lowdiscrepancy::maxmin::*;
+use pbrt_r3::core::lowdiscrepancy::primes::*;
+use pbrt_r3::core::lowdiscrepancy::radical_inverse::*;
+use pbrt_r3::core::lowdiscrepancy::*;
+use pbrt_r3::core::prelude::*;
 use pbrt_r3::samplers::*;
 
 fn near_equal(a: Float, b: Float, e: Float) -> bool {

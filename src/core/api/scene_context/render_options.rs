@@ -1,4 +1,8 @@
+use crate::core::light::*;
+use crate::core::medium::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::primitive::*;
 
 use std::collections::HashMap;
 use std::sync::Arc;

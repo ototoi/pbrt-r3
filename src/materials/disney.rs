@@ -1,4 +1,16 @@
+use crate::core::distribution::*;
+use crate::core::error::*;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::material::*;
+use crate::core::memory::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::reflection::*;
+use crate::core::scene::*;
+use crate::core::spectrum::*;
+use crate::core::texture::*;
+
 use std::sync::Arc;
 
 #[inline]

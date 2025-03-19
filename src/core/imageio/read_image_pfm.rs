@@ -1,4 +1,7 @@
+use crate::core::error::*;
 use crate::core::pbrt::*;
+use crate::core::spectrum::*;
+
 use nom::character::complete::{alphanumeric1, multispace0};
 use nom::error::*;
 use nom::number::complete::*;

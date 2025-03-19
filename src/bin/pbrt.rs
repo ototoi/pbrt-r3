@@ -1,12 +1,11 @@
 use clap::*;
 
-use pbrt_r3::core::api::*;
-use pbrt_r3::core::parser::*;
-use pbrt_r3::core::pbrt::*;
+use pbrt_r3::core::prelude::*;
 use pbrt_r3::core::profile;
 use pbrt_r3::core::stats;
 use pbrt_r3::displays::SequentialDisplay;
 use pbrt_r3::displays::TevDisplay;
+
 use std::cell::RefCell;
 use std::env;
 use std::path::Path;

@@ -1,7 +1,9 @@
 use super::bvh::*;
 use super::exhaustive::*;
 use super::kdtree::*;
-use crate::core::pbrt::*;
+use crate::core::error::*;
+use crate::core::param_set::*;
+use crate::core::primitive::*;
 
 use std::sync::Arc;
 

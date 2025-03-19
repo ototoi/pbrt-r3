@@ -1,5 +1,20 @@
-use super::*;
+use super::cone::create_cone_shape;
+use super::curve::create_curve_shape;
+use super::cylinder::create_cylinder_shape;
+use super::disk::create_disk_shape;
+use super::heightfield::create_heightfield;
+use super::hyperboloid::create_hyperboloid_shape;
+use super::loopsubdiv::create_loop_subdiv;
+use super::nurbs::create_nurbs;
+use super::paraboloid::create_paraboloid_shape;
+use super::plymesh::create_ply_mesh;
+use super::sphere::create_sphere_shape;
+use super::triangle::create_triangle_mesh_shape;
+use crate::core::error::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::shape::*;
+use crate::core::texture::*;
 
 use std::collections::HashMap;
 use std::sync::Arc;

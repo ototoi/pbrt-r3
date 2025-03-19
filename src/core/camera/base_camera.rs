@@ -1,4 +1,10 @@
+use crate::core::film::Film;
+use crate::core::geometry::*;
+use crate::core::medium::*;
 use crate::core::pbrt::*;
+use crate::core::transform::*;
+
+use super::camera::*;
 
 use log::*;
 use std::sync::Arc;

@@ -1,5 +1,3 @@
-use crate::core::pbrt::*;
-
 use super::bilerp::*;
 use super::checkerboard::*;
 use super::constant::*;
@@ -13,6 +11,12 @@ use super::scale::*;
 use super::uv::*;
 use super::windy::*;
 use super::wrinkled::*;
+use crate::core::error::*;
+use crate::core::param_set::*;
+use crate::core::pbrt::*;
+use crate::core::shape::*;
+use crate::core::spectrum::*;
+use crate::core::texture::*;
 
 use std::sync::Arc;
 

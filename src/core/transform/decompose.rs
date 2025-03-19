@@ -1,4 +1,6 @@
+use super::matrix4x4::*;
 use crate::core::pbrt::*;
+use crate::core::quaternion::*;
 
 fn invertible(m: &Matrix4x4) -> bool {
     m.inverse().is_some()

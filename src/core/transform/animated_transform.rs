@@ -1,7 +1,11 @@
 use super::decompose::*;
 use super::derivatives::*;
 use super::interval::*;
+use super::matrix4x4::*;
+use super::transform::*;
+use crate::core::geometry::*;
 use crate::core::pbrt::*;
+use crate::core::quaternion::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct AnimatedTransform {

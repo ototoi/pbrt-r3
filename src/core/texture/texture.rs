@@ -1,6 +1,15 @@
+use crate::core::interaction::*;
 use crate::core::pbrt::*;
+
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum ImageWrap {
+    Repeat,
+    Black,
+    Clamp,
+}
 
 pub trait Texture<T: Copy> {
     fn evaluate(&self, si: &SurfaceInteraction) -> T;

@@ -1,4 +1,5 @@
-use crate::core::pbrt::*;
+use super::texture::*;
+use crate::core::interaction::*;
 
 pub struct ConstantTexture<T> {
     pub value: T,

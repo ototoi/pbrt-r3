@@ -1,5 +1,3 @@
-use log::warn;
-
 use super::disney::*;
 use super::fourier::*;
 use super::glass::*;
@@ -13,10 +11,13 @@ use super::substrate::*;
 use super::subsurface::*;
 use super::translucent::*;
 use super::uber::*;
-
-use crate::core::pbrt::*;
+use crate::core::error::*;
+use crate::core::material::*;
+use crate::core::param_set::*;
 
 use std::sync::Arc;
+
+use log::*;
 
 pub fn create_material(name: &str, mp: &TextureParams) -> Result<Arc<dyn Material>, PbrtError> {
     match name {

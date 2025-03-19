@@ -1,16 +1,4 @@
-//use crate::core::pbrt::*;
-
-//use std::cmp;
-
-use crate::core::pbrt::Float;
-
-pub const DOUBLE_ONE_MINUS_EPSILON: f64 = 0.99999999999999989;
-pub const FLOAT_ONE_MINUS_EPSILON: f32 = 0.99999994;
-
-#[cfg(not(feature = "float-as-double"))]
-pub const ONE_MINUS_EPSILON: f32 = FLOAT_ONE_MINUS_EPSILON;
-#[cfg(feature = "float-as-double")]
-pub const ONE_MINUS_EPSILON: f64 = DOUBLE_ONE_MINUS_EPSILON;
+use crate::core::pbrt::*;
 
 const PCG32_DEFAULT_STATE: u64 = 0x853c49e6748fea9b;
 const PCG32_DEFAULT_STREAM: u64 = 0xda3e39cb94b95bdb;

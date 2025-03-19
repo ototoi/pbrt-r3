@@ -1,8 +1,8 @@
 // Imported from fourierbsdf.cpp
 
-use std::sync::Arc;
+use pbrt_r3::core::prelude::*;
 
-use pbrt_r3::core::pbrt::*;
+use std::sync::Arc;
 
 // Serialized version of bsdfs/roughgold_alpha_0.2.bsdf.
 const FOURIER_DATA: &'static [u8] = include_bytes!("bsdfs/roughgold_alpha_0.2.bsdf");

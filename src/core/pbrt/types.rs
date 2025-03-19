@@ -17,8 +17,8 @@ pub type Vector3f = Vector3<Float>;
 pub type Point3f = Vector3<Float>;
 pub type Normal3f = Vector3<Float>;
 
-pub type Bounds2i = Bounds2<i32>;
-pub type Boundsd2f = Bounds2<Float>;
+//pub type Bounds2i = Bounds2<i32>;
+//pub type Boundsd2f = Bounds2<Float>;
 
-pub type Bounds3i = Bounds3<i32>;
-pub type Bounds3f = Bounds3<Float>;
+//pub type Bounds3i = Bounds3<i32>;
+//pub type Bounds3f = Bounds3<Float>;

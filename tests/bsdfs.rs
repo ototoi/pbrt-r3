@@ -1,6 +1,6 @@
 // Imported from bsdfs.cpp
 
-use pbrt_r3::core::pbrt::*;
+use pbrt_r3::core::prelude::*;
 use pbrt_r3::shapes::*;
 
 use libm::lgamma;

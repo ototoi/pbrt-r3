@@ -1,4 +1,11 @@
-use crate::core::pbrt::*;
+use crate::core::geometry::*; // Import the Bounds3f type
+use crate::core::interaction::*; // Import the SurfaceInteraction type
+use crate::core::light::*; // Import the Light trait
+use crate::core::primitive::*; // Import the Primitive trait
+use crate::core::sampler::*;
+use crate::core::spectrum::*; // Import the Spectrum type
+use crate::core::stats::*; // Import the StatCounter type // Import the Sampler trait
+
 use std::sync::Arc;
 
 thread_local!(static N_INTERSECTION_TESTS: StatCounter = StatCounter::new("Intersections/Regular ray intersection tests"));

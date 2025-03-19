@@ -1,4 +1,7 @@
+use crate::core::error::*;
+use crate::core::geometry::*;
 use crate::core::pbrt::*;
+
 use image::*;
 
 pub fn write_image_exr(

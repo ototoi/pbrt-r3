@@ -9,6 +9,9 @@ static PBRT_CONSTEXPR Float PiOver2 = 1.57079632679489661923;
 static PBRT_CONSTEXPR Float PiOver4 = 0.78539816339744830961;
 static PBRT_CONSTEXPR Float Sqrt2 = 1.41421356237309504880;
 */
+pub const DOUBLE_ONE_MINUS_EPSILON: f64 = 0.99999999999999989;
+pub const FLOAT_ONE_MINUS_EPSILON: f32 = 0.99999994;
+
 #[cfg(not(feature = "float-as-double"))]
 mod detail {
     use super::*;
@@ -25,6 +28,8 @@ mod detail {
     pub const PI_OVER_4: Float = PI / 4.0; //0.78539816339744830961
 
     pub const SQRT_2: Float = std::f32::consts::SQRT_2;
+
+    pub const ONE_MINUS_EPSILON: f32 = FLOAT_ONE_MINUS_EPSILON;
 }
 
 #[cfg(feature = "float-as-double")]
@@ -43,6 +48,8 @@ mod detail {
     pub const PI_OVER_4: Float = PI / 4.0; //0.78539816339744830961
 
     pub const SQRT_2: Float = std::f64::consts::SQRT_2;
+
+    pub const ONE_MINUS_EPSILON: f64 = DOUBLE_ONE_MINUS_EPSILON;
 }
 
 pub use detail::*;

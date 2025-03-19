@@ -1,4 +1,5 @@
 use crate::core::pbrt::*;
+use crate::core::profile::*;
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct BaseSampler {

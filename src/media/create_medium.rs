@@ -1,9 +1,14 @@
-use log::warn;
-
 use super::grid::GridDensityMedium;
 use super::homogeneous::HomogeneousMedium;
+use crate::core::medium::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::spectrum::*;
+use crate::core::transform::*;
+
 use std::sync::Arc;
+
+use log::*;
 
 const SUBSURFACE_PARAMETER_TABLE: [(&str, [Float; 3], [Float; 3]); 47] = [
     // From "A Practical Model for Subsurface Light Transport"

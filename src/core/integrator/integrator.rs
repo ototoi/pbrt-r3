@@ -1,4 +1,6 @@
-use crate::core::pbrt::*;
+use crate::core::camera::*;
+use crate::core::scene::*;
+
 use std::sync::Arc;
 
 pub trait Integrator {

@@ -1,8 +1,12 @@
 use super::param_set::ParamSet;
 use crate::core::pbrt::*;
-use log::*;
+use crate::core::spectrum::*;
+use crate::core::texture::*;
+
 use std::collections::HashMap;
 use std::sync::Arc;
+
+use log::*;
 
 type FloatTextureMap = HashMap<String, Arc<dyn Texture<Float>>>;
 type SpectrumTextureMap = HashMap<String, Arc<dyn Texture<Spectrum>>>;

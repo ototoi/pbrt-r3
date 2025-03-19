@@ -1,4 +1,8 @@
-use crate::core::pbrt::*;
+use crate::core::error::PbrtError;
+use crate::core::film::*;
+use crate::core::param_set::*;
+use crate::core::sampler::*;
+
 use std::sync::Arc;
 use std::sync::RwLock;
 

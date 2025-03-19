@@ -1,4 +1,15 @@
+use crate::core::distribution::*;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::light::*;
+use crate::core::memory::*;
 use crate::core::pbrt::*;
+use crate::core::profile::*;
+use crate::core::refrection::*;
+use crate::core::sampler::*;
+use crate::core::sampling::*;
+use crate::core::scene::*;
+use crate::core::spectrum::*;
 
 pub fn uniform_sample_all_lights(
     it: &Interaction,

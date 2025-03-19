@@ -1,3 +1,4 @@
+use super::bxdf::*;
 use crate::core::pbrt::*;
 
 use std::fmt::Formatter;

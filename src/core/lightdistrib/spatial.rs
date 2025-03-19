@@ -1,4 +1,13 @@
+use super::lightdistrib::*;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::light::*;
+use crate::core::lowdiscrepancy::*;
+use crate::core::medium::*;
 use crate::core::pbrt::*;
+use crate::core::sampling::*;
+use crate::core::scene::*;
+use crate::core::stats::*;
 //use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;

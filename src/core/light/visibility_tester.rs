@@ -1,4 +1,7 @@
-use crate::core::pbrt::*;
+use crate::core::interaction::*;
+use crate::core::sampler::*;
+use crate::core::scene::*;
+use crate::core::spectrum::*;
 
 #[derive(Clone)]
 pub struct VisibilityTester {

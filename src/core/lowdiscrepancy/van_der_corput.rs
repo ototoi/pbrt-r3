@@ -1,4 +1,7 @@
+use super::primes::PRIMES;
 use crate::core::pbrt::*;
+use crate::core::rng::*;
+use crate::core::sampling::*;
 
 // Define _CVanDerCorput_ Generator Matrix
 #[rustfmt::skip]

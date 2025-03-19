@@ -1,6 +1,14 @@
+use crate::core::error::PbrtError;
+use crate::core::geometry::*;
 use crate::core::lowdiscrepancy::primes::{PRIMES, PRIME_SUMS};
-
+use crate::core::lowdiscrepancy::*;
+use crate::core::options::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::profile::*;
+use crate::core::rng::*;
+use crate::core::sampler::*;
+
 use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::OnceLock;

@@ -1,6 +1,11 @@
 use super::area_light::AreaLight;
 use super::visibility_tester::VisibilityTester;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
 use crate::core::pbrt::*;
+use crate::core::scene::*;
+use crate::core::spectrum::*;
+use crate::core::transform::*;
 
 pub enum LightFlags {
     DeltaPosition = 1,

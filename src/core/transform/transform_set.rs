@@ -1,3 +1,4 @@
+use super::transform::*;
 use crate::core::pbrt::*;
 
 pub const MAX_TRANSFORMS: usize = 2;

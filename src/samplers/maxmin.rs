@@ -1,8 +1,17 @@
+use crate::core::error::PbrtError;
 use crate::core::lowdiscrepancy::maxmin::*;
+use crate::core::lowdiscrepancy::*;
+use crate::core::options::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
-use log::*;
+use crate::core::profile::*;
+use crate::core::sampler::*;
+use crate::core::sampling::*;
+
 use std::sync::Arc;
 use std::sync::RwLock;
+
+use log::*;
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct MaxMinDistSampler {

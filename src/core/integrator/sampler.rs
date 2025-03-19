@@ -1,6 +1,17 @@
-use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
-
+use super::integrator::*;
+use crate::core::camera::*;
+use crate::core::film::*;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::light::*;
+use crate::core::memory::*;
+use crate::core::misc::*;
 use crate::core::pbrt::*;
+use crate::core::refrection::*;
+use crate::core::sampler::*;
+use crate::core::scene::*;
+use crate::core::spectrum::*;
+use crate::core::stats::*;
 
 use std::ops::DerefMut;
 use std::path::Path;
@@ -9,6 +20,7 @@ use std::sync::Mutex;
 use std::sync::RwLock;
 
 use log::*;
+use rayon::prelude::*;
 
 thread_local!(static N_CAMERA_RAYS: StatCounter = StatCounter::new("Integrator/Camera rays traced"));
 

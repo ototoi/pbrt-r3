@@ -1,4 +1,5 @@
 pub use crate::core::pbrt::*;
+pub use crate::core::transform::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BaseShape {

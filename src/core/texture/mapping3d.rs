@@ -1,4 +1,3 @@
-use super::texture::*;
 use crate::core::interaction::*;
 use crate::core::pbrt::*;
 use crate::core::transform::*;

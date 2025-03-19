@@ -9,7 +9,6 @@ use crate::core::pbrt::*;
 use crate::core::profile::*;
 use crate::core::refrection::*;
 use crate::core::sampling::*;
-use crate::core::scene::*;
 use crate::core::spectrum::*;
 use crate::core::texture::*;
 use crate::core::transform::*;

@@ -8,7 +8,6 @@ use crate::core::pbrt::*;
 use crate::core::refrection::*;
 use crate::core::scene::*;
 use crate::core::spectrum::*;
-use crate::core::texture::*;
 
 use std::sync::Arc;
 

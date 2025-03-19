@@ -1,4 +1,3 @@
-use crate::core::distribution::*;
 use crate::core::geometry::*;
 use crate::core::interaction::*;
 use crate::core::light::*;

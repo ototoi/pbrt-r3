@@ -2,8 +2,6 @@ use crate::core::camera::*;
 use crate::core::error::*;
 use crate::core::geometry::*;
 use crate::core::integrator::*;
-use crate::core::interaction::*;
-use crate::core::light::*;
 use crate::core::material::*;
 use crate::core::memory::*;
 use crate::core::options::*;

@@ -1,5 +1,4 @@
 use super::base_camera::BaseCamera;
-use super::camera::*;
 use crate::core::film::Film;
 use crate::core::geometry::*;
 use crate::core::medium::*;

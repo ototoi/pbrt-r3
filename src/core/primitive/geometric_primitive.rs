@@ -5,9 +5,7 @@ use crate::core::light::*;
 use crate::core::material::*;
 use crate::core::medium::*;
 use crate::core::memory::*;
-use crate::core::pbrt::*;
 use crate::core::profile::*;
-use crate::core::refrection::*;
 use crate::core::shape::*;
 
 use std::sync::Arc;

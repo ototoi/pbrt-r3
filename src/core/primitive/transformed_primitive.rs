@@ -4,7 +4,6 @@ use crate::core::interaction::*;
 use crate::core::light::*;
 use crate::core::material::*;
 use crate::core::memory::*;
-use crate::core::pbrt::*;
 use crate::core::transform::*;
 
 use std::sync::Arc;

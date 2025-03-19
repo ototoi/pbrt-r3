@@ -1,4 +1,3 @@
-use crate::core::geometry::*;
 use crate::core::pbrt::*;
 use crate::core::quaternion::*;
 use crate::core::transform::*;

@@ -2,7 +2,6 @@ use crate::core::geometry::*;
 use crate::core::interaction::*;
 use crate::core::lowdiscrepancy::*;
 use crate::core::pbrt::*;
-use crate::core::transform::*;
 
 pub trait Shape {
     fn object_bound(&self) -> Bounds3f;

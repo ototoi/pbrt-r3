@@ -1,12 +1,8 @@
-use crate::core::geometry::*;
 use crate::core::light::*;
-use crate::core::material::*;
 use crate::core::medium::*;
 use crate::core::param_set::*;
 use crate::core::pbrt::*;
 use crate::core::primitive::*;
-use crate::core::spectrum::*;
-use crate::core::transform::*;
 
 use std::collections::HashMap;
 use std::sync::Arc;

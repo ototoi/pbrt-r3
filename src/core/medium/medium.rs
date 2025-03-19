@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use crate::core::geometry::ray::Ray;
 use crate::core::interaction::MediumInteraction;
 use crate::core::memory::MemoryArena;
-use crate::core::pbrt::*;
 use crate::core::sampler::Sampler;
 use crate::core::spectrum::*;
 

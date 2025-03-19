@@ -5,7 +5,6 @@ use crate::core::interaction::*;
 use crate::core::pbrt::*;
 use crate::core::scene::*;
 use crate::core::spectrum::*;
-use crate::core::transform::*;
 
 pub enum LightFlags {
     DeltaPosition = 1,

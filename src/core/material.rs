@@ -1,4 +1,3 @@
-use crate::core::geometry::*;
 use crate::core::interaction::SurfaceInteraction;
 use crate::core::memory::MemoryArena;
 use crate::core::pbrt::*;

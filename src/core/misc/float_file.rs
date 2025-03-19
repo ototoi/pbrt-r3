@@ -1,4 +1,4 @@
-use log::warn;
+use log::*;
 
 use crate::core::error::*;
 use crate::core::pbrt::*;

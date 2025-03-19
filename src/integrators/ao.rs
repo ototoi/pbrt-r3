@@ -16,7 +16,7 @@ use crate::core::spectrum::*;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use log::warn;
+use log::*;
 
 pub struct AOIntegrator {
     base: BaseSamplerIntegrator,

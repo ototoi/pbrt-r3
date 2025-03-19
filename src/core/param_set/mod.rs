@@ -4,3 +4,4 @@ pub mod wellknown_params;
 
 pub use param_set::ParamSet;
 pub use texture_params::TextureParams;
+pub use wellknown_params::*;

@@ -1,24 +1,23 @@
+use super::functions::*;
 use super::mipmap_weight_lut::MIPMAP_WEIGHT_LUT;
+use super::texture::*;
+use crate::core::error::PbrtError;
+use crate::core::geometry::*;
 use crate::core::imageio::*;
 use crate::core::pbrt::*;
+use crate::core::profile::*;
+use crate::core::spectrum::*;
+use crate::core::stats::*;
 use std::mem::size_of;
 
 use log::*;
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::{ops::Deref, vec};
 
 thread_local!(static N_EWA_LOOKUPS: StatCounter = StatCounter::new("Texture/EWA lookups"));
 thread_local!(static N_TRILERP_LOOKUPS: StatCounter = StatCounter::new("Texture/Trilinear lookups"));
 thread_local!(static MIP_MAP_MEMORY: StatMemoryCounter = StatMemoryCounter::new("Memory/Texture MIP maps"));
-
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum ImageWrap {
-    Repeat,
-    Black,
-    Clamp,
-}
 
 pub struct F32MIPMapImage {
     pub resolution: (usize, usize),

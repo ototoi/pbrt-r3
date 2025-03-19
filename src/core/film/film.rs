@@ -2,7 +2,17 @@ use super::super::display::MutipleDisplay;
 use super::super::imageio::*;
 use super::film_tile::*;
 use super::splat_tile::*;
+use crate::core::display::*;
+use crate::core::error::PbrtError;
+use crate::core::filter::*;
+use crate::core::geometry::*;
+use crate::core::options::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::profile::*;
+use crate::core::spectrum::*;
+use crate::core::stats::*;
+
 //use atomic_float::AtomicF32;
 use log::*;
 use std::env;

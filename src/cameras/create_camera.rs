@@ -2,7 +2,13 @@ use super::environment::*;
 use super::orthographic::*;
 use super::perspective::*;
 use super::realistic::*;
+use crate::core::camera::*;
+use crate::core::error::PbrtError;
+use crate::core::film::*;
+use crate::core::medium::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::transform::*;
 
 use std::sync::Arc;
 use std::sync::RwLock;

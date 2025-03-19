@@ -1,11 +1,12 @@
 use super::blackbody::*;
 use super::config::*;
-use super::constants;
+use super::constants::*;
 use super::convert::*;
+use super::data::*;
 use super::load::*;
 use super::rgb::RGBSpectrum;
 use super::utils::*;
-use crate::core::pbrt::lerp;
+use crate::core::error::PbrtError;
 use crate::core::pbrt::*;
 
 use std::ops;
@@ -53,12 +54,12 @@ impl SampledSpectrum {
         let c = &self.c;
         let mut xyz: [Float; 3] = [0.0; 3];
         for i in 0..c.len() {
-            xyz[0] += data::xyz::ARRAY_CIE_X[i] * c[i];
-            xyz[1] += data::xyz::ARRAY_CIE_Y[i] * c[i];
-            xyz[2] += data::xyz::ARRAY_CIE_Z[i] * c[i];
+            xyz[0] += ARRAY_CIE_X[i] * c[i];
+            xyz[1] += ARRAY_CIE_Y[i] * c[i];
+            xyz[2] += ARRAY_CIE_Z[i] * c[i];
         }
-        let scale = (config::SAMPLED_LAMBDA_END - config::SAMPLED_LAMBDA_START) as Float
-            / (data::CIE_Y_INTEGRAL * config::SPECTRAL_SAMPLES as Float);
+        let scale = (SAMPLED_LAMBDA_END - SAMPLED_LAMBDA_START) as Float
+            / (CIE_Y_INTEGRAL * SPECTRAL_SAMPLES as Float);
         xyz[0] *= scale;
         xyz[1] *= scale;
         xyz[2] *= scale;
@@ -69,10 +70,10 @@ impl SampledSpectrum {
         let c = &self.c;
         let mut yy = 0.0;
         for i in 0..c.len() {
-            yy += data::ARRAY_CIE_Y[i] * c[i];
+            yy += ARRAY_CIE_Y[i] * c[i];
         }
-        let scale = (config::SAMPLED_LAMBDA_END - config::SAMPLED_LAMBDA_START) as Float
-            / (data::CIE_Y_INTEGRAL * config::SPECTRAL_SAMPLES as Float);
+        let scale = (SAMPLED_LAMBDA_END - SAMPLED_LAMBDA_START) as Float
+            / (CIE_Y_INTEGRAL * SPECTRAL_SAMPLES as Float);
         return yy * scale;
     }
 
@@ -153,62 +154,62 @@ impl SampledSpectrum {
         match t {
             SpectrumType::Reflectance => {
                 if rgb[0] <= rgb[1] && rgb[0] <= rgb[2] {
-                    r += constants::RGBREFL2SPECT_WHITE * rgb[0];
+                    r += RGBREFL2SPECT_WHITE * rgb[0];
                     if rgb[1] <= rgb[2] {
-                        r += constants::RGBREFL2SPECT_CYAN * (rgb[1] - rgb[0]);
-                        r += constants::RGBREFL2SPECT_BLUE * (rgb[2] - rgb[1]);
+                        r += RGBREFL2SPECT_CYAN * (rgb[1] - rgb[0]);
+                        r += RGBREFL2SPECT_BLUE * (rgb[2] - rgb[1]);
                     } else {
-                        r += constants::RGBREFL2SPECT_CYAN * (rgb[2] - rgb[0]);
-                        r += constants::RGBREFL2SPECT_GREEN * (rgb[1] - rgb[2]);
+                        r += RGBREFL2SPECT_CYAN * (rgb[2] - rgb[0]);
+                        r += RGBREFL2SPECT_GREEN * (rgb[1] - rgb[2]);
                     }
                 } else if rgb[1] <= rgb[0] && rgb[1] <= rgb[2] {
-                    r += constants::RGBREFL2SPECT_WHITE * rgb[1];
+                    r += RGBREFL2SPECT_WHITE * rgb[1];
                     if rgb[0] <= rgb[2] {
-                        r += constants::RGBREFL2SPECT_MAGENTA * (rgb[0] - rgb[1]);
-                        r += constants::RGBREFL2SPECT_BLUE * (rgb[2] - rgb[0]);
+                        r += RGBREFL2SPECT_MAGENTA * (rgb[0] - rgb[1]);
+                        r += RGBREFL2SPECT_BLUE * (rgb[2] - rgb[0]);
                     } else {
-                        r += constants::RGBREFL2SPECT_MAGENTA * (rgb[2] - rgb[1]);
-                        r += constants::RGBREFL2SPECT_RED * (rgb[0] - rgb[2]);
+                        r += RGBREFL2SPECT_MAGENTA * (rgb[2] - rgb[1]);
+                        r += RGBREFL2SPECT_RED * (rgb[0] - rgb[2]);
                     }
                 } else {
-                    r += constants::RGBREFL2SPECT_WHITE * rgb[2];
+                    r += RGBREFL2SPECT_WHITE * rgb[2];
                     if rgb[0] <= rgb[2] {
-                        r += constants::RGBREFL2SPECT_YELLOW * (rgb[0] - rgb[2]);
-                        r += constants::RGBREFL2SPECT_GREEN * (rgb[1] - rgb[0]);
+                        r += RGBREFL2SPECT_YELLOW * (rgb[0] - rgb[2]);
+                        r += RGBREFL2SPECT_GREEN * (rgb[1] - rgb[0]);
                     } else {
-                        r += constants::RGBREFL2SPECT_YELLOW * (rgb[1] - rgb[2]);
-                        r += constants::RGBREFL2SPECT_RED * (rgb[0] - rgb[1]);
+                        r += RGBREFL2SPECT_YELLOW * (rgb[1] - rgb[2]);
+                        r += RGBREFL2SPECT_RED * (rgb[0] - rgb[1]);
                     }
                 }
                 r *= 0.94;
             }
             SpectrumType::Illuminant => {
                 if rgb[0] <= rgb[1] && rgb[0] <= rgb[2] {
-                    r += constants::RGBILLUM2SPECT_WHITE * rgb[0];
+                    r += RGBILLUM2SPECT_WHITE * rgb[0];
                     if rgb[1] <= rgb[2] {
-                        r += constants::RGBILLUM2SPECT_CYAN * (rgb[1] - rgb[0]);
-                        r += constants::RGBILLUM2SPECT_BLUE * (rgb[2] - rgb[1]);
+                        r += RGBILLUM2SPECT_CYAN * (rgb[1] - rgb[0]);
+                        r += RGBILLUM2SPECT_BLUE * (rgb[2] - rgb[1]);
                     } else {
-                        r += constants::RGBILLUM2SPECT_CYAN * (rgb[2] - rgb[0]);
-                        r += constants::RGBILLUM2SPECT_GREEN * (rgb[1] - rgb[2]);
+                        r += RGBILLUM2SPECT_CYAN * (rgb[2] - rgb[0]);
+                        r += RGBILLUM2SPECT_GREEN * (rgb[1] - rgb[2]);
                     }
                 } else if rgb[1] <= rgb[0] && rgb[1] <= rgb[2] {
-                    r += constants::RGBILLUM2SPECT_WHITE * rgb[1];
+                    r += RGBILLUM2SPECT_WHITE * rgb[1];
                     if rgb[0] <= rgb[2] {
-                        r += constants::RGBILLUM2SPECT_MAGENTA * (rgb[0] - rgb[1]);
-                        r += constants::RGBILLUM2SPECT_BLUE * (rgb[2] - rgb[0]);
+                        r += RGBILLUM2SPECT_MAGENTA * (rgb[0] - rgb[1]);
+                        r += RGBILLUM2SPECT_BLUE * (rgb[2] - rgb[0]);
                     } else {
-                        r += constants::RGBILLUM2SPECT_MAGENTA * (rgb[2] - rgb[1]);
-                        r += constants::RGBILLUM2SPECT_RED * (rgb[0] - rgb[2]);
+                        r += RGBILLUM2SPECT_MAGENTA * (rgb[2] - rgb[1]);
+                        r += RGBILLUM2SPECT_RED * (rgb[0] - rgb[2]);
                     }
                 } else {
-                    r += constants::RGBILLUM2SPECT_WHITE * rgb[2];
+                    r += RGBILLUM2SPECT_WHITE * rgb[2];
                     if rgb[0] <= rgb[2] {
-                        r += constants::RGBILLUM2SPECT_YELLOW * (rgb[0] - rgb[2]);
-                        r += constants::RGBILLUM2SPECT_GREEN * (rgb[1] - rgb[0]);
+                        r += RGBILLUM2SPECT_YELLOW * (rgb[0] - rgb[2]);
+                        r += RGBILLUM2SPECT_GREEN * (rgb[1] - rgb[0]);
                     } else {
-                        r += constants::RGBILLUM2SPECT_YELLOW * (rgb[1] - rgb[2]);
-                        r += constants::RGBILLUM2SPECT_RED * (rgb[0] - rgb[1]);
+                        r += RGBILLUM2SPECT_YELLOW * (rgb[1] - rgb[2]);
+                        r += RGBILLUM2SPECT_RED * (rgb[0] - rgb[1]);
                     }
                 }
                 r *= 0.86445;
@@ -219,7 +220,7 @@ impl SampledSpectrum {
     }
 
     pub fn sampled_from_xyz(xyz: &[Float], t: SpectrumType) -> SampledSpectrum {
-        let rgb = convert::xyz_to_rgb(xyz);
+        let rgb = xyz_to_rgb(xyz);
         return Self::sampled_from_rgb(&rgb, t);
     }
 

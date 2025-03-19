@@ -1,4 +1,6 @@
+use crate::core::geometry::*;
 use crate::core::pbrt::*;
+use crate::core::transform::*;
 use std::ops;
 
 #[derive(Debug, PartialEq, Default, Copy, Clone)]

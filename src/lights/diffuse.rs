@@ -1,4 +1,17 @@
+use crate::core::error::PbrtError;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::light::*;
+use crate::core::medium::*;
+use crate::core::options::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::profile::*;
+use crate::core::refrection::*;
+use crate::core::sampling::*;
+use crate::core::shape::*;
+use crate::core::spectrum::*;
+use crate::core::transform::*;
 
 use std::sync::Arc;
 

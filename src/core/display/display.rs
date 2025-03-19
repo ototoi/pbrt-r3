@@ -1,4 +1,4 @@
-use crate::core::pbrt::PbrtError;
+use crate::core::error::PbrtError;
 
 pub struct DisplayTile {
     pub x: usize,

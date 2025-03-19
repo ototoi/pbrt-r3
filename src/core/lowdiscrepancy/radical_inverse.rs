@@ -1,5 +1,6 @@
 use super::primes::PRIMES;
 use crate::core::pbrt::*;
+use crate::core::rng::*;
 
 /*
 pub fn reverse_bits32(mut n: u32) -> u32 {

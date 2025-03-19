@@ -3,7 +3,9 @@ use super::gaussian::*;
 use super::mitchell::*;
 use super::sinc::*;
 use super::triangle::*;
-use crate::core::pbrt::*;
+use crate::core::error::PbrtError;
+use crate::core::filter::*;
+use crate::core::param_set::*;
 
 use std::sync::Arc;
 

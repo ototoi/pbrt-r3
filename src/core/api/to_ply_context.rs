@@ -1,5 +1,9 @@
 use super::parse_context::*;
+use crate::core::error::PbrtError;
+use crate::core::geometry::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+
 use std::cell::RefCell;
 use std::path::Path;
 use std::sync::Arc;

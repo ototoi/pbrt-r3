@@ -1,4 +1,8 @@
+use crate::core::geometry::*;
+use crate::core::interaction::SurfaceInteraction;
+use crate::core::memory::MemoryArena;
 use crate::core::pbrt::*;
+use crate::core::texture::Texture;
 
 use std::sync::Arc;
 

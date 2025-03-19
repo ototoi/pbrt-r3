@@ -1,4 +1,12 @@
+use crate::core::camera::*;
+use crate::core::error::PbrtError;
+use crate::core::film::*;
+use crate::core::geometry::*;
+use crate::core::medium::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::profile::*;
+use crate::core::transform::*;
 
 use log::*;
 use std::sync::Arc;

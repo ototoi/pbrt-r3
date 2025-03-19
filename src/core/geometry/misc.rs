@@ -1,3 +1,4 @@
+use crate::core::misc::*;
 use crate::core::pbrt::*;
 
 #[inline]

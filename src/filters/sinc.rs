@@ -1,3 +1,6 @@
+use crate::core::error::PbrtError;
+use crate::core::filter::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
 
 use std::sync::Arc;

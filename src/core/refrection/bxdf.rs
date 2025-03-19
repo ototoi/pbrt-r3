@@ -1,4 +1,7 @@
 use crate::core::pbrt::*;
+use crate::core::refrection::*;
+use crate::core::sampling::*;
+use crate::core::spectrum::*;
 
 pub type BxDFType = u32;
 

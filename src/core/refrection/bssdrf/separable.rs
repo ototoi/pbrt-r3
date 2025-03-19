@@ -1,4 +1,10 @@
+use crate::core::interaction::*;
+use crate::core::material::*;
+use crate::core::memory::*;
 use crate::core::pbrt::*;
+use crate::core::refrection::*;
+use crate::core::scene::*;
+use crate::core::spectrum::*;
 
 pub type BSSRDFMaterialRawPointer = *const dyn Material;
 

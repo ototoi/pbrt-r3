@@ -1,5 +1,10 @@
 use super::*;
+
+use crate::core::error::*;
+use crate::core::param_set::*;
 use crate::core::pbrt::*;
+use crate::core::shape::*;
+use crate::core::texture::*;
 
 use std::collections::HashMap;
 use std::sync::Arc;

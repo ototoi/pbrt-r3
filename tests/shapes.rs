@@ -1,6 +1,6 @@
 // Imported from shapes.cpp
 
-use pbrt_r3::core::pbrt::*;
+use pbrt_r3::core::prelude::*;
 use pbrt_r3::shapes::*;
 
 use std::sync::Arc;

@@ -1,4 +1,11 @@
-use crate::core::pbrt::*;
+use crate::core::error::*;
+use crate::core::geometry::*;
+use crate::core::interaction::*;
+use crate::core::param_set::*;
+use crate::core::primitive::*;
+use crate::core::profile::*;
+use crate::core::shape::*;
+
 use std::sync::Arc;
 
 // KDTreeAccel Local Declarations

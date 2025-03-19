@@ -1,6 +1,10 @@
-use crate::core::interpolation::{catmull_rom_weights, sample_catmull_rom_2d};
-use crate::core::interpolation::{evaluate_fourier, sample_fourier};
+use crate::core::error::PbrtError;
+use crate::core::interpolation::*;
+use crate::core::material::*;
 use crate::core::pbrt::*;
+use crate::core::refrection::*;
+use crate::core::spectrum::*;
+
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;

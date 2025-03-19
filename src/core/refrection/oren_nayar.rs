@@ -1,4 +1,6 @@
 use crate::core::pbrt::*;
+use crate::core::refrection::*;
+use crate::core::spectrum::*;
 
 pub struct OrenNayar {
     pub r: Spectrum,

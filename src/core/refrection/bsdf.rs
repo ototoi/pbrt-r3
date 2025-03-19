@@ -1,5 +1,8 @@
 use super::bxdf::*;
+use crate::core::interaction::*;
 use crate::core::pbrt::*;
+use crate::core::profile::*;
+use crate::core::spectrum::*;
 
 use std::fmt::Formatter;
 use std::fmt::Result;

@@ -1,5 +1,7 @@
 use super::beam_diffusion::BSSRDFTable;
-use crate::core::{interpolation::invert_catmull_rom, pbrt::*};
+use crate::core::interpolation::*;
+use crate::core::sampling::*;
+use crate::core::spectrum::*;
 
 // BSSRDF Utility Functions
 pub fn fresnel_moment1(eta: Float) -> Float {

@@ -1,6 +1,5 @@
 // Imported from animatedtransform.cpp
-
-use pbrt_r3::core::pbrt::*;
+use pbrt_r3::core::prelude::*;
 
 fn random_transform(rng: &mut RNG) -> Transform {
     let mut t = Transform::identity();

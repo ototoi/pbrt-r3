@@ -5,7 +5,6 @@ use crate::core::light::*;
 use crate::core::medium::*;
 use crate::core::pbrt::*;
 use crate::core::spectrum::*;
-use crate::core::transform::*;
 
 use log::*;
 use std::sync::Arc;

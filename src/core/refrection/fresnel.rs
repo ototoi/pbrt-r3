@@ -1,6 +1,10 @@
-use std::mem::swap;
-
+use crate::core::geometry::*;
+use crate::core::material::*;
 use crate::core::pbrt::*;
+use crate::core::refrection::*;
+use crate::core::spectrum::*;
+
+use std::mem::swap;
 
 pub trait Fresnel {
     fn evaluate(&self, cos_i: Float) -> Spectrum;

@@ -1,6 +1,6 @@
 // Imported from hair.cpp
 
-use pbrt_r3::core::pbrt::*;
+use pbrt_r3::core::prelude::*;
 use pbrt_r3::materials::hair::*;
 
 #[test]

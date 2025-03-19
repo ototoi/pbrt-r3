@@ -3,7 +3,9 @@ use super::hlbvh::*;
 use super::middle::*;
 use super::sah::*;
 use super::types::*;
+use crate::core::geometry::*;
 use crate::core::pbrt::*;
+use crate::core::primitive::*;
 
 use std::sync::Arc;
 

@@ -7,7 +7,6 @@ use crate::core::error::PbrtError;
 use crate::core::film::*;
 use crate::core::medium::*;
 use crate::core::param_set::*;
-use crate::core::pbrt::*;
 use crate::core::transform::*;
 
 use std::sync::Arc;

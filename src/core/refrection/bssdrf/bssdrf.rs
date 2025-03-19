@@ -1,4 +1,9 @@
+use crate::core::interaction::*;
+use crate::core::memory::*;
 use crate::core::pbrt::*;
+use crate::core::scene::*;
+use crate::core::spectrum::*;
+
 use std::fmt::Debug;
 
 pub trait BSSRDF: Debug {

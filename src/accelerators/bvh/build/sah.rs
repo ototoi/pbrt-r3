@@ -1,5 +1,6 @@
 use super::node::*;
 use super::types::*;
+use crate::core::geometry::*;
 use crate::core::pbrt::*;
 
 use std::sync::Arc;

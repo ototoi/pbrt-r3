@@ -25,7 +25,7 @@ pub use super::pbrt::*;
 pub use super::primitive::*;
 pub use super::profile::*;
 pub use super::quaternion::*;
-pub use super::refrection::*;
+pub use super::reflection::*;
 pub use super::rng::*;
 pub use super::sampler::*;
 pub use super::sampling::*;

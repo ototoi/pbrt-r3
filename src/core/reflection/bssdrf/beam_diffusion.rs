@@ -2,7 +2,7 @@ use super::functions::*;
 use crate::core::interpolation::*;
 use crate::core::medium::*;
 use crate::core::pbrt::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 
 #[derive(Debug)]
 pub struct BSSRDFTable {

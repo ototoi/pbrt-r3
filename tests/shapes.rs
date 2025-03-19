@@ -162,7 +162,7 @@ fn triangle_reintersect() {
 
         // Sample a point on the triangle surface to shoot the ray toward.
         let u = Point2f::new(rng.uniform_float(), rng.uniform_float());
-        if let Some((p_tri, pdf)) = tri.sample(&u) {
+        if let Some((p_tri, _pdf)) = tri.sample(&u) {
             // Choose a ray origin.
             let o = Point3f::new(
                 p_exp(&mut rng, 8.0),
@@ -170,7 +170,7 @@ fn triangle_reintersect() {
                 p_exp(&mut rng, 8.0),
             );
             let r = Ray::new(&o, &(p_tri.get_p() - o), Float::INFINITY, 0.0);
-            if let Some((t_hit, isect)) = tri.intersect(&r) {
+            if let Some((_t_hit, isect)) = tri.intersect(&r) {
                 // Now trace a bunch of rays leaving the intersection point.
                 for _ in 0..10000 {
                     // Random direction leaving the intersection point.

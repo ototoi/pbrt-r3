@@ -2,7 +2,7 @@ use crate::core::error::PbrtError;
 use crate::core::interpolation::*;
 use crate::core::material::*;
 use crate::core::pbrt::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 use crate::core::spectrum::*;
 
 use std::fs::File;

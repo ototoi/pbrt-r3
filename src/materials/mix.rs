@@ -3,7 +3,7 @@ use crate::core::interaction::*;
 use crate::core::material::*;
 use crate::core::memory::*;
 use crate::core::param_set::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 use crate::core::spectrum::*;
 use crate::core::texture::*;
 

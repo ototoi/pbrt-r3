@@ -10,7 +10,7 @@ use crate::core::misc::*;
 use crate::core::param_set::*;
 use crate::core::pbrt::*;
 use crate::core::profile::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 //use crate::core::sampling::*;
 //use crate::core::spectrum::*;
 use crate::core::stats::*;

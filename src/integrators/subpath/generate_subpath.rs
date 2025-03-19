@@ -9,7 +9,7 @@ use crate::core::medium::*;
 use crate::core::memory::*;
 use crate::core::pbrt::*;
 use crate::core::profile::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 use crate::core::sampler::*;
 use crate::core::sampling::*;
 use crate::core::scene::*;

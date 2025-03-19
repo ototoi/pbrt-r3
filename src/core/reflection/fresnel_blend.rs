@@ -1,6 +1,6 @@
 use crate::core::distribution::*;
 use crate::core::pbrt::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 use crate::core::sampling::*;
 use crate::core::spectrum::*;
 

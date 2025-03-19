@@ -12,7 +12,7 @@ use crate::core::misc::*;
 use crate::core::options::*;
 use crate::core::param_set::*;
 use crate::core::pbrt::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 use crate::core::sampler::*;
 use crate::core::scene::*;
 use crate::core::spectrum::*;

@@ -1,5 +1,5 @@
 use crate::core::pbrt::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 use crate::core::spectrum::*;
 
 use std::sync::Arc;

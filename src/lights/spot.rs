@@ -6,7 +6,7 @@ use crate::core::medium::*;
 use crate::core::param_set::*;
 use crate::core::pbrt::*;
 use crate::core::profile::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 use crate::core::sampling::*;
 use crate::core::shape::*;
 use crate::core::spectrum::*;

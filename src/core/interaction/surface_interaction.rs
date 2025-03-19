@@ -5,7 +5,7 @@ use crate::core::medium::*;
 use crate::core::memory::*;
 use crate::core::pbrt::*;
 use crate::core::primitive::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 use crate::core::shape::*;
 use crate::core::spectrum::*;
 use crate::core::transform::*;

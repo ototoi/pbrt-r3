@@ -1,7 +1,7 @@
 use super::microfacet::*;
 use crate::core::geometry::*;
 use crate::core::pbrt::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 
 fn trowbridge_reitz_sample_11(cos_theta: Float, u1: Float, u2: Float) -> (Float, Float) {
     /* Special case (normal incidence) */

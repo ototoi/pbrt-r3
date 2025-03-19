@@ -6,7 +6,7 @@ use crate::core::interaction::*;
 use crate::core::memory::*;
 use crate::core::misc::*;
 use crate::core::pbrt::*;
-use crate::core::refrection::*;
+use crate::core::reflection::*;
 use crate::core::sampler::*;
 use crate::core::scene::*;
 use crate::core::spectrum::*;

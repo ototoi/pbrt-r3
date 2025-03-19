@@ -26,7 +26,7 @@ pub mod prelude;
 pub mod primitive;
 pub mod profile;
 pub mod quaternion;
-pub mod refrection;
+pub mod reflection;
 pub mod rng;
 pub mod sampler;
 pub mod sampling;

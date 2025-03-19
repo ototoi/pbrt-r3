@@ -1,4 +1,4 @@
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::film::*;
 use crate::core::param_set::*;
 use crate::core::sampler::*;

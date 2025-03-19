@@ -7,7 +7,7 @@ use std::path::Path;
 
 use super::mipmap::*;
 use super::texture::*;
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::imageio::*;
 use crate::core::pbrt::*;
 use crate::core::spectrum::*;

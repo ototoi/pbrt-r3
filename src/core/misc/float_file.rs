@@ -1,6 +1,6 @@
 use log::warn;
 
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::pbrt::*;
 
 use std::fs::read_to_string;

@@ -3,7 +3,7 @@ use super::super::imageio::*;
 use super::film_tile::*;
 use super::splat_tile::*;
 use crate::core::display::*;
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::filter::*;
 use crate::core::geometry::*;
 use crate::core::options::*;

@@ -1,5 +1,5 @@
 use super::display::{Display, DisplayTile};
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use std::sync::Arc;
 use std::sync::RwLock;
 

@@ -1,5 +1,5 @@
 use crate::core::display::*;
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::geometry::*;
 use crate::core::imageio::*;
 use crate::core::pbrt::*;

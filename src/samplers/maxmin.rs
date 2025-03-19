@@ -1,4 +1,4 @@
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::lowdiscrepancy::maxmin::*;
 use crate::core::lowdiscrepancy::*;
 use crate::core::options::*;

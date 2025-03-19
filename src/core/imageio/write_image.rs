@@ -1,5 +1,5 @@
 use super::write_image_exr::*;
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::geometry::*;
 use crate::core::pbrt::*;
 

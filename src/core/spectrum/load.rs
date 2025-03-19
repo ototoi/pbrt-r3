@@ -1,6 +1,6 @@
 use super::sampled::*;
 
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::misc::read_float_file;
 use crate::core::pbrt::*;
 use log::*;

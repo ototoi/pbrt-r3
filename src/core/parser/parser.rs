@@ -2,7 +2,7 @@ use super::common::*;
 use super::read_file::{read_file_with_include, read_file_without_include};
 use super::remove_comment::remove_comment;
 use crate::core::api::ParseContext;
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::param_set::ParamSet;
 use crate::core::pbrt::Float;
 

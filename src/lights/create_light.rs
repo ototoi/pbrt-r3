@@ -1,4 +1,4 @@
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::light::*;
 use crate::core::medium::*;
 use crate::core::param_set::*;

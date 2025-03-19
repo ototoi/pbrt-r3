@@ -1,4 +1,4 @@
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::geometry::*;
 use crate::core::lowdiscrepancy::primes::{PRIMES, PRIME_SUMS};
 use crate::core::lowdiscrepancy::*;

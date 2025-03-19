@@ -1,4 +1,4 @@
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::geometry::*;
 use crate::core::interaction::*;
 use crate::core::light::*;

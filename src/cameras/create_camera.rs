@@ -3,7 +3,7 @@ use super::orthographic::*;
 use super::perspective::*;
 use super::realistic::*;
 use crate::core::camera::*;
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::film::*;
 use crate::core::medium::*;
 use crate::core::param_set::*;

@@ -1,4 +1,4 @@
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::interpolation::*;
 use crate::core::material::*;
 use crate::core::pbrt::*;

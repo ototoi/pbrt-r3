@@ -2,7 +2,7 @@ use super::lightdistrib::*;
 use super::power::*;
 use super::spatial::*;
 use super::uniform::*;
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::scene::*;
 
 use log::*;

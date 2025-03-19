@@ -1,5 +1,5 @@
 use crate::core::camera::*;
-use crate::core::error::PbrtError;
+use crate::core::error::*;
 use crate::core::film::*;
 use crate::core::geometry::*;
 use crate::core::interaction::*;

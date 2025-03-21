@@ -1,5 +1,5 @@
 #[cfg(feature = "profile")]
-mod _impl {
+mod detail {
     use std::collections::HashMap;
     use std::io::Write;
     use std::sync::Arc;
@@ -285,7 +285,7 @@ mod _impl {
 }
 
 #[cfg(not(feature = "profile"))]
-mod _impl {
+mod detail {
     pub fn start_profiler() {}
     pub fn stop_profiler() {}
     pub fn clear_profiler() {}
@@ -299,4 +299,4 @@ mod _impl {
     pub fn report_profiler_results() {}
 }
 
-pub use _impl::*;
+pub use detail::*;

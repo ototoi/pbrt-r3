@@ -770,9 +770,9 @@ pub fn create_triangle_mesh_shape(
     float_textures: &FloatTextureMap,
 ) -> Result<Vec<Arc<dyn Shape>>, PbrtError> {
     let mut vertex_indices = Vec::new();
-    let mut p: Vec<Vector3f> = Vec::new();
+    let mut p: Vec<Point3f> = Vec::new();
     let mut s: Vec<Vector3f> = Vec::new();
-    let mut n: Vec<Vector3f> = Vec::new();
+    let mut n: Vec<Normal3f> = Vec::new();
     let mut uv: Vec<Vector2f> = Vec::new();
 
     if let Some(vi) = params.get_ints_ref("indices") {

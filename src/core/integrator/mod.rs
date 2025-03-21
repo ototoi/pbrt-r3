@@ -1,9 +1,9 @@
-pub mod integrator;
-pub mod mt;
-pub mod sample_lights;
-pub mod sampler_integrator;
+mod integrator;
+mod mt;
+mod sample_lights;
+mod sampler;
 
 pub use integrator::*;
 pub use mt::*;
 pub use sample_lights::*;
-pub use sampler_integrator::*;
+pub use sampler::*;

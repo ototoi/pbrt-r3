@@ -1,20 +1,19 @@
 use super::profile_category::ProfileCategory;
 
-#[derive(Debug)]
-pub struct ProfilePhase {
-    #[allow(dead_code)]
-    reset: bool,
-    pub category_bit: u64,
-}
-
 #[cfg(feature = "profile")]
-mod _impl {
+mod detail {
     use super::super::profiler::set_profiler_state;
     use super::*;
     use crate::core::options::PbrtOptions;
     use std::cell::Cell;
 
     thread_local!(static PROFILER_STATE: Cell<u64> = Cell::new(0));
+
+    #[derive(Debug)]
+    pub struct ProfilePhase {
+        reset: bool,
+        pub category_bit: u64,
+    }
 
     impl ProfilePhase {
         pub fn new(category: ProfileCategory) -> Self {
@@ -56,15 +55,17 @@ mod _impl {
 }
 
 #[cfg(not(feature = "profile"))]
-mod _impl {
+mod detail {
     use super::*;
+
+    #[derive(Debug)]
+    pub struct ProfilePhase {}
 
     impl ProfilePhase {
         pub fn new(_category: ProfileCategory) -> Self {
-            ProfilePhase {
-                reset: false,
-                category_bit: 0,
-            }
+            ProfilePhase {}
         }
     }
 }
+
+pub use detail::ProfilePhase;

@@ -1,7 +1,8 @@
 use super::super::display::MutipleDisplay;
 use super::super::imageio::*;
 use super::film_tile::*;
-use super::splat_tile::*;
+//use super::splat_tile::*;
+use super::splat_image::*;
 use crate::core::display::*;
 use crate::core::error::*;
 use crate::core::filter::*;
@@ -51,8 +52,8 @@ pub struct Film {
     pixels: Mutex<Vec<Pixel>>,
 
     splat_pixels: Mutex<Vec<[Float; 3]>>,
-    splat_tiles: Vec<Arc<RwLock<SplatTile>>>, //pixels_atomic: Vec<PixelAtomic>,
-    splat_size: Vector2i,
+    //splat_tiles: Vec<Arc<RwLock<SplatTile>>>, //pixels_atomic: Vec<PixelAtomic>,
+    //splat_size: Vector2i,
 
     filter_table: Arc<RwLock<[Float; FT_SZ]>>,
 
@@ -120,6 +121,7 @@ impl Film {
         }
 
         let splat_pixels: Vec<[Float; 3]> = vec![[0.0; 3]; cropped_pixel_bounds.area() as usize];
+        /* 
         let mut splat_tiles = Vec::new();
         let splat_size;
         {
@@ -143,6 +145,7 @@ impl Film {
                 }
             }
         }
+        */
         let diagonal = 0.001 * diagonal;
         Film {
             full_resolution: *resolution,
@@ -155,8 +158,8 @@ impl Film {
             pixels: Mutex::new(pixels),
 
             splat_pixels: Mutex::new(splat_pixels),
-            splat_tiles: splat_tiles,
-            splat_size: splat_size,
+            //splat_tiles: splat_tiles,
+            //splat_size: splat_size,
             filter_table: Arc::new(RwLock::new(filter_table)),
             scale,
             max_sample_luminance,
@@ -240,6 +243,17 @@ impl Film {
         }
     }
 
+    pub fn merge_splats(&mut self, img: &SplatImage, splat_scale: Float) {
+        let mut splat_pixels = self.splat_pixels.lock().unwrap();
+        assert_eq!(splat_pixels.len(), img.splat_buffer.len());
+        for i in 0..splat_pixels.len() {
+            for j in 0..3 {
+                splat_pixels[i][j] += splat_scale * img.splat_buffer[i][j];//
+            }
+        }
+    }
+
+    /* 
     pub fn merge_splats(&mut self, splat_scale: Float) {
         for tile in self.splat_tiles.iter() {
             let mut tile = tile.write().unwrap();
@@ -274,6 +288,7 @@ impl Film {
             tile.dirty = false;
         }
     }
+    */
 
     pub fn update_display(&mut self, bounds: &Bounds2i) {
         self.update_display_scale(bounds, 1.0);
@@ -363,6 +378,7 @@ impl Film {
         }
     }
 
+    /* 
     pub fn add_splat(&mut self, p: &Vector2f, v: &Spectrum) {
         let _p = ProfilePhase::new(Prof::SplatFilm);
 
@@ -410,6 +426,7 @@ impl Film {
             splat_tile.dirty = true;
         }
     }
+    */
 
     pub fn clear(&mut self) {
         let mut pixels = self.pixels.lock().unwrap();

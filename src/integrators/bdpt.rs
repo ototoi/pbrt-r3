@@ -1,6 +1,7 @@
 use super::subpath::*;
 use crate::core::camera::*;
 use crate::core::error::*;
+use crate::core::film::splat_image::SplatImage;
 use crate::core::film::*;
 use crate::core::geometry::*;
 use crate::core::integrator::*;
@@ -222,6 +223,8 @@ impl Integrator for BDPTIntegrator {
                             .unwrap()
                             .get_film_tile(tile_bounds);
 
+                        let mut img = SplatImage::new(&cropped_pixel_bounds); 
+
                         for yy in y0..y1 {
                             for xx in x0..x1 {
                                 let p_pixel = Point2i::from((xx, yy));
@@ -317,19 +320,22 @@ impl Integrator for BDPTIntegrator {
                                                     } else {
                                                         l_path
                                                     };
-                                                    let mut film = weight_films
-                                                        .get(&(s, t))
-                                                        .unwrap()
-                                                        .write()
-                                                        .unwrap();
-                                                    film.add_splat(&p_film_new, &value);
+                                                    
+                                                    //let mut film = weight_films
+                                                    //    .get(&(s, t))
+                                                    //    .unwrap()
+                                                    //    .write()
+                                                    //    .unwrap();
+                                                    //film.add_splat(&p_film_new, &value);
+                                                    img.add_splat(&p_film_new, &value);
                                                 }
                                                 if t != 1 {
                                                     l += l_path;
                                                 } else {
-                                                    let mut film =
-                                                        proxy_film.as_ref().lock().unwrap();
-                                                    film.add_splat(&p_film_new, &l_path);
+                                                    //let mut film =
+                                                    //    proxy_film.as_ref().lock().unwrap();
+                                                    //film.add_splat(&p_film_new, &l_path);
+                                                    img.add_splat(&p_film_new, &l_path);
                                                 }
                                             }
                                         }
@@ -353,7 +359,8 @@ impl Integrator for BDPTIntegrator {
                                 let mut prev_time = prev_time.lock().unwrap();
                                 let elapsed = prev_time.elapsed();
                                 if elapsed.as_millis() > UPDATE_DISPLAY_INTERVAL {
-                                    film.merge_splats(1.0 / samples_per_pixel as Float);
+                                    film.merge_splats(&img, 1.0 / samples_per_pixel as Float);
+                                    img.clear();
                                     film.update_display(&cropped_pixel_bounds);
                                     *prev_time = Instant::now();
                                 }
@@ -371,7 +378,7 @@ impl Integrator for BDPTIntegrator {
             let camera = self.camera.as_ref();
             let film = camera.get_film();
             let mut film = film.as_ref().write().unwrap();
-            film.merge_splats(1.0 / samples_per_pixel as Float);
+            //film.merge_splats(1.0 / samples_per_pixel as Float);
             film.update_display(&cropped_pixel_bounds);
             film.render_end();
             film.write_image();
@@ -379,8 +386,9 @@ impl Integrator for BDPTIntegrator {
 
         if visualize_info {
             for film in weight_films.values() {
-                let mut film = film.write().unwrap();
-                film.merge_splats(1.0);
+                let film = film.read().unwrap();
+                //let mut film = film.write().unwrap();
+                //film.merge_splats(1.0);
                 film.write_image();
             }
         }

@@ -1,6 +1,7 @@
 use super::subpath::*;
 use crate::core::camera::*;
 use crate::core::error::*;
+use crate::core::film::splat_image::SplatImage;
 use crate::core::geometry::*;
 use crate::core::integrator::*;
 use crate::core::light::*;
@@ -525,6 +526,8 @@ impl Integrator for MLTIntegrator {
                     n_sample_streams,
                 );
 
+                let mut img = SplatImage::new(&pixel_bounds);
+
                 let (mut l_current, mut p_current) = self.l(
                     scene,
                     &mut arena,
@@ -555,13 +558,13 @@ impl Integrator for MLTIntegrator {
 
                     // Splat both current and proposed samples to _film_
                     {
-                        let mut film = film.write().unwrap();
+                        //let mut film = film.write().unwrap();
                         if accept > 0.0 {
                             let spec = l_proposed * (accept / l_proposed.y());
-                            film.add_splat(&p_proposed, &spec);
+                            img.add_splat(&p_proposed, &spec);
                         }
                         let spec = l_current * ((1.0 - accept) / l_current.y());
-                        film.add_splat(&p_current, &spec);
+                        img.add_splat(&p_current, &spec);
                     }
 
                     // Accept or reject the proposal
@@ -587,7 +590,8 @@ impl Integrator for MLTIntegrator {
                             let elapsed = prev_time.elapsed();
                             if elapsed.as_millis() > UPDATE_DISPLAY_INTERVAL {
                                 let mut film = film.write().unwrap();
-                                film.merge_splats(splat_scale);
+                                film.merge_splats(&img, splat_scale);
+                                img.clear();
                                 let display_scale =
                                     n_total_iterations as Float / iteration as Float;
                                 film.update_display_scale(&pixel_bounds, display_scale);
@@ -595,6 +599,11 @@ impl Integrator for MLTIntegrator {
                             }
                         }
                     }
+                }
+                {
+                    let mut film = film.write().unwrap();
+                    film.merge_splats(&img, splat_scale);
+                    img.clear();
                 }
                 arena.reset();
             });
@@ -604,7 +613,8 @@ impl Integrator for MLTIntegrator {
                 let camera = self.camera.clone();
                 let film = camera.get_film();
                 let mut film = film.write().unwrap();
-                film.merge_splats(splat_scale);
+                //film.merge_splats(&img, splat_scale);
+                //img.clear();
                 film.update_display(&pixel_bounds);
                 film.render_end();
                 film.write_image();

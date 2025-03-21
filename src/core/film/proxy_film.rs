@@ -1,8 +1,9 @@
 use super::film::*;
 use super::film_tile::*;
+use super::splat_image::*;
 use crate::core::geometry::*;
 use crate::core::pbrt::*;
-use crate::core::spectrum::*;
+//use crate::core::spectrum::*;
 
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -33,6 +34,12 @@ impl ProxyFilm {
         film.merge_film_tile(tile);
     }
 
+    pub fn merge_splats(&mut self, img: &SplatImage, splat_scale: Float) {
+        let mut film = self.film.as_ref().write().unwrap();
+        film.merge_splats(img, splat_scale);
+    }
+
+    /* 
     pub fn merge_splats(&mut self, splat_scale: Float) {
         let mut film = self.film.as_ref().write().unwrap();
         film.merge_splats(splat_scale);
@@ -42,6 +49,7 @@ impl ProxyFilm {
         let mut film = self.film.as_ref().write().unwrap();
         film.add_splat(p, v);
     }
+    */
 
     pub fn update_display(&mut self, bounds: &Bounds2i) {
         let mut film = self.film.as_ref().write().unwrap();

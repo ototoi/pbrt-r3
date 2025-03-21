@@ -1,5 +1,5 @@
-use super::functions::*;
 use super::mipmap_weight_lut::MIPMAP_WEIGHT_LUT;
+use super::noise::*;
 use super::texture::*;
 use crate::core::error::*;
 use crate::core::geometry::*;

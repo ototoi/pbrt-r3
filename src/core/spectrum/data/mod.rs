@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub mod cie;
 pub mod rgb_refl;
 pub mod xyz;

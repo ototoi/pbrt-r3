@@ -1,16 +1,20 @@
 pub mod blackbody;
-pub mod config;
-pub mod constants;
-pub mod convert;
-pub mod data;
-pub mod load;
+mod config;
+mod constants;
+mod convert;
+mod data;
+mod load;
 pub mod rgb;
 pub mod sampled;
-pub mod spectrum;
 pub mod utils;
 
 pub use convert::*;
-pub use data::*;
+//pub use data::*;
 pub use rgb::*;
 pub use sampled::*;
-pub use spectrum::*;
+
+#[cfg(not(feature = "sampled-spectrum"))]
+pub type Spectrum = RGBSpectrum;
+
+#[cfg(feature = "sampled-spectrum")]
+pub type Spectrum = SampledSpectrum;

@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use super::data::rgb_refl::*;
 use super::data::xyz::*;
 use super::sampled::SampledSpectrum;

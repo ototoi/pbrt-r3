@@ -3,10 +3,13 @@ use super::triangle::*;
 use crate::core::prelude::*;
 
 use std::collections::HashMap;
+use std::io::BufRead;
 use std::sync::Arc;
 
 use ply_rs::parser;
 use ply_rs::ply;
+
+type FloatTextureMap = HashMap<String, Arc<dyn Texture<Float>>>;
 
 const VERTEX_P: u32 = 1;
 const VERTEX_N: u32 = 2;
@@ -228,7 +231,24 @@ fn create_bound_mesh(
 }
 */
 
-type FloatTextureMap = HashMap<String, Arc<dyn Texture<Float>>>;
+fn create_reader(filanme: &str) -> Result<Box<dyn BufRead>, PbrtError> {
+    let filanme = std::path::PathBuf::from(filanme);
+    let extent = filanme
+        .extension()
+        .ok_or(PbrtError::error("No extension found"))?;
+    let extent = extent.to_string_lossy().into_owned();
+    if extent == "gz" {
+        let f = std::fs::File::open(filanme)?;
+        let reader = std::io::BufReader::new(f);
+        let reader = flate2::read::GzDecoder::new(reader);
+        let reader = std::io::BufReader::new(reader);
+        return Ok(Box::new(reader));
+    } else {
+        let f = std::fs::File::open(filanme)?;
+        let reader = std::io::BufReader::new(f);
+        return Ok(Box::new(reader));
+    }
+}
 
 pub fn create_ply_mesh(
     o2w: &Transform,
@@ -238,134 +258,121 @@ pub fn create_ply_mesh(
     float_textures: &FloatTextureMap,
 ) -> Result<Vec<Arc<dyn Shape>>, PbrtError> {
     let filename = params.find_one_string("filename", "");
-    match std::fs::File::open(filename) {
-        Ok(f) => {
-            let mut reader = std::io::BufReader::new(f);
-            let vertex_parser = parser::Parser::<Vertex>::new();
-            let face_parser = parser::Parser::<Face>::new();
-            let header = vertex_parser.read_header(&mut reader).unwrap();
+    let mut reader = create_reader(&filename)?;
+    let vertex_parser = parser::Parser::<Vertex>::new();
+    let face_parser = parser::Parser::<Face>::new();
+    let header = vertex_parser.read_header(&mut reader).unwrap();
 
-            let mut p = Vec::new();
-            let mut vertex_indices: Vec<u32> = Vec::new();
-            //let mut face_list = Vec::new();
-            let mut n = Vec::new();
-            let s = Vec::new();
-            let mut uv = Vec::new();
-            for (_name, element) in header.elements.iter() {
-                //println!("{:?}", name);
-                // we could also just parse them in sequence, but the file format might change
-                match element.name.as_ref() {
-                    "vertex" => {
-                        let r =
-                            vertex_parser.read_payload_for_element(&mut reader, element, &header);
-                        match r {
-                            Ok(vertex_list) => {
-                                if !vertex_list.is_empty() {
-                                    let flags = vertex_list[0].flags;
-                                    if (flags & VERTEX_P) != 0 {
-                                        p.reserve(vertex_list.len());
-                                        for v in vertex_list.iter() {
-                                            p.push(Vector3f::new(
-                                                v.x as Float,
-                                                v.y as Float,
-                                                v.z as Float,
-                                            ));
-                                        }
-                                    }
-                                    if (flags & VERTEX_N) != 0 {
-                                        n.reserve(vertex_list.len());
-                                        for v in vertex_list.iter() {
-                                            n.push(Normal3f::new(
-                                                v.nx as Float,
-                                                v.ny as Float,
-                                                v.nz as Float,
-                                            ));
-                                        }
-                                    }
-                                    if (flags & VERTEX_UV) != 0 {
-                                        uv.reserve(vertex_list.len());
-                                        for v in vertex_list.iter() {
-                                            uv.push(Vector2f::new(v.u as Float, v.v as Float));
-                                        }
-                                    }
+    let mut p = Vec::new();
+    let mut vertex_indices: Vec<u32> = Vec::new();
+    //let mut face_list = Vec::new();
+    let mut n = Vec::new();
+    let s = Vec::new();
+    let mut uv = Vec::new();
+    for (_name, element) in header.elements.iter() {
+        //println!("{:?}", name);
+        // we could also just parse them in sequence, but the file format might change
+        match element.name.as_ref() {
+            "vertex" => {
+                let r = vertex_parser.read_payload_for_element(&mut reader, element, &header);
+                match r {
+                    Ok(vertex_list) => {
+                        if !vertex_list.is_empty() {
+                            let flags = vertex_list[0].flags;
+                            if (flags & VERTEX_P) != 0 {
+                                p.reserve(vertex_list.len());
+                                for v in vertex_list.iter() {
+                                    p.push(Vector3f::new(v.x as Float, v.y as Float, v.z as Float));
                                 }
                             }
-                            Err(e) => {
-                                return Err(PbrtError::from(e));
+                            if (flags & VERTEX_N) != 0 {
+                                n.reserve(vertex_list.len());
+                                for v in vertex_list.iter() {
+                                    n.push(Normal3f::new(
+                                        v.nx as Float,
+                                        v.ny as Float,
+                                        v.nz as Float,
+                                    ));
+                                }
+                            }
+                            if (flags & VERTEX_UV) != 0 {
+                                uv.reserve(vertex_list.len());
+                                for v in vertex_list.iter() {
+                                    uv.push(Vector2f::new(v.u as Float, v.v as Float));
+                                }
                             }
                         }
                     }
-                    "face" => {
-                        let r = face_parser.read_payload_for_element(&mut reader, element, &header);
-                        match r {
-                            Ok(face_list) => {
-                                vertex_indices.reserve(face_list.len() * 3);
-                                for face in face_list {
-                                    let n_vert = face.vertex_index.len();
-                                    match n_vert {
-                                        3 => {
-                                            for idx in face.vertex_index {
-                                                vertex_indices.push(idx as u32);
-                                            }
-                                        }
-                                        4 => {
-                                            let i0 = face.vertex_index[0] as u32;
-                                            let i1 = face.vertex_index[1] as u32;
-                                            let i2 = face.vertex_index[2] as u32;
-                                            let i3 = face.vertex_index[3] as u32;
-                                            vertex_indices.push(i0);
-                                            vertex_indices.push(i1);
-                                            vertex_indices.push(i2);
-                                            vertex_indices.push(i3);
-                                            vertex_indices.push(i0);
-                                            vertex_indices.push(i2);
-                                        }
-                                        _ => {
-                                            let msg = format!("plymesh: Ignoring face with {} vertices (only triangles and quads are supported!)", n_vert);
-                                            return Err(PbrtError::error(&msg));
-                                        }
+                    Err(e) => {
+                        return Err(PbrtError::from(e));
+                    }
+                }
+            }
+            "face" => {
+                let r = face_parser.read_payload_for_element(&mut reader, element, &header);
+                match r {
+                    Ok(face_list) => {
+                        vertex_indices.reserve(face_list.len() * 3);
+                        for face in face_list {
+                            let n_vert = face.vertex_index.len();
+                            match n_vert {
+                                3 => {
+                                    for idx in face.vertex_index {
+                                        vertex_indices.push(idx as u32);
                                     }
                                 }
-                            }
-                            Err(e) => {
-                                return Err(PbrtError::from(e));
+                                4 => {
+                                    let i0 = face.vertex_index[0] as u32;
+                                    let i1 = face.vertex_index[1] as u32;
+                                    let i2 = face.vertex_index[2] as u32;
+                                    let i3 = face.vertex_index[3] as u32;
+                                    vertex_indices.push(i0);
+                                    vertex_indices.push(i1);
+                                    vertex_indices.push(i2);
+                                    vertex_indices.push(i3);
+                                    vertex_indices.push(i0);
+                                    vertex_indices.push(i2);
+                                }
+                                _ => {
+                                    let msg = format!("plymesh: Ignoring face with {} vertices (only triangles and quads are supported!)", n_vert);
+                                    return Err(PbrtError::error(&msg));
+                                }
                             }
                         }
                     }
-                    _ => {}
+                    Err(e) => {
+                        return Err(PbrtError::from(e));
+                    }
                 }
             }
-
-            let mut mesh = create_triangle_mesh(
-                o2w,
-                w2o,
-                reverse_orientation,
-                vertex_indices,
-                p,
-                s,
-                n,
-                uv,
-                params,
-            );
-            //let mesh =
-            //    create_bound_mesh(o2w, w2o, reverse_orientation, vertex_indices, p, s, n, uv);
-            let alpha_mask_info = get_alpha_texture(params, float_textures);
-            let shadow_alpha_mask_info = get_shadow_alpha_texture(params, float_textures);
-            if alpha_mask_info.is_some() || shadow_alpha_mask_info.is_some() {
-                for i in 0..mesh.len() {
-                    mesh[i] = Arc::new(AlphaMaskShape::new(
-                        &mesh[i],
-                        &alpha_mask_info,
-                        &shadow_alpha_mask_info,
-                    ));
-                }
-            }
-
-            return Ok(mesh);
-        }
-        Err(e) => {
-            let msg = e.to_string();
-            return Err(PbrtError::error(&msg));
+            _ => {}
         }
     }
+
+    let mut mesh = create_triangle_mesh(
+        o2w,
+        w2o,
+        reverse_orientation,
+        vertex_indices,
+        p,
+        s,
+        n,
+        uv,
+        params,
+    );
+    //let mesh =
+    //    create_bound_mesh(o2w, w2o, reverse_orientation, vertex_indices, p, s, n, uv);
+    let alpha_mask_info = get_alpha_texture(params, float_textures);
+    let shadow_alpha_mask_info = get_shadow_alpha_texture(params, float_textures);
+    if alpha_mask_info.is_some() || shadow_alpha_mask_info.is_some() {
+        for i in 0..mesh.len() {
+            mesh[i] = Arc::new(AlphaMaskShape::new(
+                &mesh[i],
+                &alpha_mask_info,
+                &shadow_alpha_mask_info,
+            ));
+        }
+    }
+
+    return Ok(mesh);
 }

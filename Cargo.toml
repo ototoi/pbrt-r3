@@ -25,6 +25,7 @@ sampled-spectrum = []
 [dependencies]
 clap = { version = "4.4.10", features = ["derive", "env"] }
 env_logger = "0.10.1"
+flate2 = "1.1.0"
 image = "0.24.5"
 indicatif = "0.17.3"
 log = "0.4.20"

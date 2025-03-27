@@ -151,7 +151,7 @@ pub fn parse_params(s: &str) -> IResult<&str, ParamSet> {
                     .collect();
                 params.add_blackbody(&new_key, &values);
             }
-            "point" => {
+            "point" | "point2" | "point3" | "point4" => {
                 let s_values = vv.1;
                 let values: Vec<Float> = s_values
                     .iter()
@@ -159,7 +159,7 @@ pub fn parse_params(s: &str) -> IResult<&str, ParamSet> {
                     .collect();
                 params.add_point(&new_key, &values);
             }
-            "vector" => {
+            "vector" | "vector2" | "vector3" | "vector4" => {
                 let s_values = vv.1;
                 let values: Vec<Float> = s_values
                     .iter()

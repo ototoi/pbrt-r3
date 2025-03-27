@@ -8,6 +8,7 @@ use nom::IResult;
 use std::fs;
 use std::io::Error;
 use std::io::ErrorKind;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 pub fn read_file_with_include(path: &str) -> Result<String, Error> {
@@ -35,28 +36,32 @@ pub fn read_file_without_include(path: &str) -> Result<String, Error> {
     }
 }
 
-fn read_file_with_include_core(path: &Path, dirs: &mut Vec<PathBuf>) -> Result<String, Error> {
-    let string_result = fs::read_to_string(path);
-    match string_result {
-        Ok(s) => {
-            return evaluate_include(&s, dirs);
-        }
-        Err(e) => {
-            return Err(e);
-        }
+fn read_to_string(path: &Path) -> Result<String, Error> {
+    let extent = path
+        .extension()
+        .ok_or(std::io::Error::from(std::io::ErrorKind::InvalidInput))?;
+    let extent = extent.to_string_lossy().into_owned();
+    if extent == "gz" {
+        let f = std::fs::File::open(path)?;
+        let reader = std::io::BufReader::new(f);
+        let mut reader = flate2::read::GzDecoder::new(reader);
+        let mut s = String::new();
+        reader.read_to_string(&mut s)?;
+        return Ok(s);
+    } else {
+        let s = fs::read_to_string(path)?;
+        return Ok(s);
     }
 }
 
+fn read_file_with_include_core(path: &Path, dirs: &mut Vec<PathBuf>) -> Result<String, Error> {
+    let s = read_to_string(path)?;
+    return evaluate_include(&s, dirs);
+}
+
 pub fn read_file_without_include_core(path: &Path) -> Result<String, Error> {
-    let string_result = fs::read_to_string(path);
-    match string_result {
-        Ok(s) => {
-            return remove_comment_result(&s);
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let s = read_to_string(path)?;
+    return remove_comment_result(&s);
 }
 
 fn get_next_path(filename: &Path, dirs: &[PathBuf]) -> Option<PathBuf> {

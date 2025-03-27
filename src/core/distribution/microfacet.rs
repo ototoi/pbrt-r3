@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 pub trait MicrofacetDistribution {
     fn d(&self, wh: &Vector3f) -> Float;

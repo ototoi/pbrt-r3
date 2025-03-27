@@ -1,6 +1,6 @@
+use crate::core::base::*;
 use crate::core::geometry::*;
 use crate::core::material::*;
-use crate::core::pbrt::*;
 use crate::core::reflection::*;
 use crate::core::spectrum::*;
 

@@ -1,10 +1,4 @@
-use crate::core::error::*;
-use crate::core::interaction::*;
-use crate::core::param_set::*;
-use crate::core::pbrt::*;
-use crate::core::shape::*;
-use crate::core::spectrum::*;
-use crate::core::texture::*;
+use crate::core::prelude::*;
 
 use std::ops::*;
 use std::sync::Arc;

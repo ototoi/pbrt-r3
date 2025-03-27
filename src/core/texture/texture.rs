@@ -1,5 +1,5 @@
+use crate::core::base::*;
 use crate::core::interaction::*;
-use crate::core::pbrt::*;
 
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;

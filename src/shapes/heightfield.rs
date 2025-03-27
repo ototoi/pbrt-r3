@@ -1,7 +1,5 @@
 use super::triangle::create_triangle_mesh;
-use crate::core::error::*;
-use crate::core::param_set::*;
-use crate::core::shape::*;
+use crate::core::prelude::*;
 
 use std::sync::Arc;
 

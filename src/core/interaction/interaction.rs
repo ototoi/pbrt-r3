@@ -1,9 +1,9 @@
 use super::base_interaction::BaseInteraction;
 use super::medium_interaction::MediumInteraction;
 use super::surface_interaction::SurfaceInteraction;
+use crate::core::base::*;
 use crate::core::geometry::*;
 use crate::core::medium::*;
-use crate::core::pbrt::*;
 
 use std::sync::Arc;
 

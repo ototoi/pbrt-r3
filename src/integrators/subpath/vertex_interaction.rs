@@ -1,9 +1,4 @@
-use crate::core::camera::*;
-use crate::core::geometry::*;
-use crate::core::interaction::*;
-use crate::core::light::*;
-use crate::core::medium::*;
-use crate::core::pbrt::*;
+use crate::core::prelude::*;
 
 use std::sync::Arc;
 

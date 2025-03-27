@@ -1,7 +1,7 @@
+use crate::core::base::*;
 use crate::core::error::*;
 use crate::core::interpolation::*;
 use crate::core::material::*;
-use crate::core::pbrt::*;
 use crate::core::reflection::*;
 use crate::core::spectrum::*;
 

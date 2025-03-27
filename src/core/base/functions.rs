@@ -1,4 +1,4 @@
-use crate::core::pbrt::Float;
+use crate::core::base::Float;
 
 pub const MACHINE_EPSILON: Float = Float::EPSILON * 0.5;
 

@@ -1,6 +1,6 @@
+use crate::core::base::Float;
 use crate::core::param_set::wellknown_params;
 use crate::core::param_set::ParamSet;
-use crate::core::pbrt::Float;
 use nom::bytes;
 use nom::character;
 use nom::multi;

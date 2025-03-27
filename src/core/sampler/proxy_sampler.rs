@@ -1,6 +1,6 @@
 use super::sampler::Sampler;
+use crate::core::base::*;
 use crate::core::camera::*;
-use crate::core::pbrt::*;
 
 use std::sync::Arc;
 use std::sync::RwLock;

@@ -1,5 +1,5 @@
+use crate::core::base::*;
 use crate::core::medium::*;
-use crate::core::pbrt::*;
 use std::cell::Cell;
 use std::sync::Arc;
 

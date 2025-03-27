@@ -1,5 +1,5 @@
 use super::ray::Ray;
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 #[derive(Default, Clone)]
 pub struct RayDifferential {

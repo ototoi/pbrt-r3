@@ -1,5 +1,5 @@
+use crate::core::base::Float;
 use crate::core::misc::*;
-use crate::core::pbrt::Float;
 
 use std::ops;
 

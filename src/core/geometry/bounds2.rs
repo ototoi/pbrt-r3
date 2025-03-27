@@ -1,5 +1,5 @@
 use super::Vector2;
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Bounds2<T> {

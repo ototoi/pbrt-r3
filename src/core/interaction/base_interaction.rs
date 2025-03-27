@@ -1,6 +1,6 @@
+use crate::core::base::*;
 use crate::core::geometry::*;
 use crate::core::medium::*;
-use crate::core::pbrt::*;
 
 #[derive(Clone, Debug)]
 pub struct BaseInteraction {

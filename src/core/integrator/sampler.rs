@@ -1,11 +1,11 @@
 use super::integrator::*;
+use crate::core::base::*;
 use crate::core::camera::*;
 use crate::core::film::*;
 use crate::core::geometry::*;
 use crate::core::interaction::*;
 use crate::core::memory::*;
 use crate::core::misc::*;
-use crate::core::pbrt::*;
 use crate::core::reflection::*;
 use crate::core::sampler::*;
 use crate::core::scene::*;

@@ -1,4 +1,4 @@
-pub use crate::core::pbrt::*;
+pub use crate::core::base::*;
 pub use crate::core::rng::*; // Import RNG type
 
 pub fn shuffle_array<T: Copy>(samp: &mut [T], count: usize, dim: u32, rng: &mut RNG) {

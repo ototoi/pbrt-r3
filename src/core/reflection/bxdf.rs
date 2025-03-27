@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 use crate::core::reflection::*;
 use crate::core::sampling::*;
 use crate::core::spectrum::*;

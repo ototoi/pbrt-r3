@@ -1,5 +1,5 @@
+use crate::core::base::*;
 use crate::core::interaction::SurfaceInteraction;
-use crate::core::pbrt::*;
 use crate::core::reflection::BSDF;
 
 pub struct MemoryArena {}

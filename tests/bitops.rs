@@ -1,6 +1,6 @@
 // Imported from bitops.cpp
 
-use pbrt_r3::core::pbrt::*;
+use pbrt_r3::core::base::*;
 
 #[test]
 fn log2_basics() {

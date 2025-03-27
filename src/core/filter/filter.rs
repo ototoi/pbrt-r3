@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 pub trait Filter {
     fn evaluate(&self, p: &Point2f) -> Float;

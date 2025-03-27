@@ -1,7 +1,7 @@
 use super::equal_counts::*;
 use super::node::*;
 use super::types::*;
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 use std::sync::Arc;
 

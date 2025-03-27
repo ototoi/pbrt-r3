@@ -7,9 +7,9 @@ use std::path::Path;
 
 use super::mipmap::*;
 use super::texture::*;
+use crate::core::base::*;
 use crate::core::error::*;
 use crate::core::imageio::*;
-use crate::core::pbrt::*;
 use crate::core::spectrum::*;
 
 use crypto::digest::Digest;

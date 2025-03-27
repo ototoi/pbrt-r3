@@ -1,20 +1,7 @@
 use super::scoped_assignment::*;
 use super::vertex::*;
 use super::vertex_interaction::*;
-use crate::core::camera::*;
-use crate::core::geometry::*;
-use crate::core::light::*;
-use crate::core::material::*;
-use crate::core::medium::*;
-use crate::core::memory::*;
-use crate::core::pbrt::*;
-use crate::core::profile::*;
-use crate::core::reflection::*;
-use crate::core::sampler::*;
-use crate::core::sampling::*;
-use crate::core::scene::*;
-use crate::core::spectrum::*;
-use crate::core::stats::*;
+use crate::core::prelude::*;
 
 use std::ops::Deref;
 use std::sync::Arc;

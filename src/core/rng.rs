@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 const PCG32_DEFAULT_STATE: u64 = 0x853c49e6748fea9b;
 const PCG32_DEFAULT_STREAM: u64 = 0xda3e39cb94b95bdb;

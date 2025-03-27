@@ -1,6 +1,6 @@
 use super::phase_function::*;
+use crate::core::base::*;
 use crate::core::geometry::*;
-use crate::core::pbrt::*;
 use crate::core::profile::*;
 
 pub struct HenyeyGreenstein {

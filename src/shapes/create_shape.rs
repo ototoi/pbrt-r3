@@ -10,11 +10,7 @@ use super::paraboloid::create_paraboloid_shape;
 use super::plymesh::create_ply_mesh;
 use super::sphere::create_sphere_shape;
 use super::triangle::create_triangle_mesh_shape;
-use crate::core::error::*;
-use crate::core::param_set::*;
-use crate::core::pbrt::*;
-use crate::core::shape::*;
-use crate::core::texture::*;
+use crate::core::prelude::*;
 
 use std::collections::HashMap;
 use std::sync::Arc;

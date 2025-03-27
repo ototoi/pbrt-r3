@@ -1,4 +1,4 @@
-use crate::core::pbrt::Float;
+use crate::core::base::Float;
 
 #[inline]
 pub fn float_to_bits_32(f: f32) -> u32 {

@@ -1,7 +1,7 @@
 use super::matrix4x4::Matrix4x4;
+use crate::core::base::*;
 use crate::core::geometry::*;
 use crate::core::interaction::*;
-use crate::core::pbrt::*;
 
 use std::ops;
 

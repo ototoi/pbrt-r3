@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 // To convert matrices from the "(t, m, s)-Nets and Maximized Minimum
 // Distance" paper:

@@ -1,6 +1,6 @@
 use super::microfacet::*;
+use crate::core::base::*;
 use crate::core::geometry::*;
-use crate::core::pbrt::*;
 use crate::core::reflection::*;
 
 fn beckmann_sample_11(cos_theta_i: Float, u1: Float, u2: Float) -> (Float, Float) {

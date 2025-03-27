@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 use crate::core::sampling::*;
 
 use std::sync::Arc;

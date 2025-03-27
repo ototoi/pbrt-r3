@@ -1,5 +1,5 @@
 use super::wellknown_params;
-use crate::core::pbrt::*;
+use crate::core::base::*;
 use crate::core::spectrum::*;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;

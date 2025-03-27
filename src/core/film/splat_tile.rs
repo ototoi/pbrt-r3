@@ -1,5 +1,5 @@
+use crate::core::base::*;
 use crate::core::geometry::*;
-use crate::core::pbrt::*;
 
 pub const ST_W: usize = 16;
 pub const ST_SZ: usize = ST_W * ST_W;

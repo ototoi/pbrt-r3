@@ -2,7 +2,7 @@ use super::convert::*;
 use super::data::*;
 use super::sampled::*;
 use super::utils::*;
-use crate::core::pbrt::*;
+use crate::core::base::*;
 use std::ops;
 
 const YWEIGHT: [Float; 3] = [0.212671, 0.715160, 0.072169];

@@ -1,5 +1,5 @@
 use super::param_set::ParamSet;
-use crate::core::pbrt::*;
+use crate::core::base::*;
 use crate::core::spectrum::*;
 use crate::core::texture::*;
 

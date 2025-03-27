@@ -1,4 +1,5 @@
 pub use super::api::*;
+pub use super::base::*;
 pub use super::camera::*;
 pub use super::display::*;
 pub use super::distribution::*;
@@ -21,7 +22,6 @@ pub use super::misc::*;
 pub use super::options::*;
 pub use super::param_set::*;
 pub use super::parser::*;
-pub use super::pbrt::*;
 pub use super::primitive::*;
 pub use super::profile::*;
 pub use super::quaternion::*;

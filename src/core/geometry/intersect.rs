@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 fn toa(v: &Vector3f) -> [Float; 3] {
     [v.x, v.y, v.z]

@@ -1,6 +1,6 @@
 include!(concat!(env!("OUT_DIR"), "/spectrum_utils.rs"));
 
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 pub fn spectrum_samples_sorted(lambda: &[Float], _vals: &[Float]) -> bool {
     for i in 0..(lambda.len() - 1) {

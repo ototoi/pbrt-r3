@@ -1,6 +1,6 @@
+use crate::core::base::*;
 use crate::core::error::*;
 use crate::core::geometry::*;
-use crate::core::pbrt::*;
 
 use image::*;
 

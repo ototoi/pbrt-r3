@@ -1,6 +1,6 @@
 use super::read_image_pfm::*;
+use crate::core::base::*;
 use crate::core::error::*;
-use crate::core::pbrt::*;
 use crate::core::spectrum::*;
 
 use image::*;

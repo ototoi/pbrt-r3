@@ -1,8 +1,4 @@
-use crate::core::geometry::*;
-use crate::core::interaction::*;
-use crate::core::pbrt::*;
-use crate::core::shape::*;
-use crate::core::texture::*;
+use crate::core::prelude::*;
 
 use std::sync::Arc;
 

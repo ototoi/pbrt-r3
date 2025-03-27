@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 pub trait PhaseFunction: std::fmt::Display {
     fn p(&self, wo: &Vector3f, wi: &Vector3f) -> Float;

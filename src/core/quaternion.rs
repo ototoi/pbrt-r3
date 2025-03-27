@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 use crate::core::transform::*;
 use std::ops;
 

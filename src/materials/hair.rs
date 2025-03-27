@@ -1,9 +1,9 @@
+use crate::core::base::*;
 use crate::core::error::*;
 use crate::core::interaction::*;
 use crate::core::material::*;
 use crate::core::memory::*;
 use crate::core::param_set::*;
-use crate::core::pbrt::*;
 use crate::core::reflection::*;
 use crate::core::spectrum::*;
 use crate::core::texture::*;
@@ -377,10 +377,10 @@ impl HairBSDF {
         // Compute the transmittance _T_ of a single path through the cylinder
         let t = Spectrum::exp(&(-sigma_a * (2.0 * cos_gamma_t / cos_theta_t)));
         let ap = ap(cos_theta_o, eta, h, &t);
-        let ap_pdf: Vec<_> = ap.iter().map(|s| s.y()).collect();
+        let ap_pdf: Vec<Float> = ap.iter().map(|s| s.y()).collect();
         let sum_y = ap_pdf.iter().sum::<Float>();
-        let ap_pdf: Vec<_> = ap_pdf.iter().map(|c| c / sum_y).collect();
-        let ap_pdf = ap_pdf.iter().map(|x| x.max(0.0)).collect::<Vec<_>>(); //pbrt-r3
+        let ap_pdf: Vec<Float> = ap_pdf.iter().map(|c| c / sum_y).collect();
+        let ap_pdf: Vec<Float> = ap_pdf.iter().map(|x| x.max(0.0)).collect(); //pbrt-r3
         let ap_pdf: [Float; P_MAX + 1] = ap_pdf.try_into().unwrap();
         return ap_pdf;
     }

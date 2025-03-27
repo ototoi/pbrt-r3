@@ -1,4 +1,5 @@
 pub mod api;
+pub mod base;
 pub mod camera;
 pub mod display;
 pub mod distribution;
@@ -21,7 +22,6 @@ pub mod misc;
 pub mod options;
 pub mod param_set;
 pub mod parser;
-pub mod pbrt;
 pub mod prelude;
 pub mod primitive;
 pub mod profile;

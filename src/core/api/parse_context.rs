@@ -1,5 +1,5 @@
+use crate::core::base::*;
 use crate::core::param_set::*;
-use crate::core::pbrt::*;
 
 //Sized
 pub trait ParseContext {

@@ -1,8 +1,4 @@
-use crate::core::error::*;
-use crate::core::light::*;
-use crate::core::medium::*;
-use crate::core::param_set::*;
-use crate::core::shape::*;
+use crate::core::prelude::*;
 
 use super::diffuse::*;
 use super::distant::*;

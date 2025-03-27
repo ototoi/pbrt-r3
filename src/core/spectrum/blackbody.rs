@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 pub fn blackbody(lambda: &[f64], t: f64) -> Vec<f64> {
     let n = lambda.len();

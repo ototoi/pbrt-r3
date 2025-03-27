@@ -1,5 +1,5 @@
 use super::{base_sampler::BaseSampler, sampler::Sampler};
-use crate::core::pbrt::*;
+use crate::core::base::*;
 use crate::core::profile::*;
 use crate::core::rng::*;
 

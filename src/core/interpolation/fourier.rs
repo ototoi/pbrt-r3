@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 // Fourier Interpolation Definitions
 pub fn evaluate_fourier(a: &[Float], cos_phi: Float) -> Float {

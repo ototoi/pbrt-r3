@@ -1,7 +1,6 @@
 use super::vertex::*;
 use super::vertex_interaction::*;
-use crate::core::light::*;
-use crate::core::reflection::*;
+use crate::core::prelude::*;
 
 use std::ops::Deref;
 use std::sync::Arc;

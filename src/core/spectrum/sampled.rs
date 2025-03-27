@@ -6,8 +6,8 @@ use super::data::*;
 use super::load::*;
 use super::rgb::RGBSpectrum;
 use super::utils::*;
+use crate::core::base::*;
 use crate::core::error::*;
-use crate::core::pbrt::*;
 
 use std::ops;
 

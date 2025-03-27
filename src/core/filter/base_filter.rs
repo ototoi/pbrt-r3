@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 pub struct BaseFilter {
     pub radius: Vector2f,

@@ -1,7 +1,4 @@
-use crate::core::error::*;
-use crate::core::param_set::*;
-use crate::core::pbrt::*;
-use crate::core::shape::*;
+use crate::core::prelude::*;
 
 use std::cell::RefCell;
 use std::collections::HashMap;

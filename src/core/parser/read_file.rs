@@ -23,7 +23,7 @@ pub fn read_file_with_include(path: &str) -> Result<String, Error> {
         ss += &print_work_dir_end();
         return Ok(ss);
     } else {
-        return Err(Error::new(ErrorKind::NotFound, "File is not found."));
+        return Err(Error::from(ErrorKind::NotFound));
     }
 }
 
@@ -32,14 +32,14 @@ pub fn read_file_without_include(path: &str) -> Result<String, Error> {
     if path.exists() {
         return read_file_without_include_core(path);
     } else {
-        return Err(Error::new(ErrorKind::NotFound, "File is not found."));
+        return Err(Error::from(ErrorKind::NotFound));
     }
 }
 
 fn read_to_string(path: &Path) -> Result<String, Error> {
     let extent = path
         .extension()
-        .ok_or(std::io::Error::from(std::io::ErrorKind::InvalidInput))?;
+        .ok_or(Error::from(ErrorKind::InvalidInput))?;
     let extent = extent.to_string_lossy().into_owned();
     if extent == "gz" {
         let f = std::fs::File::open(path)?;
@@ -134,7 +134,7 @@ fn evaluate_include(s: &str, dirs: &mut Vec<PathBuf>) -> Result<String, Error> {
                 dirs.pop();
                 ss += &print_work_dir_end();
             } else {
-                return Err(Error::new(ErrorKind::NotFound, "File is not found."));
+                return Err(Error::from(ErrorKind::NotFound));
             }
         } else {
             ss += &s;

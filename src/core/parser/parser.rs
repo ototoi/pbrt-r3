@@ -13,9 +13,57 @@ use nom::number;
 use nom::sequence;
 use nom::IResult;
 
+fn search_pbrt_file(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    let entries: Vec<std::fs::DirEntry> = std::fs::read_dir(dir)
+        .unwrap()
+        .filter_map(|f| f.ok())
+        .collect();
+    for entry in entries {
+        let path = entry.path();
+        if path.is_file() {
+            let filename = path.file_name().unwrap().to_str().unwrap();
+            if filename.ends_with(".pbrt") {
+                return Some(path);
+            }
+        }
+    }
+    return None;
+}
+
+fn pbrt_parse_targz(filename: &str, context: &mut dyn ParseContext) -> Result<(), PbrtError> {
+    let tmp_dir = tempfile::tempdir()?;
+    let tmp_dir_path = tmp_dir.path();
+    //println!("Extracting {} to {:?}", filename, tmp_dir_path);
+
+    let tar_gz = std::fs::File::open(filename)?;
+    let tar = flate2::read::GzDecoder::new(tar_gz);
+    let mut archive = tar::Archive::new(tar);
+    archive.unpack(tmp_dir_path)?;
+
+    let entries: Vec<std::fs::DirEntry> = std::fs::read_dir(tmp_dir_path)
+        .unwrap()
+        .filter_map(|f| f.ok())
+        .collect();
+    for entry in entries {
+        let path = entry.path();
+        if let Some(path) = search_pbrt_file(&path) {
+            let path = path.to_str().unwrap();
+            let s = read_file_with_include(path)?;
+            return pbrt_parse_string_core(&s, context);
+        }
+    }
+    return Err(PbrtError::from(std::io::Error::from(
+        std::io::ErrorKind::NotFound,
+    )));
+}
+
 pub fn pbrt_parse_file(filename: &str, context: &mut dyn ParseContext) -> Result<(), PbrtError> {
-    let s = read_file_with_include(filename)?;
-    return pbrt_parse_string_core(&s, context);
+    if filename.ends_with(".tar.gz") {
+        return pbrt_parse_targz(filename, context);
+    } else {
+        let s = read_file_with_include(filename)?;
+        return pbrt_parse_string_core(&s, context);
+    }
 }
 
 pub fn pbrt_parse_string(s: &str, context: &mut dyn ParseContext) -> Result<(), PbrtError> {

@@ -1,5 +1,5 @@
 use super::wellknown_params;
-use crate::core::pbrt::types::*;
+use crate::core::base::*;
 use crate::core::spectrum::*;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
@@ -185,9 +185,13 @@ impl ParamSet {
     pub fn add_floats(&mut self, key: &str, v: &[Float]) {
         let t = get_key_type(key);
         match &t as &str {
-            "point" => add_values(&mut self.keys, &mut self.points, key, v),
+            "point" | "point2" | "point3" | "point4" => {
+                add_values(&mut self.keys, &mut self.points, key, v)
+            }
             "normal" => add_values(&mut self.keys, &mut self.points, key, v),
-            "vector" => add_values(&mut self.keys, &mut self.points, key, v),
+            "vector" | "vector2" | "vector3" | "vector4" => {
+                add_values(&mut self.keys, &mut self.points, key, v)
+            }
             "color" => self.add_color(key, v),
             "rgb" => self.add_color(key, v),
             "blackbody" => add_values(&mut self.keys, &mut self.floats, key, v),

@@ -1,6 +1,6 @@
 use super::parse_context::*;
+use crate::core::base::*;
 use crate::core::param_set::*;
-use crate::core::pbrt::*;
 
 use std::cell::{Cell, RefCell};
 use std::io::Write;
@@ -29,9 +29,9 @@ fn get_type(s: &str) -> &str {
         "texture" => "s",
         "bool" => "b",
         "integer" => "i",
-        "point" => "p",
+        "point" | "point2" | "point3" | "point4" => "p",
         "normal" => "p",
-        "vector" => "p",
+        "vector" | "vector2" | "vector3" | "vector4" => "p",
         "color" => "p",
         "rgb" => "p",
         "blackbody" => "f",

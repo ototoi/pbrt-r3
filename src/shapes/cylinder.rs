@@ -1,10 +1,4 @@
-use crate::core::efloat::EFloat;
-use crate::core::error::*;
-use crate::core::geometry::*;
-use crate::core::interaction::*;
-use crate::core::param_set::*;
-use crate::core::pbrt::*;
-use crate::core::shape::*;
+use crate::core::prelude::*;
 
 const MACHINE_EPSILON: Float = Float::EPSILON * 0.5;
 const GAMMA3: Float = (3.0 * MACHINE_EPSILON) / (1.0 - (3.0 * MACHINE_EPSILON));

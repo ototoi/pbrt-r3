@@ -1,5 +1,5 @@
+use crate::core::base::*;
 use crate::core::misc::*;
-use crate::core::pbrt::*;
 
 #[inline]
 pub fn offset_ray_origin(p: &Point3f, p_error: &Vector3f, n: &Normal3f, w: &Vector3f) -> Point3f {

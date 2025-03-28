@@ -1,8 +1,8 @@
+use crate::core::base::*;
 use crate::core::geometry::*;
 use crate::core::interaction::*;
 use crate::core::light::*;
 use crate::core::memory::*;
-use crate::core::pbrt::*;
 use crate::core::profile::*;
 use crate::core::reflection::*;
 use crate::core::sampler::*;

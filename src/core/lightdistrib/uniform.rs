@@ -1,5 +1,5 @@
 use super::lightdistrib::*;
-use crate::core::pbrt::*;
+use crate::core::base::*;
 use crate::core::sampling::*;
 use crate::core::scene::*;
 

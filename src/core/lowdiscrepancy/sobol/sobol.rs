@@ -1,5 +1,5 @@
 use super::sobolmatrices::*;
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 #[inline]
 pub fn sobol_interval_to_index(m: u32, frame: u64, p: &Point2i) -> u64 {

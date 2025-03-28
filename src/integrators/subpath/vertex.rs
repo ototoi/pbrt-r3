@@ -1,14 +1,5 @@
 use super::vertex_interaction::*;
-use crate::core::camera::*;
-use crate::core::geometry::*;
-use crate::core::interaction::*;
-use crate::core::light::*;
-use crate::core::material::*;
-use crate::core::pbrt::*;
-use crate::core::reflection::*;
-use crate::core::sampling::*;
-use crate::core::scene::*;
-use crate::core::spectrum::*;
+use crate::core::prelude::*;
 
 use std::collections::HashMap;
 use std::ops::Deref;

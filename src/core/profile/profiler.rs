@@ -1,5 +1,5 @@
 #[cfg(feature = "profile")]
-mod _impl {
+mod detail {
     use std::collections::HashMap;
     use std::io::Write;
     use std::sync::Arc;
@@ -8,7 +8,7 @@ mod _impl {
     use std::thread::ThreadId;
     use std::time::Duration;
 
-    use crate::core::pbrt::ProfileCategory;
+    use crate::core::base::ProfileCategory;
 
     type ThreadStateMap = HashMap<ThreadId, u64>;
     static THREAD_STATE_MAP: LazyLock<RwLock<ThreadStateMap>> =
@@ -285,7 +285,7 @@ mod _impl {
 }
 
 #[cfg(not(feature = "profile"))]
-mod _impl {
+mod detail {
     pub fn start_profiler() {}
     pub fn stop_profiler() {}
     pub fn clear_profiler() {}
@@ -299,4 +299,4 @@ mod _impl {
     pub fn report_profiler_results() {}
 }
 
-pub use _impl::*;
+pub use detail::*;

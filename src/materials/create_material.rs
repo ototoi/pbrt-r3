@@ -11,9 +11,7 @@ use super::substrate::*;
 use super::subsurface::*;
 use super::translucent::*;
 use super::uber::*;
-use crate::core::error::*;
-use crate::core::material::*;
-use crate::core::param_set::*;
+use crate::core::prelude::*;
 
 use std::sync::Arc;
 

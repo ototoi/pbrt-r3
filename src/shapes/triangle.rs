@@ -1,14 +1,5 @@
 use super::alphamask::*;
-use crate::core::error::*;
-use crate::core::geometry::*;
-use crate::core::interaction::*;
-use crate::core::param_set::*;
-use crate::core::pbrt::*;
-use crate::core::profile::*;
-use crate::core::sampling::*;
-use crate::core::shape::*;
-use crate::core::stats::*;
-use crate::core::texture::*;
+use crate::core::prelude::*;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -770,9 +761,9 @@ pub fn create_triangle_mesh_shape(
     float_textures: &FloatTextureMap,
 ) -> Result<Vec<Arc<dyn Shape>>, PbrtError> {
     let mut vertex_indices = Vec::new();
-    let mut p: Vec<Vector3f> = Vec::new();
+    let mut p: Vec<Point3f> = Vec::new();
     let mut s: Vec<Vector3f> = Vec::new();
-    let mut n: Vec<Vector3f> = Vec::new();
+    let mut n: Vec<Normal3f> = Vec::new();
     let mut uv: Vec<Vector2f> = Vec::new();
 
     if let Some(vi) = params.get_ints_ref("indices") {

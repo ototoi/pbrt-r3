@@ -1,12 +1,4 @@
-use crate::core::error::*;
-use crate::core::imageio::*;
-use crate::core::interaction::*;
-use crate::core::param_set::*;
-use crate::core::pbrt::*;
-use crate::core::profile::*;
-use crate::core::shape::*;
-use crate::core::spectrum::*;
-use crate::core::texture::*;
+use crate::core::prelude::*;
 
 use std::marker::PhantomData;
 use std::path::Path;

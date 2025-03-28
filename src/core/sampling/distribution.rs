@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 #[derive(Debug, Default, Clone)]
 pub struct Distribution1D {

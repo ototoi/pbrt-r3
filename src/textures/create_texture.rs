@@ -11,12 +11,7 @@ use super::scale::*;
 use super::uv::*;
 use super::windy::*;
 use super::wrinkled::*;
-use crate::core::error::*;
-use crate::core::param_set::*;
-use crate::core::pbrt::*;
-use crate::core::shape::*;
-use crate::core::spectrum::*;
-use crate::core::texture::*;
+use crate::core::prelude::*;
 
 use std::sync::Arc;
 

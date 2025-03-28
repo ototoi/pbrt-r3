@@ -1,7 +1,7 @@
 //backport display.cpp in the pbrt-v4
 
-//use crate::core::pbrt::*;
-use crate::core::error::*;
+//use crate::core::base::*;
+use crate::core::prelude::*;
 
 use log::*;
 use std::{

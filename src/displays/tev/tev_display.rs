@@ -1,6 +1,5 @@
 use super::display::*;
-use crate::core::display::{Display, DisplayTile};
-use crate::core::error::*;
+use crate::core::prelude::*;
 
 #[derive(Default)]
 pub struct TevDisplay {

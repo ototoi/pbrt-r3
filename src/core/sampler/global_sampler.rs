@@ -1,6 +1,6 @@
 use super::base_sampler::BaseSampler;
 use super::sampler::Sampler;
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct BaseGlobalSampler {

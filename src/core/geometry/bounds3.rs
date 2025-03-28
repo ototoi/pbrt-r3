@@ -1,7 +1,7 @@
 use super::intersect::*;
 use super::vector3::*;
+use crate::core::base::*;
 use crate::core::geometry::*;
-use crate::core::pbrt::*;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Bounds3<T> {

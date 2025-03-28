@@ -1,7 +1,7 @@
 use super::write_image_exr::*;
+use crate::core::base::*;
 use crate::core::error::*;
 use crate::core::geometry::*;
-use crate::core::pbrt::*;
 
 use image::*;
 use std::path::Path;

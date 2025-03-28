@@ -1,7 +1,7 @@
+use crate::core::base::*;
 use crate::core::interaction::*;
 use crate::core::material::*;
 use crate::core::memory::*;
-use crate::core::pbrt::*;
 use crate::core::reflection::*;
 use crate::core::scene::*;
 use crate::core::spectrum::*;

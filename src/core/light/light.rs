@@ -1,8 +1,8 @@
 use super::area_light::AreaLight;
 use super::visibility_tester::VisibilityTester;
+use crate::core::base::*;
 use crate::core::geometry::*;
 use crate::core::interaction::*;
-use crate::core::pbrt::*;
 use crate::core::scene::*;
 use crate::core::spectrum::*;
 

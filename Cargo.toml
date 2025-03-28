@@ -1,6 +1,6 @@
 [package]
 name = "pbrt-r3"
-version = "3.1.1"
+version = "3.1.2"
 edition = "2021"
 build = "build/main.rs"
 default-run = "pbrt-r3"
@@ -25,6 +25,7 @@ sampled-spectrum = []
 [dependencies]
 clap = { version = "4.4.10", features = ["derive", "env"] }
 env_logger = "0.10.1"
+flate2 = "1.1.0"
 image = "0.24.5"
 indicatif = "0.17.3"
 log = "0.4.20"
@@ -34,6 +35,8 @@ rayon = "1.7.0"
 rust-crypto = "0.2.36"
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0.104"
+tar = "0.4.44"
+tempfile = "3.19.1"
 
 [dev-dependencies]
 libm = "0.2.11"

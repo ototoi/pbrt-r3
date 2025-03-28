@@ -1,4 +1,4 @@
-use crate::core::pbrt::*;
+use crate::core::base::*;
 
 pub fn catmull_rom_weights(nodes: &[Float], x: Float) -> Option<(i32, [Float; 4])> {
     let size = nodes.len();

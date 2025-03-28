@@ -1,4 +1,4 @@
-use crate::core::pbrt::Float;
+use crate::core::base::Float;
 
 pub fn xyz_to_rgb(xyz: &[Float]) -> [Float; 3] {
     let mut rgb: [Float; 3] = [0.0; 3];

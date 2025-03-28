@@ -1,10 +1,6 @@
 use super::grid::GridDensityMedium;
 use super::homogeneous::HomogeneousMedium;
-use crate::core::medium::*;
-use crate::core::param_set::*;
-use crate::core::pbrt::*;
-use crate::core::spectrum::*;
-use crate::core::transform::*;
+use crate::core::prelude::*;
 
 use std::sync::Arc;
 

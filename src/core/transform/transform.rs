@@ -61,31 +61,9 @@ impl Transform {
     }
 
     pub fn rotate(theta: Float, x: Float, y: Float, z: Float) -> Transform {
-        let a = Vector3f::new(x, y, z).normalize();
-        let sin_theta = Float::sin(radians(theta));
-        let cos_theta = Float::cos(radians(theta));
-        let mut m = Matrix4x4::identity();
-        // Compute rotation of first basis vector
-        m.m[4 * 0 + 0] = a.x * a.x + (1.0 - a.x * a.x) * cos_theta;
-        m.m[4 * 0 + 1] = a.x * a.y * (1.0 - cos_theta) - a.z * sin_theta;
-        m.m[4 * 0 + 2] = a.x * a.z * (1.0 - cos_theta) + a.y * sin_theta;
-        m.m[4 * 0 + 3] = 0.0;
-
-        // Compute rotations of second and third basis vectors
-        m.m[4 * 1 + 0] = a.x * a.y * (1.0 - cos_theta) + a.z * sin_theta;
-        m.m[4 * 1 + 1] = a.y * a.y + (1.0 - a.y * a.y) * cos_theta;
-        m.m[4 * 1 + 2] = a.y * a.z * (1.0 - cos_theta) - a.x * sin_theta;
-        m.m[4 * 1 + 3] = 0.0;
-
-        m.m[4 * 2 + 0] = a.x * a.z * (1.0 - cos_theta) - a.y * sin_theta;
-        m.m[4 * 2 + 1] = a.y * a.z * (1.0 - cos_theta) + a.x * sin_theta;
-        m.m[4 * 2 + 2] = a.z * a.z + (1.0 - a.z * a.z) * cos_theta;
-        m.m[4 * 2 + 3] = 0.0;
-
-        return Transform {
-            m,
-            minv: m.transpose(),
-        };
+        let m = Matrix4x4::rotate(theta, x, y, z);
+        let minv = m.transpose();
+        Transform { m, minv }
     }
 
     pub fn look_at(

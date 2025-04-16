@@ -35,6 +35,7 @@ pub fn decompose(
     let mut count = 0;
     let mut norm: Float = 0.0;
     loop {
+        // Compute inverse of _R_ and check for singularity
         assert!(invertible(&r));
         if let Some(r_it) = r.transpose().inverse() {
             // Compute next matrix _Rnext_ in series
@@ -53,6 +54,9 @@ pub fn decompose(
                     r_next = mm * is;
                 }
             }
+            let q = Quaternion::from(r_next);
+            let q = q.normalize();
+            r_next = q.to_matrix();
             // pbrt-r3
 
             // Compute norm of difference between _R_ and _Rnext_

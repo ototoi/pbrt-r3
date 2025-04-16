@@ -24,24 +24,36 @@ pub fn decompose(
     let t = Vector3f::new(m.m[4 * 0 + 3], m.m[4 * 1 + 3], m.m[4 * 2 + 3]);
 
     // Compute new transformation matrix _M_ without translation
-    let mut mm = *m;
+    let mut r_org = *m;
     for i in 0..3 {
-        mm.m[4 * i + 3] = 0.0;
+        r_org.m[4 * i + 3] = 0.0;
     }
-    mm.m[15] = 1.0;
+    r_org.m[15] = 1.0;
+
+    let mut mm = r_org;
+    // pbrt-r3
+    for i in 0..3 {
+        if mm.m[4 * i + i] < 0.0 {
+            for j in 0..3 {
+                mm.m[4 * i + j] *= -1.0;
+            }
+        }
+    }
+    assert!(invertible(&mm));
+    // pbrt-r3
 
     // Extract rotation _R_ from transformation matrix
     let mut r = mm;
     let mut count = 0;
     let mut norm: Float = 0.0;
     loop {
-        // Compute inverse of _R_ and check for singularity
         assert!(invertible(&r));
-        let mut r_next = r;
-        if let Some(r_it) = r_next.transpose().inverse() {
+        if let Some(r_it) = r.transpose().inverse() {
+            // Compute next matrix _Rnext_ in series
+            let mut r_next = r;
             for i in 0..4 {
                 for j in 0..4 {
-                    r_next.m[4 * i + j] = lerp(0.5, r_next.m[4 * i + j], r_it.m[4 * i + j]);
+                    r_next.m[4 * i + j] = lerp(0.5, r.m[4 * i + j], r_it.m[4 * i + j]);
                 }
             }
 
@@ -53,9 +65,6 @@ pub fn decompose(
                     r_next = mm * is;
                 }
             }
-            let q = Quaternion::from(r_next);
-            let q = q.normalize();
-            r_next = q.to_matrix();
             // pbrt-r3
 
             // Compute norm of difference between _R_ and _Rnext_
@@ -77,12 +86,12 @@ pub fn decompose(
     }
 
     if let Some(ir) = r.inverse() {
-        let s = suppress_for_scale(ir * mm);
+        let s = suppress_for_scale(ir * r_org);
         if let Some(is) = s.inverse() {
-            r = mm * is;
+            r = r_org * is;
         }
         let q = Quaternion::from(r);
-        let q = q.normalize();
+        let q = q.normalize(); //pbrt-r3
         let s = Vector3f::new(s.m[0], s.m[5], s.m[10]);
         return Some((t, q, s));
     }
@@ -93,7 +102,7 @@ pub fn decompose(
 mod tests {
     use super::*;
 
-    fn near_equal(a: Float, b: Float, epsilon: Float) -> bool {
+    fn near_equal(a: f32, b: f32, epsilon: f32) -> bool {
         (a - b).abs() < epsilon
     }
 

@@ -6,6 +6,10 @@ fn invertible(m: &Matrix4x4) -> bool {
     m.inverse().is_some()
 }
 
+fn length(x: Float, y: Float, z: Float) -> Float {
+    (x * x + y * y + z * z).sqrt()
+}
+
 fn suppress_for_scale(m: Matrix4x4) -> Matrix4x4 {
     let mut mm = Matrix4x4::identity();
     for i in 0..3 {
@@ -32,6 +36,26 @@ pub fn decompose(
 
     // Extract rotation _R_ from transformation matrix
     let mut r = mm;
+    // pbrt-r3
+    let sx = length(r.m[4 * 0 + 0], r.m[4 * 1 + 0], r.m[4 * 2 + 0]);
+    let sy = length(r.m[4 * 0 + 1], r.m[4 * 1 + 1], r.m[4 * 2 + 1]);
+    let sz = length(r.m[4 * 0 + 2], r.m[4 * 1 + 2], r.m[4 * 2 + 2]);
+    if sx != 0.0 {
+        r.m[4 * 0 + 0] /= sx;
+        r.m[4 * 0 + 1] /= sx;
+        r.m[4 * 0 + 2] /= sx;
+    }
+    if sy != 0.0 {
+        r.m[4 * 1 + 0] /= sy;
+        r.m[4 * 1 + 1] /= sy;
+        r.m[4 * 1 + 2] /= sy;
+    }
+    if sz != 0.0 {
+        r.m[4 * 2 + 0] /= sz;
+        r.m[4 * 2 + 1] /= sz;
+        r.m[4 * 2 + 2] /= sz;
+    }
+    // pbrt-r3
     let mut count = 0;
     let mut norm: Float = 0.0;
     loop {

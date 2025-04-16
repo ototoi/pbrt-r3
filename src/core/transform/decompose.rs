@@ -24,11 +24,23 @@ pub fn decompose(
     let t = Vector3f::new(m.m[4 * 0 + 3], m.m[4 * 1 + 3], m.m[4 * 2 + 3]);
 
     // Compute new transformation matrix _M_ without translation
-    let mut mm = *m;
+    let mut r_org = *m;
     for i in 0..3 {
-        mm.m[4 * i + 3] = 0.0;
+        r_org.m[4 * i + 3] = 0.0;
     }
-    mm.m[15] = 1.0;
+    r_org.m[15] = 1.0;
+
+    let mut mm = r_org;
+    // pbrt-r3
+    for i in 0..3 {
+        if mm.m[4 * i + i] < 0.0 {
+            for j in 0..3 {
+                mm.m[4 * i + j] *= -1.0;
+            }
+        }
+    }
+    assert!(invertible(&mm));
+    // pbrt-r3
 
     // Extract rotation _R_ from transformation matrix
     let mut r = mm;
@@ -74,9 +86,9 @@ pub fn decompose(
     }
 
     if let Some(ir) = r.inverse() {
-        let s = suppress_for_scale(ir * mm);
+        let s = suppress_for_scale(ir * r_org);
         if let Some(is) = s.inverse() {
-            r = mm * is;
+            r = r_org * is;
         }
         let q = Quaternion::from(r);
         let q = q.normalize(); //pbrt-r3
@@ -84,4 +96,40 @@ pub fn decompose(
         return Some((t, q, s));
     }
     return None;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn near_equal(a: f32, b: f32, epsilon: f32) -> bool {
+        (a - b).abs() < epsilon
+    }
+
+    #[test]
+    fn test_decompose_001() {
+        let m = Matrix4x4::translate(1.0, 2.0, 3.0) * Matrix4x4::scale(-1.0, 2.0, 3.0);
+        let (t, q, s) = decompose(&m, 1e-6, 30).unwrap();
+        assert!(near_equal(t.x, 1.0, 1e-6));
+        assert!(near_equal(t.y, 2.0, 1e-6));
+        assert!(near_equal(t.z, 3.0, 1e-6));
+
+        assert!(near_equal(s.x, -1.0, 1e-6));
+        assert!(near_equal(s.y, 2.0, 1e-6));
+        assert!(near_equal(s.z, 3.0, 1e-6));
+    }
+
+    #[test]
+    fn test_decompose_002() {
+        let m = Matrix4x4::scale(-1.0, 2.0, 3.0);
+        let (t, _, s) = decompose(&m, 1e-6, 30).unwrap();
+
+        assert!(near_equal(t.x, 0.0, 1e-6));
+        assert!(near_equal(t.y, 0.0, 1e-6));
+        assert!(near_equal(t.z, 0.0, 1e-6));
+
+        assert!(near_equal(s.x, -1.0, 1e-6));
+        assert!(near_equal(s.y, 2.0, 1e-6));
+        assert!(near_equal(s.z, 3.0, 1e-6));
+    }
 }

@@ -96,23 +96,27 @@ impl Matrix4x4 {
 
     pub fn rotate(theta: Float, x: Float, y: Float, z: Float) -> Self {
         let a = Vector3f::new(x, y, z).normalize();
-        let s = Float::sin(radians(theta));
-        let c = Float::cos(radians(theta));
+        let sin_theta = Float::sin(radians(theta));
+        let cos_theta = Float::cos(radians(theta));
+        let mut m = Matrix4x4::identity();
+        // Compute rotation of first basis vector
+        m.m[4 * 0 + 0] = a.x * a.x + (1.0 - a.x * a.x) * cos_theta;
+        m.m[4 * 0 + 1] = a.x * a.y * (1.0 - cos_theta) - a.z * sin_theta;
+        m.m[4 * 0 + 2] = a.x * a.z * (1.0 - cos_theta) + a.y * sin_theta;
+        m.m[4 * 0 + 3] = 0.0;
 
-        let _m00 = a.x * a.x + (1.0 - a.x * a.x) * c;
-        let _m01 = a.x * a.y + (1.0 - a.x * a.x) * c;
-        /*
-        m.m[0][2] = a.x * a.y * (1 - c) + a.y * s;
-        m.m[0][3] = 0;
-        m.m[0][1] = x;
-        m.m[0][2] = a.x * a.z * (1 - c) + a.y * s;
-        m.m[0][3] = 0;
-        */
-        Matrix4x4 {
-            m: [
-                c, -s, 0.0, 0.0, s, c, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-            ],
-        }
+        // Compute rotations of second basis vector
+        m.m[4 * 1 + 0] = a.x * a.y * (1.0 - cos_theta) + a.z * sin_theta;
+        m.m[4 * 1 + 1] = a.y * a.y + (1.0 - a.y * a.y) * cos_theta;
+        m.m[4 * 1 + 2] = a.y * a.z * (1.0 - cos_theta) - a.x * sin_theta;
+        m.m[4 * 1 + 3] = 0.0;
+
+        // Compute rotation of third basis vector
+        m.m[4 * 2 + 0] = a.x * a.z * (1.0 - cos_theta) - a.y * sin_theta;
+        m.m[4 * 2 + 1] = a.y * a.z * (1.0 - cos_theta) + a.x * sin_theta;
+        m.m[4 * 2 + 2] = a.z * a.z + (1.0 - a.z * a.z) * cos_theta;
+        m.m[4 * 2 + 3] = 0.0;
+        return m;
     }
 
     pub fn scale(x: Float, y: Float, z: Float) -> Self {

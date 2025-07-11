@@ -341,13 +341,9 @@ impl Film {
                 height: theight,
                 buffer,
             };
-            self.display
-                .update(&display_tile)
-                .or_else(|e| -> Result<(), PbrtError> {
-                    warn!("{:?}", e);
-                    return Ok(());
-                })
-                .unwrap();
+            self.display.update(&display_tile).unwrap_or_else(|e| {
+                warn!("{:}", e);
+            });
         }
     }
 

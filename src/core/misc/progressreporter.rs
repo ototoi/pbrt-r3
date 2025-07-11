@@ -6,7 +6,8 @@ pub struct ProgressReporter {
 
 impl ProgressReporter {
     pub fn new(total_work: usize, title: &str) -> Self {
-        let pb = ProgressBar::new(total_work as u64);
+        let pb =
+            ProgressBar::with_draw_target(Some(total_work as u64), ProgressDrawTarget::stdout());
         //let template =
         //    format!("{}: ", title) + "[{wide_bar}]  ({elapsed_precise}|{eta_precise}) ";
         let template = format!("{{spinner:.bold.green}} {}: ", title)

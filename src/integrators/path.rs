@@ -53,7 +53,7 @@ impl SamplerIntegrator for PathIntegrator {
                 self.light_distribution = Some(distrib);
             }
             Err(e) => {
-                println!("{:?}", e);
+                println!("{:}", e);
             }
         }
     }

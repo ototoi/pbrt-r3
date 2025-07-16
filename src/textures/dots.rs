@@ -34,7 +34,7 @@ impl<T: Copy> Texture<T> for DotsTexture<T> {
             let t_center = t_cell + max_shift * noise(s_cell + 4.5, t_cell + 9.8, 0.0);
             let dst = st - Point2f::new(s_center, t_center);
             if dst.length_squared() < radius * radius {
-                self.inside_dot.as_ref().evaluate(si);
+                return self.inside_dot.as_ref().evaluate(si);
             }
         }
         return self.outside_dot.as_ref().evaluate(si);

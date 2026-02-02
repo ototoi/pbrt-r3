@@ -3,7 +3,6 @@ use crate::samplers::*;
 
 use std::ops::DerefMut;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::sync::RwLock;
 
 use rayon::iter::IntoParallelIterator;
@@ -193,7 +192,6 @@ impl Integrator for SPPMIntegrator {
                 let tile_bounds = Bounds2i::new(&Point2i::new(x0, y0), &Point2i::new(x1, y1));
                 let tile_index = y * n_tiles.x + x;
                 let sampler = sampler.clone_with_seed(tile_index as u32);
-                let sampler = Arc::new(Mutex::new(ProxySampler::new(&sampler)));
                 //
                 tiles.push((x, y, tile_bounds, sampler));
                 //samplers.push(sampler);
@@ -221,7 +219,7 @@ impl Integrator for SPPMIntegrator {
                     let tile_bounds = tile.2;
                     //let tile_index = tile.1 * n_tiles.x + tile.0;
                     let tile_sampler = tile.3.clone();
-                    let mut tile_sampler = tile_sampler.lock().unwrap();
+                    let mut tile_sampler = tile_sampler.write().unwrap();
                     // Follow camera paths for _tile_ in image for SPPM
                     for y in tile_bounds.min.y..tile_bounds.max.y {
                         for x in tile_bounds.min.x..tile_bounds.max.x {

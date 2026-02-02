@@ -3,11 +3,11 @@ use crate::core::prelude::*;
 use std::sync::Arc;
 
 pub struct UVTexture {
-    mapping: Box<dyn TextureMapping2D>,
+    mapping: TextureMapping2D,
 }
 
 impl UVTexture {
-    pub fn new(mapping: Box<dyn TextureMapping2D>) -> Self {
+    pub fn new(mapping: TextureMapping2D) -> Self {
         UVTexture { mapping }
     }
 }

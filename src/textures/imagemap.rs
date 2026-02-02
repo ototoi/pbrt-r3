@@ -5,13 +5,13 @@ use std::path::Path;
 use std::sync::Arc;
 
 pub struct ImageTexture<Tmemory, Treturn> {
-    mapping: Box<dyn TextureMapping2D>,
+    mapping: TextureMapping2D,
     mipmap: MIPMap<Tmemory>,
     phantom: PhantomData<Treturn>, //non allocate
 }
 
 impl ImageTexture<Float, Float> {
-    pub fn new(mapping: Box<dyn TextureMapping2D>, mipmap: MIPMap<Float>) -> Self {
+    pub fn new(mapping: TextureMapping2D, mipmap: MIPMap<Float>) -> Self {
         Self {
             mapping,
             mipmap,
@@ -30,7 +30,7 @@ impl ImageTexture<Float, Float> {
 }
 
 impl ImageTexture<RGBSpectrum, Spectrum> {
-    pub fn new(mapping: Box<dyn TextureMapping2D>, mipmap: MIPMap<RGBSpectrum>) -> Self {
+    pub fn new(mapping: TextureMapping2D, mipmap: MIPMap<RGBSpectrum>) -> Self {
         Self {
             mapping,
             mipmap,
@@ -55,14 +55,14 @@ impl ImageTexture<RGBSpectrum, Spectrum> {
 
 impl Texture<Float> for ImageTexture<Float, Float> {
     fn evaluate(&self, si: &SurfaceInteraction) -> Float {
-        let (st, dstdx, dstdy) = self.mapping.as_ref().map(si);
+        let (st, dstdx, dstdy) = self.mapping.map(si);
         return self.mipmap.lookup_delta(&st, &dstdx, &dstdy);
     }
 }
 
 impl Texture<Spectrum> for ImageTexture<RGBSpectrum, Spectrum> {
     fn evaluate(&self, si: &SurfaceInteraction) -> Spectrum {
-        let (st, dstdx, dstdy) = self.mapping.as_ref().map(si);
+        let (st, dstdx, dstdy) = self.mapping.map(si);
         return Self::convert_out(&self.mipmap.lookup_delta(&st, &dstdx, &dstdy));
     }
 }

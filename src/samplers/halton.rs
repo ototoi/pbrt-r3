@@ -1,8 +1,8 @@
 use crate::core::lowdiscrepancy::primes::{PRIMES, PRIME_SUMS};
 use crate::core::prelude::*;
 
-use std::cell::Cell;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::OnceLock;
 use std::sync::RwLock;
 
@@ -42,15 +42,15 @@ fn multiplicative_inverse(a: i64, n: i64) -> u64 {
     return math_mod(x, n);
 }
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct HaltonSampler {
     base: BaseGlobalSampler,
     base_scales: [i32; 2],
     base_exponents: [i32; 2],
     sample_stride: i32,
     mult_inverse: [i32; 2],
-    pixel_for_offset: Cell<Point2i>,
-    offset_for_current_pixel: Cell<i64>,
+    pixel_for_offset: Arc<Mutex<Point2i>>,
+    offset_for_current_pixel: Arc<Mutex<i64>>,
     sample_at_pixel_center: bool,
 }
 
@@ -84,8 +84,8 @@ impl HaltonSampler {
             multiplicative_inverse(base_scales[0] as i64, base_scales[1] as i64) as i32,
         ];
 
-        let pixel_for_offset = Cell::new(Point2i::new(i32::MAX, i32::MAX));
-        let offset_for_current_pixel = Cell::new(0);
+        let pixel_for_offset = Arc::new(Mutex::new(Point2i::new(i32::MAX, i32::MAX)));
+        let offset_for_current_pixel = Arc::new(Mutex::new(0));
         let base = BaseGlobalSampler::new(samples_per_pixel);
 
         HaltonSampler {
@@ -114,9 +114,9 @@ impl HaltonSampler {
 impl GlobalSampler for HaltonSampler {
     fn get_index_for_sample(&self, sample_num: i64) -> i64 {
         let sample_stride = self.sample_stride as i64;
-        if self.base.base.current_pixel != self.pixel_for_offset.get() {
+        if self.base.base.current_pixel != *self.pixel_for_offset.lock().unwrap() {
             // Compute Halton sample offset for _currentPixel_
-            self.offset_for_current_pixel.set(0);
+            *self.offset_for_current_pixel.lock().unwrap() = 0;
             if sample_stride > 1 {
                 let pm = [
                     math_mod(
@@ -135,15 +135,15 @@ impl GlobalSampler for HaltonSampler {
                     let addition = (dim_offset
                         * ((self.sample_stride / self.base_scales[i]) * self.mult_inverse[i])
                             as u64) as i64;
-                    self.offset_for_current_pixel
-                        .set(self.offset_for_current_pixel.get() + addition);
+                    let mut offset = self.offset_for_current_pixel.lock().unwrap();
+                    *offset = *offset + addition;
                 }
-                let offset_for_current_pixel = self.offset_for_current_pixel.get() % sample_stride;
-                self.offset_for_current_pixel.set(offset_for_current_pixel);
+                let offset_value = *self.offset_for_current_pixel.lock().unwrap() % sample_stride;
+                *self.offset_for_current_pixel.lock().unwrap() = offset_value;
             }
-            self.pixel_for_offset.set(self.base.base.current_pixel);
+            *self.pixel_for_offset.lock().unwrap() = self.base.base.current_pixel;
         }
-        return self.offset_for_current_pixel.get() + sample_num * sample_stride;
+        return *self.offset_for_current_pixel.lock().unwrap() + sample_num * sample_stride;
     }
 
     fn sample_dimension(&self, index: i64, dim: u32) -> Float {

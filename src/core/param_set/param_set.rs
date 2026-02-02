@@ -300,45 +300,45 @@ impl ParamSet {
     }
 
     //--------------------
-    pub fn get_bools_ref(&self, key: &str) -> Option<Ref<Vec<bool>>> {
+    pub fn get_bools_ref(&self, key: &str) -> Option<Ref<'_, Vec<bool>>> {
         return get_values_ref(&self.bools, key);
     }
 
-    pub fn get_ints_ref(&self, key: &str) -> Option<Ref<Vec<i32>>> {
+    pub fn get_ints_ref(&self, key: &str) -> Option<Ref<'_, Vec<i32>>> {
         return get_values_ref(&self.ints, key);
     }
 
-    pub fn get_floats_ref(&self, key: &str) -> Option<Ref<Vec<Float>>> {
+    pub fn get_floats_ref(&self, key: &str) -> Option<Ref<'_, Vec<Float>>> {
         return get_values_ref(&self.floats, key);
     }
 
-    pub fn get_strings_ref(&self, key: &str) -> Option<Ref<Vec<String>>> {
+    pub fn get_strings_ref(&self, key: &str) -> Option<Ref<'_, Vec<String>>> {
         return get_values_ref(&self.strings, key);
     }
 
-    pub fn get_textures_ref(&self, key: &str) -> Option<Ref<Vec<String>>> {
+    pub fn get_textures_ref(&self, key: &str) -> Option<Ref<'_, Vec<String>>> {
         return get_values_ref(&self.strings, key);
     }
 
-    pub fn get_spectrums_ref(&self, key: &str) -> Option<Ref<Vec<Spectrum>>> {
+    pub fn get_spectrums_ref(&self, key: &str) -> Option<Ref<'_, Vec<Spectrum>>> {
         return get_values_ref(&self.spectrums, key);
     }
 
-    pub fn get_points_ref(&self, key: &str) -> Option<Ref<Vec<Float>>> {
+    pub fn get_points_ref(&self, key: &str) -> Option<Ref<'_, Vec<Float>>> {
         return get_values_ref(&self.points, key);
     }
 
     //--------------------
 
-    pub fn get_bools_mut(&mut self, key: &str) -> Option<RefMut<Vec<bool>>> {
+    pub fn get_bools_mut(&mut self, key: &str) -> Option<RefMut<'_, Vec<bool>>> {
         return get_values_mut(&self.bools, key);
     }
 
-    pub fn get_ints_mut(&mut self, key: &str) -> Option<RefMut<Vec<i32>>> {
+    pub fn get_ints_mut(&mut self, key: &str) -> Option<RefMut<'_, Vec<i32>>> {
         return get_values_mut(&self.ints, key);
     }
 
-    pub fn get_strings_mut(&mut self, key: &str) -> Option<RefMut<Vec<String>>> {
+    pub fn get_strings_mut(&mut self, key: &str) -> Option<RefMut<'_, Vec<String>>> {
         return get_values_mut(&self.strings, key);
     }
 

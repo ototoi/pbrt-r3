@@ -3,14 +3,14 @@ use crate::core::prelude::*;
 use std::sync::Arc;
 
 pub struct DotsTexture<T> {
-    mapping: Box<dyn TextureMapping2D>,
+    mapping: TextureMapping2D,
     outside_dot: Arc<dyn Texture<T>>,
     inside_dot: Arc<dyn Texture<T>>,
 }
 
 impl<T> DotsTexture<T> {
     pub fn new(
-        mapping: Box<dyn TextureMapping2D>,
+        mapping: TextureMapping2D,
         tex1: &Arc<dyn Texture<T>>,
         tex2: &Arc<dyn Texture<T>>,
     ) -> Self {

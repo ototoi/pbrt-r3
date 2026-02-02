@@ -3,7 +3,7 @@ use crate::core::prelude::*;
 use std::sync::Arc;
 
 struct MarbleTexture {
-    mapping: Box<dyn TextureMapping3D>,
+    mapping: TextureMapping3D,
     octaves: u32,
     omega: Float,
     scale: Float,
@@ -16,7 +16,7 @@ fn lerps(c0: &Spectrum, c1: &Spectrum, t: Float) -> Spectrum {
 
 impl MarbleTexture {
     pub fn new(
-        mapping: Box<dyn TextureMapping3D>,
+        mapping: TextureMapping3D,
         octaves: u32,
         omega: Float,
         scale: Float,
@@ -84,7 +84,7 @@ pub fn create_marble_spectrum_texture(
     tex2world: &Transform,
     tp: &TextureParams,
 ) -> Result<Arc<dyn Texture<Spectrum>>, PbrtError> {
-    let map: Box<dyn TextureMapping3D> = Box::new(IdentityMapping3D::new(tex2world));
+    let map = TextureMapping3D::Identity(IdentityMapping3D::new(tex2world));
     let octaves = tp.find_int("octaves", 8) as u32;
     let roughness = tp.find_float("roughness", 0.5);
     let scale = tp.find_float("scale", 1.0);

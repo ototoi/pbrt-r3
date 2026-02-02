@@ -4,7 +4,7 @@ use std::ops::*;
 use std::sync::Arc;
 
 pub struct BilerpTexture<T> {
-    mapping: Box<dyn TextureMapping2D>,
+    mapping: TextureMapping2D,
     v00: T,
     v01: T,
     v10: T,
@@ -12,7 +12,7 @@ pub struct BilerpTexture<T> {
 }
 
 impl<T: Copy> BilerpTexture<T> {
-    pub fn new(mapping: Box<dyn TextureMapping2D>, v00: &T, v01: &T, v10: &T, v11: &T) -> Self {
+    pub fn new(mapping: TextureMapping2D, v00: &T, v01: &T, v10: &T, v11: &T) -> Self {
         return BilerpTexture::<T> {
             mapping,
             v00: *v00,

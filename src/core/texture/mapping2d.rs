@@ -5,10 +5,26 @@ use crate::core::interaction::*;
 use crate::core::param_set::*;
 use crate::core::transform::*;
 
-pub trait TextureMapping2D {
-    fn map(&self, si: &SurfaceInteraction) -> (Point2f, Vector2f, Vector2f);
+#[derive(Debug, Clone, Copy)]
+pub enum TextureMapping2D {
+    UV(UVMapping2D),
+    Spherical(SphericalMapping2D),
+    Cylindrical(CylindricalMapping2D),
+    Planar(PlanarMapping2D),
 }
 
+impl TextureMapping2D {
+    pub fn map(&self, si: &SurfaceInteraction) -> (Point2f, Vector2f, Vector2f) {
+        match self {
+            TextureMapping2D::UV(m) => m.map(si),
+            TextureMapping2D::Spherical(m) => m.map(si),
+            TextureMapping2D::Cylindrical(m) => m.map(si),
+            TextureMapping2D::Planar(m) => m.map(si),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct UVMapping2D {
     pub su: Float,
     pub sv: Float,
@@ -20,9 +36,7 @@ impl UVMapping2D {
     pub fn new(su: Float, sv: Float, du: Float, dv: Float) -> Self {
         UVMapping2D { su, sv, du, dv }
     }
-}
 
-impl TextureMapping2D for UVMapping2D {
     fn map(&self, si: &SurfaceInteraction) -> (Point2f, Vector2f, Vector2f) {
         // Compute texture differentials for 2D identity mapping
         let dstdx = Vector2f::new(self.su * si.dudx, self.sv * si.dvdx);
@@ -32,6 +46,7 @@ impl TextureMapping2D for UVMapping2D {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct SphericalMapping2D {
     world_to_texture: Transform,
 }
@@ -49,9 +64,7 @@ impl SphericalMapping2D {
         let phi = spherical_phi(&vec);
         return Point2f::new(theta * INV_PI, phi * INV_2_PI);
     }
-}
 
-impl TextureMapping2D for SphericalMapping2D {
     fn map(&self, si: &SurfaceInteraction) -> (Point2f, Vector2f, Vector2f) {
         let st = self.sphere(&si.p);
         // Compute texture coordinate differentials for sphere $(u,v)$ mapping
@@ -78,6 +91,7 @@ impl TextureMapping2D for SphericalMapping2D {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct CylindricalMapping2D {
     world_to_texture: Transform,
 }
@@ -93,9 +107,7 @@ impl CylindricalMapping2D {
             (self.world_to_texture.transform_point(p) - Point3f::new(0.0, 0.0, 0.0)).normalize();
         return Point2f::new((PI + Float::atan2(vec.y, vec.x)) * INV_2_PI, vec.z);
     }
-}
 
-impl TextureMapping2D for CylindricalMapping2D {
     fn map(&self, si: &SurfaceInteraction) -> (Point2f, Vector2f, Vector2f) {
         let st = self.cylinder(&si.p);
         // Compute texture coordinate differentials for sphere $(u,v)$ mapping
@@ -122,6 +134,7 @@ impl TextureMapping2D for CylindricalMapping2D {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct PlanarMapping2D {
     vs: Vector3f,
     vt: Vector3f,
@@ -138,9 +151,7 @@ impl PlanarMapping2D {
             dt,
         }
     }
-}
 
-impl TextureMapping2D for PlanarMapping2D {
     fn map(&self, si: &SurfaceInteraction) -> (Point2f, Vector2f, Vector2f) {
         let vec = si.p;
 
@@ -166,7 +177,7 @@ impl TextureMapping2D for PlanarMapping2D {
 pub fn create_texture_mapping2d(
     tex2world: &Transform,
     tp: &TextureParams,
-) -> Result<Box<dyn TextureMapping2D>, PbrtError> {
+) -> Result<TextureMapping2D, PbrtError> {
     let mapping = tp.find_string("mapping", "uv");
     match mapping.as_ref() {
         "uv" => {
@@ -174,22 +185,26 @@ pub fn create_texture_mapping2d(
             let sv = tp.find_float("vscale", 1.0);
             let du = tp.find_float("udelta", 0.0);
             let dv = tp.find_float("vdelta", 0.0);
-            return Ok(Box::new(UVMapping2D::new(su, sv, du, dv)));
+            return Ok(TextureMapping2D::UV(UVMapping2D::new(su, sv, du, dv)));
         }
         "spherical" => {
             let it = tex2world.inverse();
-            return Ok(Box::new(SphericalMapping2D::new(&it)));
+            return Ok(TextureMapping2D::Spherical(SphericalMapping2D::new(&it)));
         }
         "cylindrical" => {
             let it = tex2world.inverse();
-            return Ok(Box::new(CylindricalMapping2D::new(&it)));
+            return Ok(TextureMapping2D::Cylindrical(CylindricalMapping2D::new(
+                &it,
+            )));
         }
         "planar" => {
             let v1 = tp.find_vector3f("v1", &Vector3f::new(1.0, 0.0, 0.0));
             let v2 = tp.find_vector3f("v2", &Vector3f::new(0.0, 1.0, 0.0));
             let du = tp.find_float("udelta", 0.0);
             let dv = tp.find_float("vdelta", 0.0);
-            return Ok(Box::new(PlanarMapping2D::new(&v1, &v2, du, dv)));
+            return Ok(TextureMapping2D::Planar(PlanarMapping2D::new(
+                &v1, &v2, du, dv,
+            )));
         }
         _ => {
             let msg = format!("2D texture mapping \"{}\" unknown", mapping);

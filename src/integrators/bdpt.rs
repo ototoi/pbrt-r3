@@ -3,7 +3,7 @@ use crate::core::prelude::*;
 
 use crate::filters::create_box_filter;
 use log::*;
-use rayon::iter::IntoParallelRefMutIterator;
+use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use std::collections::HashMap;
 use std::path::Path;
@@ -111,10 +111,9 @@ impl Integrator for BDPTIntegrator {
 
                     let seed = (y * n_tiles.x + x) as u32;
                     let s = sampler.read().unwrap().clone_with_seed(seed);
-                    let proxy = ProxySampler::new(&s);
                     //let camera = self.camera.clone();
                     //let camera = Arc::downgrade(&camera);
-                    tile_indices.push((tile_bounds, proxy));
+                    tile_indices.push((tile_bounds, s));
                 }
             }
         }
@@ -190,7 +189,7 @@ impl Integrator for BDPTIntegrator {
 
             {
                 tile_indices
-                    .par_iter_mut()
+                    .into_par_iter()
                     .for_each(|(tile_bounds, tile_sampler)| {
                         //let camera = self.camera.clone();
                         let mut arena = MemoryArena::new();
@@ -207,8 +206,8 @@ impl Integrator for BDPTIntegrator {
                             .as_ref()
                             .lock()
                             .unwrap()
-                            .get_film_tile(tile_bounds);
-
+                            .get_film_tile(&tile_bounds);
+                        let tile_sampler = &mut *tile_sampler.write().unwrap();
                         for yy in y0..y1 {
                             for xx in x0..x1 {
                                 let p_pixel = Point2i::from((xx, yy));

@@ -204,7 +204,7 @@ impl SampleIntegratorCore {
         camera: &dyn Camera,
         film: &Arc<Mutex<ProxyFilm>>,
         tile_bounds: &Bounds2i,
-        sampler: &Arc<Mutex<ProxySampler>>,
+        sampler: &Arc<RwLock<dyn Sampler>>,
         reporter: &Arc<Mutex<ProgressReporter>>,
     ) {
         let mut arena = MemoryArena::new();
@@ -213,7 +213,7 @@ impl SampleIntegratorCore {
         let y0 = tile_bounds.min.y;
         let y1 = tile_bounds.max.y;
 
-        let mut sampler = sampler.lock().unwrap();
+        let mut sampler = sampler.write().unwrap();
 
         let ray_scale = (1.0 / sampler.get_samples_per_pixel() as Float).sqrt();
 
@@ -284,8 +284,7 @@ impl SampleIntegratorCore {
 
                     let seed = (y * n_tiles.x + x) as u32;
                     let s = sampler.read().unwrap().clone_with_seed(seed);
-                    let proxy = Arc::new(Mutex::new(ProxySampler::new(&s)));
-                    tile_indices.push((tile_bounds, proxy));
+                    tile_indices.push((tile_bounds, s));
                 }
             }
 

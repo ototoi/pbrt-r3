@@ -201,10 +201,7 @@ impl Integrator for BDPTIntegrator {
                         let y0 = tile_bounds.min.y;
                         let y1 = tile_bounds.max.y;
 
-                        let mut film_tile = film
-                            .read()
-                            .unwrap()
-                            .get_film_tile(&tile_bounds);
+                        let mut film_tile = film.read().unwrap().get_film_tile(&tile_bounds);
                         let tile_sampler = &mut *tile_sampler.write().unwrap();
                         for yy in y0..y1 {
                             for xx in x0..x1 {

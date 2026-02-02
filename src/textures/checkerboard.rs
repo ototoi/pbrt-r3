@@ -11,7 +11,7 @@ pub enum AAMethod {
 }
 
 pub struct Checkerboard2DTexture<T> {
-    mapping: Box<dyn TextureMapping2D>,
+    mapping: TextureMapping2D,
     tex1: Arc<dyn Texture<T>>,
     tex2: Arc<dyn Texture<T>>,
     aa_method: AAMethod,
@@ -19,7 +19,7 @@ pub struct Checkerboard2DTexture<T> {
 
 impl<T> Checkerboard2DTexture<T> {
     pub fn new(
-        mapping: Box<dyn TextureMapping2D>,
+        mapping: TextureMapping2D,
         tex1: &Arc<dyn Texture<T>>,
         tex2: &Arc<dyn Texture<T>>,
         aa_method: AAMethod,
@@ -82,14 +82,14 @@ impl<T: Copy + Add<T, Output = T> + Mul<Float, Output = T>> Texture<T>
 }
 
 pub struct Checkerboard3DTexture<T> {
-    mapping: Box<dyn TextureMapping3D>,
+    mapping: TextureMapping3D,
     tex1: Arc<dyn Texture<T>>,
     tex2: Arc<dyn Texture<T>>,
 }
 
 impl<T> Checkerboard3DTexture<T> {
     pub fn new(
-        mapping: Box<dyn TextureMapping3D>,
+        mapping: TextureMapping3D,
         tex1: &Arc<dyn Texture<T>>,
         tex2: &Arc<dyn Texture<T>>,
     ) -> Self {
@@ -149,7 +149,7 @@ pub fn create_checkerboard_float_texture(
         )));
     } else {
         // Initialize 3D texture mapping _map_ from _tp_
-        let map = Box::new(IdentityMapping3D::new(tex2world));
+        let map = TextureMapping3D::Identity(IdentityMapping3D::new(tex2world));
         return Ok(Arc::new(Checkerboard3DTexture::<Float>::new(
             map, &tex1, &tex2,
         )));
@@ -177,7 +177,7 @@ pub fn create_checkerboard_spectrum_texture(
         )));
     } else {
         // Initialize 3D texture mapping _map_ from _tp_
-        let map = Box::new(IdentityMapping3D::new(tex2world));
+        let map = TextureMapping3D::Identity(IdentityMapping3D::new(tex2world));
         return Ok(Arc::new(Checkerboard3DTexture::<Spectrum>::new(
             map, &tex1, &tex2,
         )));

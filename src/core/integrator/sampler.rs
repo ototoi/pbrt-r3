@@ -178,20 +178,20 @@ fn validate_radiance_result(l: Spectrum, pixel: &Point2i) -> Spectrum {
 struct SampleIntegratorCore {}
 
 impl SampleIntegratorCore {
-    pub fn get_film_tile(film: &Arc<Mutex<ProxyFilm>>, tile_bounds: &Bounds2i) -> FilmTile {
-        let film = film.lock().unwrap();
+    pub fn get_film_tile(film: &Arc<RwLock<Film>>, tile_bounds: &Bounds2i) -> FilmTile {
+        let film = film.read().unwrap();
         return film.get_film_tile(tile_bounds);
     }
 
-    pub fn merge_film_tile(film: &Arc<Mutex<ProxyFilm>>, tile: &FilmTile) {
-        let mut film = film.lock().unwrap();
+    pub fn merge_film_tile(film: &Arc<RwLock<Film>>, tile: &FilmTile) {
+        let mut film = film.write().unwrap();
         film.merge_film_tile(tile);
         film.update_display(&tile.get_pixel_bounds());
     }
 
-    pub fn get_filename(film: &Arc<Mutex<ProxyFilm>>) -> String {
-        let film = film.lock().unwrap();
-        let path = film.get_filename();
+    pub fn get_filename(film: &Arc<RwLock<Film>>) -> String {
+        let film = film.read().unwrap();
+        let path = film.filename.clone();
         let path = Path::new(&path);
         let filename = path.file_name().unwrap();
         let filename = filename.to_str().unwrap();
@@ -202,9 +202,9 @@ impl SampleIntegratorCore {
         integrator: &dyn SamplerIntegrator,
         scene: &Scene,
         camera: &dyn Camera,
-        film: &Arc<Mutex<ProxyFilm>>,
+        film: &Arc<RwLock<Film>>,
         tile_bounds: &Bounds2i,
-        sampler: &Arc<Mutex<ProxySampler>>,
+        sampler: &Arc<RwLock<dyn Sampler>>,
         reporter: &Arc<Mutex<ProgressReporter>>,
     ) {
         let mut arena = MemoryArena::new();
@@ -213,7 +213,7 @@ impl SampleIntegratorCore {
         let y0 = tile_bounds.min.y;
         let y1 = tile_bounds.max.y;
 
-        let mut sampler = sampler.lock().unwrap();
+        let mut sampler = sampler.write().unwrap();
 
         let ray_scale = (1.0 / sampler.get_samples_per_pixel() as Float).sqrt();
 
@@ -284,8 +284,7 @@ impl SampleIntegratorCore {
 
                     let seed = (y * n_tiles.x + x) as u32;
                     let s = sampler.read().unwrap().clone_with_seed(seed);
-                    let proxy = Arc::new(Mutex::new(ProxySampler::new(&s)));
-                    tile_indices.push((tile_bounds, proxy));
+                    tile_indices.push((tile_bounds, s));
                 }
             }
 
@@ -293,8 +292,7 @@ impl SampleIntegratorCore {
         }
 
         {
-            let proxy_film = Arc::new(Mutex::new(ProxyFilm::new(film)));
-            let filename = Self::get_filename(&proxy_film);
+            let filename = Self::get_filename(film);
 
             let total = tile_indices.len();
             let reporter = Arc::new(Mutex::new(ProgressReporter::new(total, &filename)));
@@ -305,7 +303,7 @@ impl SampleIntegratorCore {
                         integrator,
                         scene,
                         camera,
-                        &proxy_film,
+                        film,
                         tile_bounds,
                         sampler,
                         &reporter,

@@ -3,7 +3,7 @@ use crate::core::prelude::*;
 
 use crate::filters::create_box_filter;
 use log::*;
-use rayon::iter::IntoParallelRefMutIterator;
+use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use std::collections::HashMap;
 use std::path::Path;
@@ -111,10 +111,9 @@ impl Integrator for BDPTIntegrator {
 
                     let seed = (y * n_tiles.x + x) as u32;
                     let s = sampler.read().unwrap().clone_with_seed(seed);
-                    let proxy = ProxySampler::new(&s);
                     //let camera = self.camera.clone();
                     //let camera = Arc::downgrade(&camera);
-                    tile_indices.push((tile_bounds, proxy));
+                    tile_indices.push((tile_bounds, s));
                 }
             }
         }
@@ -183,14 +182,13 @@ impl Integrator for BDPTIntegrator {
         if !scene.lights.is_empty() {
             let camera = self.camera.clone();
             let film: Arc<RwLock<Film>> = camera.as_ref().get_film();
-            let proxy_film = Arc::new(Mutex::new(ProxyFilm::new(&film)));
-            //let filename = proxy_film.as_ref().lock().unwrap().get_filename();
+            //let filename = film.read().unwrap().filename.clone();
 
             //let total = tile_indices.len();
 
             {
                 tile_indices
-                    .par_iter_mut()
+                    .into_par_iter()
                     .for_each(|(tile_bounds, tile_sampler)| {
                         //let camera = self.camera.clone();
                         let mut arena = MemoryArena::new();
@@ -203,12 +201,8 @@ impl Integrator for BDPTIntegrator {
                         let y0 = tile_bounds.min.y;
                         let y1 = tile_bounds.max.y;
 
-                        let mut film_tile = proxy_film
-                            .as_ref()
-                            .lock()
-                            .unwrap()
-                            .get_film_tile(tile_bounds);
-
+                        let mut film_tile = film.read().unwrap().get_film_tile(&tile_bounds);
+                        let tile_sampler = &mut *tile_sampler.write().unwrap();
                         for yy in y0..y1 {
                             for xx in x0..x1 {
                                 let p_pixel = Point2i::from((xx, yy));
@@ -314,9 +308,8 @@ impl Integrator for BDPTIntegrator {
                                                 if t != 1 {
                                                     l += l_path;
                                                 } else {
-                                                    let mut film =
-                                                        proxy_film.as_ref().lock().unwrap();
-                                                    film.add_splat(&p_film_new, &l_path);
+                                                    let mut f = film.write().unwrap();
+                                                    f.add_splat(&p_film_new, &l_path);
                                                 }
                                             }
                                         }
@@ -333,17 +326,18 @@ impl Integrator for BDPTIntegrator {
                         }
 
                         {
-                            let mut film = proxy_film.as_ref().lock().unwrap();
-                            film.merge_film_tile(&film_tile);
-                            film.update_display(&film_tile.pixel_bounds);
-                            {
-                                let mut prev_time = prev_time.lock().unwrap();
-                                let elapsed = prev_time.elapsed();
-                                if elapsed.as_millis() > UPDATE_DISPLAY_INTERVAL {
-                                    film.merge_splats(1.0 / samples_per_pixel as Float);
-                                    film.update_display(&cropped_pixel_bounds);
-                                    *prev_time = Instant::now();
-                                }
+                            let mut f = film.write().unwrap();
+                            f.merge_film_tile(&film_tile);
+                            f.update_display(&film_tile.pixel_bounds);
+                        }
+                        {
+                            let mut prev_time = prev_time.lock().unwrap();
+                            let elapsed = prev_time.elapsed();
+                            if elapsed.as_millis() > UPDATE_DISPLAY_INTERVAL {
+                                let mut f = film.write().unwrap();
+                                f.merge_splats(1.0 / samples_per_pixel as Float);
+                                f.update_display(&cropped_pixel_bounds);
+                                *prev_time = Instant::now();
                             }
                         }
                         {

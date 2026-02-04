@@ -219,21 +219,27 @@ const ORDER_TABLE: [u32; 128] = [
 unsafe fn intersect_primitives_fast(
     prim_ptrs: &[*const dyn Primitive],
     primitives_arc: &[Arc<dyn Primitive>],
-    start_idx: usize,
     r: &Ray,
 ) -> Option<SurfaceInteraction> {
     let mut isect = None;
-    for i in 0..prim_ptrs.len() {
-        let prim_ptr = prim_ptrs[i];
+    let mut primitive_index = None;
+    for (i, &prim_ptr) in prim_ptrs.iter().enumerate() {
         // 生ポインタから trait object のメソッドを呼び出し
         // vtable 経由でメソッド呼び出しが行われる
-        if let Some(mut isect_n) = (*prim_ptr).intersect(r) {
+        if let Some(isect_n) = (*prim_ptr).intersect(r) {
             if (*prim_ptr).is_geometric() {
                 // Arc が必要な場合のみ元の Arc にアクセス
-                let prim_arc = &primitives_arc[start_idx + i];
-                isect_n.primitive = Some(Arc::downgrade(prim_arc));
+                primitive_index = Some(i);
+                //let prim_arc = &primitives_arc[i];
+                //isect_n.primitive = Some(Arc::downgrade(prim_arc));
             }
             isect = Some(isect_n);
+        }
+    }
+    if let Some(idx) = primitive_index {
+        if let Some(ref mut isect_n) = isect {
+            let prim_arc = &primitives_arc[idx];
+            isect_n.primitive = Some(Arc::downgrade(prim_arc));
         }
     }
     return isect;
@@ -381,7 +387,7 @@ unsafe fn intersect_simd(
             let end = start + node.children[1];
             // 生ポインタ版の高速な交差判定を使用
             if let Some(isect_n) =
-                intersect_primitives_fast(&primitive_ptrs[start..end], primitives_arc, start, r)
+                intersect_primitives_fast(&primitive_ptrs[start..end], &primitives_arc[start..end], r)
             {
                 let t = r.t_max.get();
                 tmax = vdupq_n_f32(t as f32);

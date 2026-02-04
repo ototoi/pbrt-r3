@@ -45,6 +45,7 @@ libm = "0.2.11"
 opt-level = 3
 lto = "fat"
 codegen-units = 1
+debug = true
 
 [lints.clippy]
 needless_return = "allow"

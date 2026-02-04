@@ -223,6 +223,7 @@ impl Shape for Triangle {
         return union3(p0, p1, p2);
     }
 
+    #[inline]
     fn intersect(&self, r: &Ray) -> Option<(Float, SurfaceInteraction)> {
         let _p = ProfilePhase::new(Prof::TriIntersect);
         TESTS.with(|stat| {
@@ -449,6 +450,7 @@ impl Shape for Triangle {
         return Some((t, isect));
     }
 
+    #[inline]
     fn intersect_p(&self, r: &Ray) -> bool {
         let _p = ProfilePhase::new(Prof::TriIntersectP);
         TESTS.with(|stat| {

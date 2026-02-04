@@ -43,6 +43,7 @@ pub fn intersect_box_array(
     }
 }
 
+#[inline(always)]
 pub fn intersect_box_array_i(
     min: &[Float; 3],
     max: &[Float; 3],

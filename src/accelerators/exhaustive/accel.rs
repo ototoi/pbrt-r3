@@ -66,11 +66,10 @@ impl Primitive for ExhaustiveAccel {
         //if b {
         if let Some(_) = self.bounds.intersect_p(r) {
             let mut opt_isect = None;
-            for it in self.prims.iter() {
-                let prim = it.as_ref();
+            for prim in &self.prims {
                 if let Some(mut isect) = prim.intersect(r) {
                     if prim.is_geometric() {
-                        isect.primitive = Some(Arc::downgrade(it));
+                        isect.primitive = Some(Arc::downgrade(prim));
                     }
                     opt_isect = Some(isect);
                 }
@@ -84,8 +83,7 @@ impl Primitive for ExhaustiveAccel {
         //let (b, _, _) = self.bounds.intersect_p(r);
         //if b {
         if let Some(_) = self.bounds.intersect_p(r) {
-            for it in self.prims.iter() {
-                let prim = it.as_ref();
+            for prim in &self.prims {
                 if prim.intersect_p(r) {
                     return true;
                 }

@@ -206,7 +206,7 @@ const ORDER_TABLE: [u32; 128] = [
 #[inline]
 fn intersect_primitives(primitives: &[Arc<dyn Primitive>], r: &Ray) -> Option<SurfaceInteraction> {
     let mut isect = None;
-    for prim in primitives.iter() {
+    for prim in primitives {
         if let Some(mut isect_n) = prim.intersect(r) {
             if prim.is_geometric() {
                 isect_n.primitive = Some(Arc::downgrade(prim));
@@ -219,7 +219,7 @@ fn intersect_primitives(primitives: &[Arc<dyn Primitive>], r: &Ray) -> Option<Su
 
 #[inline]
 fn intersect_primitives_p(primitives: &[Arc<dyn Primitive>], r: &Ray) -> bool {
-    for prim in primitives.iter() {
+    for prim in primitives {
         if prim.intersect_p(r) {
             return true;
         }
@@ -236,7 +236,7 @@ unsafe fn intersect_simd(
     tmax: Float,
 ) -> Option<SurfaceInteraction> {
     let mut isect = None;
-    let mut nodes_to_visit: Vec<usize> = Vec::with_capacity(16);
+    let mut nodes_to_visit: [(usize, Float, Float); 64] = [(0, 0.0, 0.0); 64];
 
     let org: [__m128; 3] = [
         _mm_set1_ps(r.o.x as f32),
@@ -254,8 +254,11 @@ unsafe fn intersect_simd(
     let tmin = _mm_set1_ps(tmin as f32);
     let mut tmax = _mm_set1_ps(tmax as f32);
 
-    nodes_to_visit.push(0);
-    while let Some(current_node_index) = nodes_to_visit.pop() {
+    nodes_to_visit[0] = (0, tmin as Float, tmax as Float);
+    let mut to_visit_offset = 1;
+    while to_visit_offset > 0 {
+        to_visit_offset -= 1;
+        let (current_node_index, t0, t1) = nodes_to_visit[to_visit_offset];
         assert!(!is_empty(current_node_index));
         let node = &nodes[current_node_index];
         if node.is_leaf == 0 {
@@ -268,7 +271,8 @@ unsafe fn intersect_simd(
                 while (order & 0x4) == 0 {
                     let cidx = node.children[(order & 0x3) as usize];
                     if !is_empty(cidx) {
-                        nodes_to_visit.push(cidx);
+                        nodes_to_visit[to_visit_offset] = (cidx, t0, t1);
+                        to_visit_offset += 1;
                     }
                     order >>= 4;
                 }
@@ -294,7 +298,7 @@ unsafe fn intersect_simd_p(
     tmin: Float,
     tmax: Float,
 ) -> bool {
-    let mut nodes_to_visit: Vec<usize> = Vec::with_capacity(16);
+    let mut nodes_to_visit: [(usize, Float, Float); 64] = [(0, 0.0, 0.0); 64];
 
     let org: [__m128; 3] = [
         _mm_set1_ps(r.o.x as f32),
@@ -312,8 +316,11 @@ unsafe fn intersect_simd_p(
     let tmin = _mm_set1_ps(tmin as f32);
     let tmax = _mm_set1_ps(tmax as f32);
 
-    nodes_to_visit.push(0);
-    while let Some(current_node_index) = nodes_to_visit.pop() {
+    nodes_to_visit[0] = (0, tmin as Float, tmax as Float);
+    let mut to_visit_offset = 1;
+    while to_visit_offset > 0 {
+        to_visit_offset -= 1;
+        let (current_node_index, t0, t1) = nodes_to_visit[to_visit_offset];
         assert!(!is_empty(current_node_index));
         let node = &nodes[current_node_index];
         if node.is_leaf == 0 {
@@ -326,7 +333,8 @@ unsafe fn intersect_simd_p(
                 while (order & 0x4) == 0 {
                     let cidx = node.children[(order & 0x3) as usize];
                     if !is_empty(cidx) {
-                        nodes_to_visit.push(cidx);
+                        nodes_to_visit[to_visit_offset] = (cidx, t0, t1);
+                        to_visit_offset += 1;
                     }
                     order >>= 4;
                 }

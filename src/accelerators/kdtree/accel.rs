@@ -421,10 +421,9 @@ impl Primitive for KDTreeAccel {
                     let n_primitives = *n_primitives;
                     for i in 0..n_primitives {
                         let index = self.primitive_indices[primitive_indices_offset + i];
-                        let prim = &self.primitives[index];
-                        if let Some(mut isect_n) = prim.intersect(r) {
-                            if prim.is_geometric() {
-                                isect_n.primitive = Some(Arc::downgrade(prim));
+                        if let Some(mut isect_n) = self.primitives[index].intersect(r) {
+                            if self.primitives[index].is_geometric() {
+                                isect_n.primitive = Some(Arc::downgrade(&self.primitives[index]));
                             }
                             isect = Some(isect_n);
                         }

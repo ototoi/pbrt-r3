@@ -125,11 +125,13 @@ impl Primitive for LBVHAccel {
         return to_bounds3f(&(self.nodes[0].bounds));
     }
 
+    #[inline]
     fn intersect(&self, r: &Ray) -> Option<SurfaceInteraction> {
         let _p = ProfilePhase::new(Prof::AccelIntersect);
 
         let mut isect = None;
-        let mut nodes_to_visit: Vec<(usize, Float, Float)> = Vec::with_capacity(16);
+        let mut nodes_to_visit: [(usize, Float, Float); 64] = [(0, 0.0, 0.0); 64];
+        let mut to_visit_offset = 0;
         let mut t_max = r.t_max.get();
         let t0: Float = 0.0;
         let t1: Float = t_max;
@@ -140,8 +142,11 @@ impl Primitive for LBVHAccel {
             Float::recip(r.d.z),
         ];
         let dir_is_neg = [sign(idir[0]), sign(idir[1]), sign(idir[2])];
-        nodes_to_visit.push((0, t0, t1));
-        while let Some((current_node_index, t0, mut t1)) = nodes_to_visit.pop() {
+        nodes_to_visit[to_visit_offset] = (0, t0, t1);
+        to_visit_offset += 1;
+        while to_visit_offset > 0 {
+            to_visit_offset -= 1;
+            let (current_node_index, t0, mut t1) = nodes_to_visit[to_visit_offset];
             t1 = Float::min(t_max, t1);
             if t1 < t0 {
                 continue;
@@ -157,7 +162,7 @@ impl Primitive for LBVHAccel {
                     let start = node.offset as usize;
                     let end = start + (node.n_primitives as usize);
                     for i in start..end {
-                        let prim = self.primitives[i].as_ref();
+                        let prim = &*self.primitives[i];
                         if let Some(mut isect_n) = prim.intersect(r) {
                             if prim.is_geometric() {
                                 isect_n.primitive = Some(Arc::downgrade(&self.primitives[i]));
@@ -174,10 +179,12 @@ impl Primitive for LBVHAccel {
                         1 - dir_is_neg[node.axis as usize],
                     ];
                     //if has_children[indices[1]] {
-                    nodes_to_visit.push((index_children[indices[1]], t0, t1));
+                    nodes_to_visit[to_visit_offset] = (index_children[indices[1]], t0, t1);
+                    to_visit_offset += 1;
                     //}
                     //if has_children[indices[0]] {
-                    nodes_to_visit.push((index_children[indices[0]], t0, t1));
+                    nodes_to_visit[to_visit_offset] = (index_children[indices[0]], t0, t1);
+                    to_visit_offset += 1;
                     //}
                 }
             }
@@ -185,10 +192,12 @@ impl Primitive for LBVHAccel {
         return isect;
     }
 
+    #[inline]
     fn intersect_p(&self, r: &Ray) -> bool {
         let _p = ProfilePhase::new(Prof::AccelIntersectP);
 
-        let mut nodes_to_visit: Vec<(usize, Float, Float)> = Vec::with_capacity(16);
+        let mut nodes_to_visit: [(usize, Float, Float); 64] = [(0, 0.0, 0.0); 64];
+        let mut to_visit_offset = 0;
         let t_max = r.t_max.get();
         let t0: Float = 0.0;
         let t1: Float = t_max;
@@ -199,8 +208,11 @@ impl Primitive for LBVHAccel {
             Float::recip(r.d.z),
         ];
         let dir_is_neg = [sign(idir[0]), sign(idir[1]), sign(idir[2])];
-        nodes_to_visit.push((0, t0, t1));
-        while let Some((current_node_index, t0, t1)) = nodes_to_visit.pop() {
+        nodes_to_visit[to_visit_offset] = (0, t0, t1);
+        to_visit_offset += 1;
+        while to_visit_offset > 0 {
+            to_visit_offset -= 1;
+            let (current_node_index, t0, t1) = nodes_to_visit[to_visit_offset];
             //t1 = Float::min(t_max, t1);
             //if t1 < t0 {
             //    continue;
@@ -216,8 +228,7 @@ impl Primitive for LBVHAccel {
                     let start = node.offset as usize;
                     let end = start + (node.n_primitives as usize);
                     for i in start..end {
-                        let p = self.primitives[i].as_ref();
-                        if p.intersect_p(r) {
+                        if self.primitives[i].intersect_p(r) {
                             return true;
                         }
                     }
@@ -229,10 +240,12 @@ impl Primitive for LBVHAccel {
                         1 - dir_is_neg[node.axis as usize],
                     ];
                     //if has_children[indices[1]] {
-                    nodes_to_visit.push((index_children[indices[1]], t0, t1));
+                    nodes_to_visit[to_visit_offset] = (index_children[indices[1]], t0, t1);
+                    to_visit_offset += 1;
                     //}
                     //if has_children[indices[0]] {
-                    nodes_to_visit.push((index_children[indices[0]], t0, t1));
+                    nodes_to_visit[to_visit_offset] = (index_children[indices[0]], t0, t1);
+                    to_visit_offset += 1;
                     //}
                 }
             }

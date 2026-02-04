@@ -213,13 +213,25 @@ const ORDER_TABLE: [u32; 128] = [
     0x40123, 0x40132, 0x41023, 0x41032, 0x42301, 0x43201, 0x42310, 0x43210,
 ];
 
+// 生ポインタを使った最適化版
+// Arc の参照カウントオーバーヘッドを回避し、交差判定を高速化
 #[inline]
-fn intersect_primitives(primitives: &[Arc<dyn Primitive>], r: &Ray) -> Option<SurfaceInteraction> {
+unsafe fn intersect_primitives_fast(
+    prim_ptrs: &[*const dyn Primitive],
+    primitives_arc: &[Arc<dyn Primitive>],
+    start_idx: usize,
+    r: &Ray,
+) -> Option<SurfaceInteraction> {
     let mut isect = None;
-    for prim in primitives {
-        if let Some(mut isect_n) = prim.intersect(r) {
-            if prim.is_geometric() {
-                isect_n.primitive = Some(Arc::downgrade(prim));
+    for i in 0..prim_ptrs.len() {
+        let prim_ptr = prim_ptrs[i];
+        // 生ポインタから trait object のメソッドを呼び出し
+        // vtable 経由でメソッド呼び出しが行われる
+        if let Some(mut isect_n) = (*prim_ptr).intersect(r) {
+            if (*prim_ptr).is_geometric() {
+                // Arc が必要な場合のみ元の Arc にアクセス
+                let prim_arc = &primitives_arc[start_idx + i];
+                isect_n.primitive = Some(Arc::downgrade(prim_arc));
             }
             isect = Some(isect_n);
         }
@@ -228,9 +240,10 @@ fn intersect_primitives(primitives: &[Arc<dyn Primitive>], r: &Ray) -> Option<Su
 }
 
 #[inline]
-fn intersect_primitives_p(primitives: &[Arc<dyn Primitive>], r: &Ray) -> bool {
-    for prim in primitives {
-        if prim.intersect_p(r) {
+unsafe fn intersect_primitives_p_fast(prim_ptrs: &[*const dyn Primitive], r: &Ray) -> bool {
+    for &prim_ptr in prim_ptrs {
+        // 生ポインタから直接メソッドを呼び出し
+        if (*prim_ptr).intersect_p(r) {
             return true;
         }
     }
@@ -301,7 +314,8 @@ fn is_valid_hitmask(
 
 #[inline]
 unsafe fn intersect_simd(
-    primitives: &[Arc<dyn Primitive>],
+    primitives_arc: &[Arc<dyn Primitive>],
+    primitive_ptrs: &[*const dyn Primitive],
     nodes: &[SIMDBVHNode],
     r: &Ray,
     tmin: Float,
@@ -365,7 +379,10 @@ unsafe fn intersect_simd(
         } else {
             let start = node.children[0];
             let end = start + node.children[1];
-            if let Some(isect_n) = intersect_primitives(&primitives[start..end], r) {
+            // 生ポインタ版の高速な交差判定を使用
+            if let Some(isect_n) =
+                intersect_primitives_fast(&primitive_ptrs[start..end], primitives_arc, start, r)
+            {
                 let t = r.t_max.get();
                 tmax = vdupq_n_f32(t as f32);
                 isect = Some(isect_n);
@@ -377,7 +394,7 @@ unsafe fn intersect_simd(
 
 #[inline]
 unsafe fn intersect_simd_p(
-    primitives: &[Arc<dyn Primitive>],
+    primitive_ptrs: &[*const dyn Primitive],
     nodes: &[SIMDBVHNode],
     r: &Ray,
     tmin: Float,
@@ -429,7 +446,8 @@ unsafe fn intersect_simd_p(
         } else {
             let start = node.children[0];
             let end = start + node.children[1];
-            if intersect_primitives_p(&primitives[start..end], r) {
+            // 生ポインタ版の高速な交差判定を使用
+            if intersect_primitives_p_fast(&primitive_ptrs[start..end], r) {
                 return true;
             }
         }
@@ -439,6 +457,9 @@ unsafe fn intersect_simd_p(
 
 pub struct QBVHAccel {
     primitives: Vec<Arc<dyn Primitive>>,
+    // 生ポインタのキャッシュ - 高速な交差判定のため
+    // Arc の参照カウント操作を回避し、CPU キャッシュ効率を向上
+    primitive_ptrs: Vec<*const dyn Primitive>,
     nodes: Vec<SIMDBVHNode>,
     bounds: Bounds3f,
 }
@@ -457,8 +478,17 @@ impl QBVHAccel {
         let mut nodes = Vec::new();
         nodes.reserve(root.node_count());
         flatten_qbvh_tree(&mut nodes, &root);
+        
+        // 生ポインタのキャッシュを構築
+        // Arc::as_ptr() で参照カウントを増やさずにポインタを取得
+        let primitive_ptrs: Vec<*const dyn Primitive> = orderd_prims
+            .iter()
+            .map(|arc| Arc::as_ptr(arc) as *const dyn Primitive)
+            .collect();
+        
         QBVHAccel {
             primitives: orderd_prims,
+            primitive_ptrs,
             nodes,
             bounds: root.bounds,
         }
@@ -475,7 +505,7 @@ impl Primitive for QBVHAccel {
 
         if let Some((tmin, tmax)) = self.bounds.intersect_p(r) {
             unsafe {
-                return intersect_simd(&self.primitives, &self.nodes, r, tmin, tmax);
+                return intersect_simd(&self.primitives, &self.primitive_ptrs, &self.nodes, r, tmin, tmax);
             }
         }
         return None;
@@ -486,7 +516,7 @@ impl Primitive for QBVHAccel {
 
         if let Some((tmin, tmax)) = self.bounds.intersect_p(r) {
             unsafe {
-                return intersect_simd_p(&self.primitives, &self.nodes, r, tmin, tmax);
+                return intersect_simd_p(&self.primitive_ptrs, &self.nodes, r, tmin, tmax);
             }
         }
         return false;

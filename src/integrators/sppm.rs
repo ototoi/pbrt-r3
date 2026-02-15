@@ -1,6 +1,7 @@
 use crate::core::prelude::*;
 use crate::samplers::*;
 
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::Arc;
@@ -28,18 +29,26 @@ struct SPPMPixel {
     radius: Float,
     ld: Spectrum,
     vp: SPPMVisiblePoint, // VisiblePoint vp;
-    phi: Spectrum,
-    m: i64,
     n: Float,
     tau: Spectrum,
 }
 
-#[derive(Clone, Default)]
-struct SPPMTile {
-    pixels: Vec<Arc<RwLock<SPPMPixel>>>,
+#[derive(Default)]
+struct SPPMPixels {
+    pixels: Vec<UnsafeCell<SPPMPixel>>,
 }
-unsafe impl Sync for SPPMTile {}
-unsafe impl Send for SPPMTile {}
+unsafe impl Sync for SPPMPixels {}
+unsafe impl Send for SPPMPixels {}
+impl SPPMPixels {
+    #[inline]
+    unsafe fn get(&self, i: usize) -> &SPPMPixel {
+        &*self.pixels[i].get()
+    }
+    #[inline]
+    unsafe fn get_mut(&self, i: usize) -> &mut SPPMPixel {
+        &mut *self.pixels[i].get()
+    }
+}
 
 #[derive(Clone)]
 struct SPPMHashGrid {
@@ -154,7 +163,7 @@ impl Integrator for SPPMIntegrator {
         PIXEL_MEMORY_BYTES.with(|c| c.add(n_pixels * std::mem::size_of::<SPPMPixel>()));
 
         for _ in 0..n_pixels {
-            let pixel = Arc::new(RwLock::new(SPPMPixel {
+            let pixel = UnsafeCell::new(SPPMPixel {
                 radius: initial_search_radius,
                 ld: Spectrum::default(),
                 vp: SPPMVisiblePoint {
@@ -163,14 +172,12 @@ impl Integrator for SPPMIntegrator {
                     bsdf: None,
                     beta: Spectrum::zero(),
                 },
-                phi: Spectrum::zero(),
-                m: 0,
                 n: 0.0,
                 tau: Spectrum::zero(),
-            }));
+            });
             pixels_vec.push(pixel);
         }
-        let pixels = Arc::new(SPPMTile { pixels: pixels_vec });
+        let pixels = Arc::new(SPPMPixels { pixels: pixels_vec });
         t_setup_pixels += setup_pixels_t0.elapsed().as_secs_f64();
 
         // Compute _lightDistr_ for sampling lights proportional to power
@@ -257,7 +264,11 @@ impl Integrator for SPPMIntegrator {
                                 let p_pixel_o = p_pixel - pixel_bounds.min;
                                 let pixel_offset = p_pixel_o.x
                                     + p_pixel_o.y * (pixel_bounds.max.x - pixel_bounds.min.x);
-                                let pixel = pixels.pixels[pixel_offset as usize].clone();
+                                let pixel_offset = pixel_offset as usize;
+                                let pixel = unsafe { pixels.get_mut(pixel_offset) };
+                                // Reset visible point at the start of each iteration for this pixel.
+                                pixel.vp.beta = Spectrum::zero();
+                                pixel.vp.bsdf = None;
                                 let mut specular_bounce = false;
                                 let mut pixel_ld = Spectrum::zero();
                                 let mut visible_point: Option<SPPMVisiblePoint> = None;
@@ -364,7 +375,6 @@ impl Integrator for SPPMIntegrator {
                                     }
                                     depth += 1;
                                 }
-                                let mut pixel = pixel.write().unwrap();
                                 pixel.ld += pixel_ld;
                                 if let Some(vp) = visible_point {
                                     pixel.vp = vp;
@@ -389,13 +399,12 @@ impl Integrator for SPPMIntegrator {
             let grid_t0 = Instant::now();
             let grid_bounds_t0 = Instant::now();
             let (grid_bounds, max_radius) = {
-                let p0 = pixels.pixels[0].read().unwrap().vp.p;
-                let mut max_radius = pixels.pixels[0].read().unwrap().radius;
+                let p0 = unsafe { pixels.get(0) }.vp.p;
+                let mut max_radius = unsafe { pixels.get(0) }.radius;
                 let mut min = p0;
                 let mut max = p0;
                 for i in 0..n_pixels {
-                    let pixel = &pixels.pixels[i];
-                    let pixel = pixel.read().unwrap();
+                    let pixel = unsafe { pixels.get(i) };
                     if pixel.vp.beta.is_black() {
                         continue;
                     }
@@ -428,7 +437,7 @@ impl Integrator for SPPMIntegrator {
             {
                 let pixel_indices: Vec<usize> = (0..n_pixels).collect();
                 pixel_indices.par_iter().for_each(|pixel_index| {
-                    let pixel = pixels.pixels[*pixel_index].read().unwrap();
+                    let pixel = unsafe { pixels.get(*pixel_index) };
                     if !pixel.vp.beta.is_black() {
                         // Add pixel's visible point to applicable grid cells
                         let p = pixel.vp.p;
@@ -472,7 +481,7 @@ impl Integrator for SPPMIntegrator {
 
             // Trace photons and accumulate contributions
             let phase_t0 = Instant::now();
-            {
+            let photon_accum = {
                 let photons_per_iteration = self.photons_per_iteration as usize;
                 let photon_accum = (0..photons_per_iteration)
                     .into_par_iter()
@@ -545,8 +554,7 @@ impl Integrator for SPPMIntegrator {
                                             // _grid[h]_
                                             let grid = grid.read().unwrap();
                                             for pixel_index in grid.nodes[h].iter() {
-                                                let pixel =
-                                                    pixels.pixels[*pixel_index].read().unwrap();
+                                                let pixel = unsafe { pixels.get(*pixel_index) };
                                                 let wi = -photon_ray.ray.d;
                                                 let radius = pixel.radius;
                                                 if Vector3f::distance_squared(&pixel.vp.p, &isect.p)
@@ -638,14 +646,9 @@ impl Integrator for SPPMIntegrator {
                         }
                         a
                     });
-
-                for (pixel_index, (phi, m)) in photon_accum {
-                    let mut pixel = pixels.pixels[pixel_index].write().unwrap();
-                    pixel.phi += phi;
-                    pixel.m += m;
-                }
                 PHOTON_PATHS.with(|c| c.add(photons_per_iteration as u64));
-            }
+                photon_accum
+            };
             t_photon += phase_t0.elapsed().as_secs_f64();
             let drop_grid_t0 = Instant::now();
             drop(grid);
@@ -654,27 +657,17 @@ impl Integrator for SPPMIntegrator {
             // Update pixel values from this pass's photons
             let phase_t0 = Instant::now();
             {
-                (0..n_pixels).into_par_iter().for_each(|i| {
-                    let pixel = &pixels.pixels[i];
-                    let mut p = pixel.write().unwrap();
-                    if p.m > 0 {
-                        // Update pixel photon count, search radius, and $\tau$ from
-                        // photons
-                        let gamma = 2.0 / 3.0;
-                        let nnew = p.n as Float + gamma * p.m as Float;
-                        let rnew = p.radius * Float::sqrt(nnew / (p.n as Float + p.m as Float));
-                        let phi = p.phi;
-
-                        p.tau = (p.tau + p.vp.beta * phi) * ((rnew * rnew) / (p.radius * p.radius));
-                        p.n = nnew;
-                        p.radius = rnew;
-                        p.m = 0;
-                        p.phi = Spectrum::zero();
-                    }
-                    // Reset _VisiblePoint_ in _pixel_
-                    p.vp.beta = Spectrum::zero();
-                    p.vp.bsdf = None;
-                });
+                for (pixel_index, (phi, m)) in photon_accum {
+                    // Update pixel photon count, search radius, and tau only for
+                    // pixels that actually received photons in this iteration.
+                    let p = unsafe { pixels.get_mut(pixel_index) };
+                    let gamma = 2.0 / 3.0;
+                    let nnew = p.n + gamma * m as Float;
+                    let rnew = p.radius * Float::sqrt(nnew / (p.n + m as Float));
+                    p.tau = (p.tau + p.vp.beta * phi) * ((rnew * rnew) / (p.radius * p.radius));
+                    p.n = nnew;
+                    p.radius = rnew;
+                }
             }
             t_update += phase_t0.elapsed().as_secs_f64();
 
@@ -702,8 +695,7 @@ impl Integrator for SPPMIntegrator {
                             // Compute radiance _L_ for SPPM pixel _pixel_
                             let yy = (y - pixel_bounds.min.y) as usize;
                             let pixel_index = yy * width + (x - x0) as usize;
-                            let pixel = &pixels.pixels[pixel_index];
-                            let pixel = pixel.read().unwrap();
+                            let pixel = unsafe { pixels.get(pixel_index) };
                             let mut l = pixel.ld / ((iter + 1) as Float);
                             l += pixel.tau / (np as Float * PI * pixel.radius * pixel.radius);
                             image[offset] = l;

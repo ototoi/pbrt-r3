@@ -105,9 +105,6 @@ impl SamplerIntegrator for PathIntegrator {
             let mut isect = found_intersection.unwrap();
             isect.compute_scattering_functions(&ray, arena, TransportMode::Radiance, true);
 
-            let tisect = Interaction::from(&isect);
-            //let isect = tisect.as_surface_interaction().unwrap();
-
             if isect.bsdf.is_none() {
                 ray = isect.spawn_ray(&ray.ray.d).into();
                 continue;
@@ -123,8 +120,8 @@ impl SamplerIntegrator for PathIntegrator {
                 PATHS.with(|stat| stat.add_denom(1)); //totalPaths
 
                 let ld = beta
-                    * uniform_sample_one_light(
-                        &tisect,
+                    * uniform_sample_one_light_surface(
+                        &isect,
                         scene,
                         arena,
                         sampler,
@@ -181,14 +178,11 @@ impl SamplerIntegrator for PathIntegrator {
                             }
                             beta *= s / pdf;
 
-                            let tpi = Interaction::from(&pi);
-                            //let pi = tisect.as_surface_interaction().unwrap();
-
                             // Account for the direct subsurface scattering component
                             let distrib = light_distribution.lookup(&pi.p);
                             l += beta
-                                * uniform_sample_one_light(
-                                    &tpi,
+                                * uniform_sample_one_light_surface(
+                                    &pi,
                                     scene,
                                     arena,
                                     sampler,

@@ -1,6 +1,7 @@
 use crate::core::prelude::*;
 use crate::samplers::*;
 
+use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -42,7 +43,7 @@ unsafe impl Send for SPPMTile {}
 
 #[derive(Clone)]
 struct SPPMHashGrid {
-    nodes: Vec<Vec<Arc<RwLock<SPPMPixel>>>>,
+    nodes: Vec<Vec<usize>>,
 }
 unsafe impl Sync for SPPMHashGrid {}
 unsafe impl Send for SPPMHashGrid {}
@@ -427,8 +428,7 @@ impl Integrator for SPPMIntegrator {
             {
                 let pixel_indices: Vec<usize> = (0..n_pixels).collect();
                 pixel_indices.par_iter().for_each(|pixel_index| {
-                    let pixel_ref = &pixels.pixels[*pixel_index];
-                    let pixel = pixel_ref.read().unwrap();
+                    let pixel = pixels.pixels[*pixel_index].read().unwrap();
                     if !pixel.vp.beta.is_black() {
                         // Add pixel's visible point to applicable grid cells
                         let p = pixel.vp.p;
@@ -451,7 +451,7 @@ impl Integrator for SPPMIntegrator {
                                     for x in pmin.x..=pmax.x {
                                         // Add visible point to grid cell $(x, y, z)$
                                         let h = hash(&Point3i::new(x, y, z), hash_size);
-                                        grid[h].push(pixel_ref.clone());
+                                        grid[h].push(*pixel_index);
                                     }
                                 }
                             }
@@ -474,9 +474,16 @@ impl Integrator for SPPMIntegrator {
             let phase_t0 = Instant::now();
             {
                 let photons_per_iteration = self.photons_per_iteration as usize;
-                (0..photons_per_iteration)
+                let photon_accum = (0..photons_per_iteration)
                     .into_par_iter()
-                    .for_each_init(MemoryArena::new, |arena, photon_index| {
+                    .fold(
+                        || {
+                            (
+                                MemoryArena::new(),
+                                HashMap::<usize, (Spectrum, i64)>::new(),
+                            )
+                        },
+                        |(mut arena, mut local), photon_index| {
                         let light_distr = light_distr.clone();
                         // Follow photon path for _photonIndex_
                         let halton_index =
@@ -514,12 +521,12 @@ impl Integrator for SPPMIntegrator {
                             light.sample_le(&u_light0, &u_light1, u_light_time)
                         {
                             if le.is_black() || pdf_pos == 0.0 || pdf_dir == 0.0 {
-                                return;
+                                return (arena, local);
                             }
                             let mut beta = (le * n_light.abs_dot(&photon_ray.d))
                                 / (light_pdf * pdf_pos * pdf_dir);
                             if beta.is_black() {
-                                return;
+                                return (arena, local);
                             }
 
                             let mut photon_ray: RayDifferential = photon_ray.into();
@@ -537,23 +544,22 @@ impl Integrator for SPPMIntegrator {
                                             // Add photon contribution to visible points in
                                             // _grid[h]_
                                             let grid = grid.read().unwrap();
-                                            for pixel in grid.nodes[h].iter() {
+                                            for pixel_index in grid.nodes[h].iter() {
+                                                let pixel =
+                                                    pixels.pixels[*pixel_index].read().unwrap();
                                                 let wi = -photon_ray.ray.d;
+                                                let radius = pixel.radius;
+                                                if Vector3f::distance_squared(&pixel.vp.p, &isect.p)
+                                                    <= (radius * radius)
                                                 {
-                                                    let mut pixel = pixel.write().unwrap();
-                                                    let radius = pixel.radius;
-                                                    if Vector3f::distance_squared(
-                                                        &pixel.vp.p,
-                                                        &isect.p,
-                                                    ) <= (radius * radius)
-                                                    {
-                                                        if let Some(bsdf) = pixel.vp.bsdf.as_ref()
-                                                        {
-                                                            let phi =
-                                                                beta * bsdf.f(&pixel.vp.wo, &wi, BSDF_ALL);
-                                                            pixel.phi += phi;
-                                                            pixel.m += 1;
-                                                        }
+                                                    if let Some(bsdf) = pixel.vp.bsdf.as_ref() {
+                                                        let phi =
+                                                            beta * bsdf.f(&pixel.vp.wo, &wi, BSDF_ALL);
+                                                        let e = local
+                                                            .entry(*pixel_index)
+                                                            .or_insert((Spectrum::zero(), 0));
+                                                        e.0 += phi;
+                                                        e.1 += 1;
                                                     }
                                                 }
                                             }
@@ -564,7 +570,7 @@ impl Integrator for SPPMIntegrator {
                                     // Compute BSDF at photon intersection point
                                     isect.compute_scattering_functions(
                                         &photon_ray,
-                                        arena,
+                                        &mut arena,
                                         TransportMode::Importance,
                                         true,
                                     );
@@ -617,10 +623,27 @@ impl Integrator for SPPMIntegrator {
                                 depth += 1;
                             }
                         } else {
-                            return;
+                            return (arena, local);
                         }
                         arena.reset();
+                        (arena, local)
+                    },
+                    )
+                    .map(|(_, local)| local)
+                    .reduce(HashMap::new, |mut a, b| {
+                        for (pixel_index, (phi, m)) in b {
+                            let e = a.entry(pixel_index).or_insert((Spectrum::zero(), 0));
+                            e.0 += phi;
+                            e.1 += m;
+                        }
+                        a
                     });
+
+                for (pixel_index, (phi, m)) in photon_accum {
+                    let mut pixel = pixels.pixels[pixel_index].write().unwrap();
+                    pixel.phi += phi;
+                    pixel.m += m;
+                }
                 PHOTON_PATHS.with(|c| c.add(photons_per_iteration as u64));
             }
             t_photon += phase_t0.elapsed().as_secs_f64();

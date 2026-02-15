@@ -4,6 +4,7 @@ use crate::samplers::*;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use std::sync::RwLock;
+use std::time::Instant;
 
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::IntoParallelRefIterator;
@@ -36,23 +37,12 @@ struct SPPMPixel {
 struct SPPMTile {
     pixels: Vec<Arc<RwLock<SPPMPixel>>>,
 }
-impl SPPMTile {
-    pub fn push(&mut self, pixel: Arc<RwLock<SPPMPixel>>) {
-        self.pixels.push(pixel);
-    }
-}
 unsafe impl Sync for SPPMTile {}
 unsafe impl Send for SPPMTile {}
 
 #[derive(Clone)]
-struct SPPMPixelListNode {
-    pixel: Arc<RwLock<SPPMPixel>>,
-    next: Option<Arc<SPPMPixelListNode>>,
-}
-
-#[derive(Clone)]
 struct SPPMHashGrid {
-    nodes: Vec<Option<Arc<SPPMPixelListNode>>>,
+    nodes: Vec<Vec<Arc<RwLock<SPPMPixel>>>>,
 }
 unsafe impl Sync for SPPMHashGrid {}
 unsafe impl Send for SPPMHashGrid {}
@@ -131,42 +121,61 @@ impl Integrator for SPPMIntegrator {
             let film = film.read().unwrap();
             film.cropped_pixel_bounds
         };
+        let timing_enabled = std::env::var_os("PBRT_R3_SPPM_TIMING").is_some();
+        let render_t0 = Instant::now();
+        let mut t_camera = 0.0f64;
+        let mut t_grid = 0.0f64;
+        let mut t_photon = 0.0f64;
+        let mut t_update = 0.0f64;
+        let mut t_image = 0.0f64;
+        let mut t_grid_bounds = 0.0f64;
+        let mut t_progress = 0.0f64;
+        let mut t_finalize = 0.0f64;
+        let mut t_setup_film = 0.0f64;
+        let mut t_setup_pixels = 0.0f64;
+        let mut t_setup_light_distr = 0.0f64;
+        let mut t_setup_tiles = 0.0f64;
+        let mut t_drop_grid = 0.0f64;
 
+        let setup_film_t0 = Instant::now();
         {
             let film = self.get_film();
             let mut film = film.write().unwrap();
             film.render_start();
         }
+        t_setup_film += setup_film_t0.elapsed().as_secs_f64();
 
         let n_pixels = pixel_bounds.area() as usize;
         let initial_search_radius = self.initial_search_radius;
-        let pixels = Arc::new(RwLock::new(SPPMTile::default()));
+        let setup_pixels_t0 = Instant::now();
+        let mut pixels_vec = Vec::with_capacity(n_pixels);
 
         PIXEL_MEMORY_BYTES.with(|c| c.add(n_pixels * std::mem::size_of::<SPPMPixel>()));
 
-        {
-            let mut pixels = pixels.write().unwrap();
-            for _ in 0..n_pixels {
-                let pixel = Arc::new(RwLock::new(SPPMPixel {
-                    radius: initial_search_radius,
-                    ld: Spectrum::default(),
-                    vp: SPPMVisiblePoint {
-                        p: Point3f::default(),
-                        wo: Vector3f::default(),
-                        bsdf: None,
-                        beta: Spectrum::zero(),
-                    },
-                    phi: Spectrum::zero(),
-                    m: 0,
-                    n: 0.0,
-                    tau: Spectrum::zero(),
-                }));
-                pixels.push(pixel);
-            }
+        for _ in 0..n_pixels {
+            let pixel = Arc::new(RwLock::new(SPPMPixel {
+                radius: initial_search_radius,
+                ld: Spectrum::default(),
+                vp: SPPMVisiblePoint {
+                    p: Point3f::default(),
+                    wo: Vector3f::default(),
+                    bsdf: None,
+                    beta: Spectrum::zero(),
+                },
+                phi: Spectrum::zero(),
+                m: 0,
+                n: 0.0,
+                tau: Spectrum::zero(),
+            }));
+            pixels_vec.push(pixel);
         }
+        let pixels = Arc::new(SPPMTile { pixels: pixels_vec });
+        t_setup_pixels += setup_pixels_t0.elapsed().as_secs_f64();
 
         // Compute _lightDistr_ for sampling lights proportional to power
+        let setup_light_t0 = Instant::now();
         let light_distr = compute_light_power_distribution(scene);
+        t_setup_light_distr += setup_light_t0.elapsed().as_secs_f64();
 
         let n_iterations = self.n_iterations;
         let inv_sqrt_spp = 1.0 / Float::sqrt(n_iterations as Float);
@@ -181,6 +190,7 @@ impl Integrator for SPPMIntegrator {
             (pixel_extent.y + tile_size - 1) / tile_size,
         );
 
+        let setup_tiles_t0 = Instant::now();
         let mut tiles = Vec::with_capacity(n_tiles.x as usize * n_tiles.y as usize);
         //let mut samplers = Vec::with_capacity(n_tiles.x as usize * n_tiles.y as usize);
         for y in 0..n_tiles.y {
@@ -197,6 +207,7 @@ impl Integrator for SPPMIntegrator {
                 //samplers.push(sampler);
             }
         }
+        t_setup_tiles += setup_tiles_t0.elapsed().as_secs_f64();
 
         let progress = Arc::new(RwLock::new(ProgressReporter::new(
             2 * n_iterations as usize,
@@ -208,12 +219,12 @@ impl Integrator for SPPMIntegrator {
         let max_depth = self.max_depth;
         for iter in 0..n_iterations {
             // Generate SPPM visible points
+            let phase_t0 = Instant::now();
             {
                 tiles.par_iter().for_each(|tile| {
                     let mut arena = MemoryArena::new();
                     //let pixel_bounds = tile.5;
                     let pixels = pixels.clone();
-                    let pixels = pixels.read().unwrap();
                     let camera = camera.as_ref();
                     //let tile = Point2i::new(tile.0, tile.1);
                     let tile_bounds = tile.2;
@@ -247,6 +258,8 @@ impl Integrator for SPPMIntegrator {
                                     + p_pixel_o.y * (pixel_bounds.max.x - pixel_bounds.min.x);
                                 let pixel = pixels.pixels[pixel_offset as usize].clone();
                                 let mut specular_bounce = false;
+                                let mut pixel_ld = Spectrum::zero();
+                                let mut visible_point: Option<SPPMVisiblePoint> = None;
                                 let mut depth = 0;
                                 while depth < max_depth {
                                     if let Some(mut isect) = scene.intersect(&ray.ray) {
@@ -263,27 +276,22 @@ impl Integrator for SPPMIntegrator {
                                         }
                                         //isect.ComputeScatteringFunctions(ray, arena, true);
                                         if let Some(bsdf) = isect.bsdf.as_ref() {
-                                            let tisect = Interaction::from(&isect);
                                             // Accumulate direct illumination at SPPM camera ray
                                             // intersection
                                             let wo = -ray.ray.d;
+                                            let mut ld = beta
+                                                * uniform_sample_one_light_surface(
+                                                    &isect,
+                                                    scene,
+                                                    &mut arena,
+                                                    tile_sampler.deref_mut() as &mut dyn Sampler,
+                                                    false,
+                                                    None,
+                                                );
                                             if depth == 0 || specular_bounce {
-                                                let mut pixel = pixel.write().unwrap();
-                                                pixel.ld += beta * isect.le(&wo);
+                                                ld += beta * isect.le(&wo);
                                             }
-                                            {
-                                                let mut pixel = pixel.write().unwrap();
-                                                pixel.ld += beta
-                                                    * uniform_sample_one_light(
-                                                        &tisect,
-                                                        scene,
-                                                        &mut arena,
-                                                        tile_sampler.deref_mut()
-                                                            as &mut dyn Sampler,
-                                                        false,
-                                                        None,
-                                                    );
-                                            }
+                                            pixel_ld += ld;
                                             // Possibly create visible point and end camera path
 
                                             let (is_diffuse, is_glossy) = {
@@ -300,14 +308,14 @@ impl Integrator for SPPMIntegrator {
                                                 ) > 0;
                                                 (b1, b2)
                                             };
-                                            if is_diffuse || (is_glossy && depth == max_depth - 1) {
-                                                let mut pixel = pixel.write().unwrap();
-                                                pixel.vp = SPPMVisiblePoint {
+                                            if is_diffuse || (is_glossy && depth == max_depth - 1)
+                                            {
+                                                visible_point = Some(SPPMVisiblePoint {
                                                     p: isect.p,
                                                     wo: wo,
                                                     bsdf: Some(bsdf.clone()),
                                                     beta: beta.clone(),
-                                                };
+                                                });
                                                 break;
                                             }
 
@@ -347,31 +355,39 @@ impl Integrator for SPPMIntegrator {
                                             continue;
                                         }
                                     } else {
-                                        let mut pixel = pixel.write().unwrap();
                                         for light in scene.lights.iter() {
                                             let light = light.as_ref();
-                                            pixel.ld += beta * light.le(&ray);
+                                            pixel_ld += beta * light.le(&ray);
                                         }
                                         break;
                                     }
                                     depth += 1;
+                                }
+                                let mut pixel = pixel.write().unwrap();
+                                pixel.ld += pixel_ld;
+                                if let Some(vp) = visible_point {
+                                    pixel.vp = vp;
                                 }
                             }
                         }
                     }
                 });
             }
+            t_camera += phase_t0.elapsed().as_secs_f64();
 
+            let progress_t0 = Instant::now();
             {
                 let mut progress = progress.write().unwrap();
                 progress.update(1);
             }
+            t_progress += progress_t0.elapsed().as_secs_f64();
 
             // Create grid of all SPPM visible points
 
             // Compute grid bounds for SPPM visible points
+            let grid_t0 = Instant::now();
+            let grid_bounds_t0 = Instant::now();
             let (grid_bounds, max_radius) = {
-                let pixels = pixels.read().unwrap();
                 let p0 = pixels.pixels[0].read().unwrap().vp.p;
                 let mut max_radius = pixels.pixels[0].read().unwrap().radius;
                 let mut min = p0;
@@ -392,6 +408,7 @@ impl Integrator for SPPMIntegrator {
                 }
                 (Bounds3f::new(&min, &max), max_radius)
             };
+            t_grid_bounds += grid_bounds_t0.elapsed().as_secs_f64();
             // Compute resolution of SPPM grid in each dimension
             let diag = grid_bounds.diagonal();
             let max_diag = max_component(&diag);
@@ -405,12 +422,11 @@ impl Integrator for SPPMIntegrator {
             // Allocate grid for SPPM visible points
             let hash_size = n_pixels;
             let grid = Arc::new(RwLock::new(SPPMHashGrid {
-                nodes: vec![None; hash_size],
+                nodes: vec![Vec::new(); hash_size],
             }));
             {
                 let pixel_indices: Vec<usize> = (0..n_pixels).collect();
                 pixel_indices.par_iter().for_each(|pixel_index| {
-                    let pixels = pixels.read().unwrap();
                     let pixel_ref = &pixels.pixels[*pixel_index];
                     let pixel = pixel_ref.read().unwrap();
                     if !pixel.vp.beta.is_black() {
@@ -435,13 +451,7 @@ impl Integrator for SPPMIntegrator {
                                     for x in pmin.x..=pmax.x {
                                         // Add visible point to grid cell $(x, y, z)$
                                         let h = hash(&Point3i::new(x, y, z), hash_size);
-                                        {
-                                            let node = Arc::new(SPPMPixelListNode {
-                                                pixel: pixel_ref.clone(),
-                                                next: grid[h].clone(),
-                                            });
-                                            grid[h] = Some(node);
-                                        }
+                                        grid[h].push(pixel_ref.clone());
                                     }
                                 }
                             }
@@ -458,14 +468,15 @@ impl Integrator for SPPMIntegrator {
                     }
                 });
             }
+            t_grid += grid_t0.elapsed().as_secs_f64();
 
             // Trace photons and accumulate contributions
+            let phase_t0 = Instant::now();
             {
-                let arena = Arc::new(RwLock::new(MemoryArena::new()));
                 let photons_per_iteration = self.photons_per_iteration as usize;
                 (0..photons_per_iteration)
                     .into_par_iter()
-                    .for_each(|photon_index| {
+                    .for_each_init(MemoryArena::new, |arena, photon_index| {
                         let light_distr = light_distr.clone();
                         // Follow photon path for _photonIndex_
                         let halton_index =
@@ -525,59 +536,38 @@ impl Integrator for SPPMIntegrator {
                                             let h = hash(&photon_grid_index, hash_size);
                                             // Add photon contribution to visible points in
                                             // _grid[h]_
-                                            let mut node = {
-                                                let grid = grid.read().unwrap();
-                                                grid.nodes[h].clone()
-                                            };
-                                            while let Some(n) = node {
-                                                let pixel = n.pixel.as_ref();
+                                            let grid = grid.read().unwrap();
+                                            for pixel in grid.nodes[h].iter() {
+                                                let wi = -photon_ray.ray.d;
                                                 {
-                                                    let pixel = pixel.read().unwrap();
+                                                    let mut pixel = pixel.write().unwrap();
                                                     let radius = pixel.radius;
                                                     if Vector3f::distance_squared(
                                                         &pixel.vp.p,
                                                         &isect.p,
-                                                    ) > (radius * radius)
+                                                    ) <= (radius * radius)
                                                     {
-                                                        node = n.next.clone();
-                                                        continue;
+                                                        if let Some(bsdf) = pixel.vp.bsdf.as_ref()
+                                                        {
+                                                            let phi =
+                                                                beta * bsdf.f(&pixel.vp.wo, &wi, BSDF_ALL);
+                                                            pixel.phi += phi;
+                                                            pixel.m += 1;
+                                                        }
                                                     }
                                                 }
-                                                {
-                                                    let pixel = pixel.write().unwrap();
-                                                    assert!(pixel.vp.bsdf.is_some());
-                                                }
-                                                // Update _pixel_ $\Phi$ and $M$ for nearby
-                                                // photon
-                                                let phi = {
-                                                    let pixel = pixel.read().unwrap();
-                                                    assert!(pixel.vp.bsdf.is_some());
-                                                    let bsdf = pixel.vp.bsdf.as_ref().unwrap();
-                                                    let wi = -photon_ray.ray.d;
-                                                    beta * bsdf.f(&pixel.vp.wo, &wi, BSDF_ALL)
-                                                };
-                                                {
-                                                    let mut pixel = pixel.write().unwrap();
-                                                    pixel.phi += phi;
-                                                    pixel.m += 1;
-                                                }
-                                                node = n.next.clone();
                                             }
                                         }
                                     }
                                     // Sample new photon ray direction
 
                                     // Compute BSDF at photon intersection point
-                                    {
-                                        let arena = arena.clone();
-                                        let mut arena = arena.write().unwrap();
-                                        isect.compute_scattering_functions(
-                                            &photon_ray,
-                                            &mut arena,
-                                            TransportMode::Importance,
-                                            true,
-                                        );
-                                    }
+                                    isect.compute_scattering_functions(
+                                        &photon_ray,
+                                        arena,
+                                        TransportMode::Importance,
+                                        true,
+                                    );
                                     if isect.bsdf.is_none() {
                                         // Skip over medium boundaries for photon tracing
                                         photon_ray = isect.spawn_ray(&photon_ray.ray.d).into();
@@ -629,15 +619,19 @@ impl Integrator for SPPMIntegrator {
                         } else {
                             return;
                         }
+                        arena.reset();
                     });
                 PHOTON_PATHS.with(|c| c.add(photons_per_iteration as u64));
             }
+            t_photon += phase_t0.elapsed().as_secs_f64();
+            let drop_grid_t0 = Instant::now();
+            drop(grid);
+            t_drop_grid += drop_grid_t0.elapsed().as_secs_f64();
 
             // Update pixel values from this pass's photons
+            let phase_t0 = Instant::now();
             {
                 (0..n_pixels).into_par_iter().for_each(|i| {
-                    let pixels = pixels.clone();
-                    let pixels = pixels.read().unwrap();
                     let pixel = &pixels.pixels[i];
                     let mut p = pixel.write().unwrap();
                     if p.m > 0 {
@@ -659,8 +653,10 @@ impl Integrator for SPPMIntegrator {
                     p.vp.bsdf = None;
                 });
             }
+            t_update += phase_t0.elapsed().as_secs_f64();
 
             // Periodically store SPPM image in film and write image
+            let phase_t0 = Instant::now();
             {
                 let photons_per_iteration = self.photons_per_iteration as u32;
                 let write_frequency = self.write_frequency as u32;
@@ -676,8 +672,6 @@ impl Integrator for SPPMIntegrator {
                     assert_eq!(area, (x1 - x0) as usize * (y1 - y0) as usize);
                     let mut image = vec![Spectrum::default(); area];
 
-                    let pixels = pixels.clone();
-                    let pixels = pixels.read().unwrap();
                     let width = (x1 - x0) as usize;
                     let mut offset = 0;
                     for y in y0..y1 {
@@ -704,23 +698,80 @@ impl Integrator for SPPMIntegrator {
                     }
                 }
             }
+            t_image += phase_t0.elapsed().as_secs_f64();
 
+            let progress_t0 = Instant::now();
             {
                 let mut progress = progress.write().unwrap();
                 progress.update(1);
             }
+            t_progress += progress_t0.elapsed().as_secs_f64();
         }
 
+        let progress_t0 = Instant::now();
         {
             let mut progress = progress.write().unwrap();
             progress.done();
         }
+        t_progress += progress_t0.elapsed().as_secs_f64();
 
+        let finalize_t0 = Instant::now();
         {
             let film = self.get_film();
             let mut film = film.write().unwrap();
             film.render_end();
             film.write_image();
+        }
+        t_finalize += finalize_t0.elapsed().as_secs_f64();
+        if timing_enabled {
+            let total = render_t0.elapsed().as_secs_f64();
+            let known = t_camera
+                + t_grid
+                + t_photon
+                + t_update
+                + t_image
+                + t_grid_bounds
+                + t_progress
+                + t_finalize
+                + t_setup_film
+                + t_setup_pixels
+                + t_setup_light_distr
+                + t_setup_tiles
+                + t_drop_grid;
+            let other = (total - known).max(0.0);
+            let denom = if total > 0.0 { total } else { 1.0 };
+            eprintln!(
+                "[SPPM timing] total={:.3}s setup_film={:.3}s ({:.1}%) setup_pixels={:.3}s ({:.1}%) setup_light_distr={:.3}s ({:.1}%) setup_tiles={:.3}s ({:.1}%) camera={:.3}s ({:.1}%) grid={:.3}s ({:.1}%) grid_bounds={:.3}s ({:.1}%) photon={:.3}s ({:.1}%) drop_grid={:.3}s ({:.1}%) update={:.3}s ({:.1}%) image={:.3}s ({:.1}%) progress={:.3}s ({:.1}%) finalize={:.3}s ({:.1}%) other={:.3}s ({:.1}%)",
+                total,
+                t_setup_film,
+                100.0 * t_setup_film / denom,
+                t_setup_pixels,
+                100.0 * t_setup_pixels / denom,
+                t_setup_light_distr,
+                100.0 * t_setup_light_distr / denom,
+                t_setup_tiles,
+                100.0 * t_setup_tiles / denom,
+                t_camera,
+                100.0 * t_camera / denom,
+                t_grid,
+                100.0 * t_grid / denom,
+                t_grid_bounds,
+                100.0 * t_grid_bounds / denom,
+                t_photon,
+                100.0 * t_photon / denom,
+                t_drop_grid,
+                100.0 * t_drop_grid / denom,
+                t_update,
+                100.0 * t_update / denom,
+                t_image,
+                100.0 * t_image / denom,
+                t_progress,
+                100.0 * t_progress / denom,
+                t_finalize,
+                100.0 * t_finalize / denom,
+                other,
+                100.0 * other / denom
+            );
         }
     }
 

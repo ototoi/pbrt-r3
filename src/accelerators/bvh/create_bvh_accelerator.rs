@@ -10,7 +10,7 @@ pub fn create_bvh_accelerator(
     prims: &[Arc<dyn Primitive>],
     params: &ParamSet,
 ) -> Result<Arc<dyn Primitive>, PbrtError> {
-    let split_name = params.find_one_string("splitmethod", "middle");
+    let split_name = params.find_one_string("splitmethod", "sah");
     let split_method = match &split_name as &str {
         "sah" => SplitMethod::SAH,
         "hlbvh" => SplitMethod::HLBVH,

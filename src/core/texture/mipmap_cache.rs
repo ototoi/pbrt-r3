@@ -94,10 +94,10 @@ pub fn load_float_mipmap_cache(dir: &str, file_hash: &str) -> Result<MIPMap<Floa
         let mip_image_path = dir.join(format!("{}.exr", i));
         let (image, resolution) = read_cache_image(mip_image_path.to_str().unwrap())?;
         let image = convert_float_image(image, &resolution);
-        let mip_image: Box<dyn MIPMapImage<Float>> = Box::new(F32MIPMapImage::new(
+        let mip_image = F32MIPMapImage::new(
             image,
             (resolution.x as usize, resolution.y as usize),
-        ));
+        );
         pyramid.push(mip_image);
     }
     let mipmap = MIPMap::<Float>::make_from_pyramid(
@@ -129,7 +129,7 @@ pub fn save_float_mipmap_cache(
     save_cacheinfo_to_json(json_path.to_str().unwrap(), &cache_info)?;
     for i in 0..cache_info.mip_levels {
         let mip_image_path = dir.join(format!("{}.exr", i));
-        let image = mipmap.pyramid[i as usize].as_ref().as_data();
+        let image = &mipmap.pyramid[i as usize];
         write_cache_image(
             mip_image_path.to_str().unwrap(),
             &image.data,
@@ -154,10 +154,10 @@ pub fn load_spectrum_mipmap_cache(
         let mip_image_path = dir.join(format!("{}.exr", i));
         let (image, resolution) = read_cache_image(mip_image_path.to_str().unwrap())?;
         let image = convert_spectrum_image(image, &resolution);
-        let mip_image: Box<dyn MIPMapImage<RGBSpectrum>> = Box::new(F32MIPMapImage::new(
+        let mip_image = F32MIPMapImage::new(
             image,
             (resolution.x as usize, resolution.y as usize),
-        ));
+        );
         pyramid.push(mip_image);
     }
     let mipmap = MIPMap::<RGBSpectrum>::make_from_pyramid(
@@ -189,7 +189,7 @@ pub fn save_spectrum_mipmap_cache(
     save_cacheinfo_to_json(json_path.to_str().unwrap(), &cache_info)?;
     for i in 0..cache_info.mip_levels {
         let mip_image_path = dir.join(format!("{}.exr", i));
-        let image = mipmap.pyramid[i as usize].as_ref().as_data();
+        let image = &mipmap.pyramid[i as usize];
         write_cache_image(
             mip_image_path.to_str().unwrap(),
             &image.data,

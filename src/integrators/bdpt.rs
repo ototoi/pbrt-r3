@@ -57,11 +57,6 @@ fn buffer_index(s: i32, t: i32) -> usize {
 
 impl Integrator for BDPTIntegrator {
     fn render(&mut self, scene: &Scene) {
-        let bdpt_timing_enabled = std::env::var_os("PBRT_R3_BDPT_TIMING").is_some();
-        if bdpt_timing_enabled {
-            reset_bdpt_timing_counters();
-            crate::lights::reset_infinite_light_sample_timing_counters();
-        }
         let light_distribution =
             create_light_sample_distribution(&self.light_sample_strategy, scene);
         if let Err(e) = light_distribution {
@@ -374,10 +369,6 @@ impl Integrator for BDPTIntegrator {
         {
             let mut reporter = reporter.write().unwrap();
             reporter.done();
-        }
-        if bdpt_timing_enabled {
-            report_bdpt_timing_counters("bdpt");
-            crate::lights::report_infinite_light_sample_timing_counters("bdpt");
         }
     }
 

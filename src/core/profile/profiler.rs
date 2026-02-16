@@ -8,7 +8,7 @@ mod detail {
     use std::thread::ThreadId;
     use std::time::Duration;
 
-    use crate::core::base::ProfileCategory;
+    use crate::core::profile::ProfileCategory;
 
     type ThreadStateMap = HashMap<ThreadId, u64>;
     static THREAD_STATE_MAP: LazyLock<RwLock<ThreadStateMap>> =

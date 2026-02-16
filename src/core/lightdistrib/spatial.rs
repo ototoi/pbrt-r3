@@ -10,7 +10,7 @@ use crate::core::scene::*;
 use crate::core::stats::*;
 //use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::RwLock;
 
 thread_local!(static N_CREATED: StatCounter = StatCounter::new("SpatialLightDistribution/Distributions created"));
 thread_local!(static N_PROBES_PER_LOOKUP: StatIntDistribution = StatIntDistribution::new("SpatialLightDistribution/Hash probes per lookup"));
@@ -29,7 +29,7 @@ pub struct SpatialLightDistribution {
     world_bound: Bounds3f,
     lights: Vec<Arc<dyn Light>>,
     voxels: [u32; 3],
-    hash_table: Vec<Mutex<Option<HashEntry>>>,
+    hash_table: Vec<RwLock<Option<HashEntry>>>,
 }
 
 impl SpatialLightDistribution {
@@ -52,7 +52,7 @@ impl SpatialLightDistribution {
         let hash_table_size = (4 * voxels[0] * voxels[1] * voxels[2]) as usize;
         let mut hash_table = Vec::new();
         for _ in 0..hash_table_size {
-            hash_table.push(Mutex::new(None));
+            hash_table.push(RwLock::new(None));
         }
         SpatialLightDistribution {
             world_bound: b,
@@ -208,39 +208,43 @@ impl LightDistribution for SpatialLightDistribution {
         let mut n_probes = 0;
         loop {
             n_probes += 1;
-            let mut hash_entry = self.hash_table[hash as usize].lock().unwrap();
-            // Does the hash table entry at offset |hash| match the current point?
-            if let Some(entry) = hash_entry.as_ref() {
-                let entry_packed_pos = entry.packed_pos;
-                if entry_packed_pos == packed_pos {
-                    // Yes! Most of the time, there should already by a light
-                    // sampling distribution available.
-                    return entry.distribution.clone();
-                } else {
-                    // The hash table entry we're checking has already been
-                    // allocated for another voxel. Advance to the next entry with
-                    // quadratic probing.
-                    hash += step * step;
-                    let hash_table_size = self.hash_table.len() as u64;
-                    if hash >= hash_table_size {
-                        hash %= hash_table_size;
+            // Fast path: shared lock for populated entries.
+            {
+                let hash_entry = self.hash_table[hash as usize].read().unwrap();
+                if let Some(entry) = hash_entry.as_ref() {
+                    if entry.packed_pos == packed_pos {
+                        N_PROBES_PER_LOOKUP.with(|c| c.add(n_probes));
+                        return entry.distribution.clone();
                     }
-                    step += 1;
                 }
-            } else {
-                // We have found an invalid entry. (Though this may have
-                // changed since the load into entryPackedPos above.)  Use an
-                // atomic compare/exchange to try to claim this entry for the
-                // current position.
-                let distrib = self.compute_distribution(&pi);
-                *hash_entry = Some(HashEntry {
-                    packed_pos,
-                    distribution: distrib.clone(),
-                });
-
-                N_PROBES_PER_LOOKUP.with(|c| c.add(n_probes));
-                return distrib;
             }
+
+            // Slow path: exclusive lock to initialize empty slots.
+            {
+                let mut hash_entry = self.hash_table[hash as usize].write().unwrap();
+                if let Some(entry) = hash_entry.as_ref() {
+                    if entry.packed_pos == packed_pos {
+                        N_PROBES_PER_LOOKUP.with(|c| c.add(n_probes));
+                        return entry.distribution.clone();
+                    }
+                } else {
+                    let distrib = self.compute_distribution(&pi);
+                    *hash_entry = Some(HashEntry {
+                        packed_pos,
+                        distribution: distrib.clone(),
+                    });
+                    N_PROBES_PER_LOOKUP.with(|c| c.add(n_probes));
+                    return distrib;
+                }
+            }
+
+            // Collision: quadratic probing to the next candidate slot.
+            hash += step * step;
+            let hash_table_size = self.hash_table.len() as u64;
+            if hash >= hash_table_size {
+                hash %= hash_table_size;
+            }
+            step += 1;
         }
     }
 }

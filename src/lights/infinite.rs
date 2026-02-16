@@ -1,7 +1,7 @@
 use crate::core::prelude::*;
 
 use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::OnceLock;
 
 #[derive(Debug, Default, Copy, Clone)]
 struct WorldBound {
@@ -12,7 +12,7 @@ struct WorldBound {
 pub struct InfiniteAreaLight {
     base: BaseLight,
     lmap: MIPMap<RGBSpectrum>,
-    bound: RwLock<WorldBound>,
+    bound: OnceLock<WorldBound>,
     distribution: Distribution2D,
 }
 
@@ -32,17 +32,16 @@ impl InfiniteAreaLight {
         InfiniteAreaLight {
             base,
             lmap,
-            bound: RwLock::new(WorldBound {
-                center: Point3f::new(0.0, 0.0, 0.0),
-                radius: Float::INFINITY,
-            }),
+            bound: OnceLock::new(),
             distribution,
         }
     }
 
     fn get_bound(&self) -> WorldBound {
-        let bound = self.bound.read().unwrap();
-        return *bound;
+        self.bound.get().copied().unwrap_or(WorldBound {
+            center: Point3f::new(0.0, 0.0, 0.0),
+            radius: Float::INFINITY,
+        })
     }
 }
 
@@ -96,14 +95,11 @@ impl Light for InfiniteAreaLight {
     fn preprocess(&self, scene: &Scene) {
         //scene.WorldBound().BoundingSphere(&worldCenter, &worldRadius);
         let (center, radius) = scene.world_bound.bounding_sphere();
-        let mut bound = self.bound.write().unwrap();
-        bound.center = center;
-        bound.radius = radius;
+        let _ = self.bound.set(WorldBound { center, radius });
     }
 
     fn power(&self) -> Spectrum {
-        let bound = self.bound.read().unwrap();
-        let world_radius = bound.radius;
+        let world_radius = self.get_bound().radius;
         let rgb = self.lmap.lookup(&Point2f::new(0.5, 0.5), 0.5);
         return Spectrum::from_rgb(&rgb.to_rgb(), SpectrumType::Illuminant)
             * (PI * world_radius * world_radius);

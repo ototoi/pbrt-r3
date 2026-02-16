@@ -239,7 +239,7 @@ impl Integrator for BDPTIntegrator {
                                         break;
                                     }
 
-                                    let camera_vertex = camera_vertices[0].as_ref();
+                                    let camera_vertex = &camera_vertices[0];
 
                                     let p = camera_vertex.get_p();
                                     let light_distribution = light_distribution.as_ref();

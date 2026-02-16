@@ -13,7 +13,8 @@ use std::mem::size_of;
 use log::*;
 use rayon::prelude::*;
 use std::fmt::Debug;
-use std::{ops::Deref, vec};
+use std::marker::PhantomData;
+use std::vec;
 
 thread_local!(static N_EWA_LOOKUPS: StatCounter = StatCounter::new("Texture/EWA lookups"));
 thread_local!(static N_TRILERP_LOOKUPS: StatCounter = StatCounter::new("Texture/Trilinear lookups"));
@@ -27,6 +28,16 @@ pub struct F32MIPMapImage {
 impl F32MIPMapImage {
     pub fn new(data: Vec<f32>, resolution: (usize, usize)) -> Self {
         F32MIPMapImage { resolution, data }
+    }
+
+    #[inline]
+    pub fn get_width(&self) -> usize {
+        self.resolution.0
+    }
+
+    #[inline]
+    pub fn get_height(&self) -> usize {
+        self.resolution.1
     }
 }
 
@@ -65,44 +76,140 @@ impl From<(&[RGBSpectrum], (usize, usize))> for F32MIPMapImage {
     }
 }
 
-pub trait MIPMapImage<T> {
+pub trait MIPMapTexel<T> {
     fn lookup(&self, i: usize) -> T;
-    fn get_width(&self) -> usize;
-    fn get_height(&self) -> usize;
-    fn as_data(&self) -> &F32MIPMapImage;
 }
 
-impl MIPMapImage<Float> for F32MIPMapImage {
+impl MIPMapTexel<Float> for F32MIPMapImage {
     fn lookup(&self, i: usize) -> Float {
         return self.data[i] as Float;
     }
-    fn get_width(&self) -> usize {
-        self.resolution.0
-    }
-    fn get_height(&self) -> usize {
-        self.resolution.1
-    }
-    fn as_data(&self) -> &F32MIPMapImage {
-        return self;
-    }
 }
 
-impl MIPMapImage<RGBSpectrum> for F32MIPMapImage {
+impl MIPMapTexel<RGBSpectrum> for F32MIPMapImage {
     fn lookup(&self, i: usize) -> RGBSpectrum {
         let r = self.data[3 * i + 0] as Float;
         let g = self.data[3 * i + 1] as Float;
         let b = self.data[3 * i + 2] as Float;
         return RGBSpectrum::rgb_from_rgb(&[r, g, b]);
     }
-    fn get_width(&self) -> usize {
-        self.resolution.0
+}
+
+impl F32MIPMapImage {
+    #[inline(always)]
+    fn lookup_float_component(&self, i: usize) -> Float {
+        self.data[i] as Float
     }
-    fn get_height(&self) -> usize {
-        self.resolution.1
+
+    #[inline(always)]
+    fn lookup_rgb_components(&self, i: usize) -> [Float; 3] {
+        [
+            self.data[3 * i + 0] as Float,
+            self.data[3 * i + 1] as Float,
+            self.data[3 * i + 2] as Float,
+        ]
     }
-    fn as_data(&self) -> &F32MIPMapImage {
-        return self;
+}
+
+#[inline(always)]
+fn wrap_coord(i: i32, n: i32, mode: ImageWrap) -> Option<i32> {
+    match mode {
+        ImageWrap::Repeat => Some(i & (n - 1)),
+        ImageWrap::Clamp => Some(i32::clamp(i, 0, n - 1)),
+        _ => {
+            if i < 0 || n <= i {
+                None
+            } else {
+                Some(i)
+            }
+        }
     }
+}
+
+struct EwaParams {
+    st: Point2f,
+    a: Float,
+    b: Float,
+    c: Float,
+    s0: i32,
+    s1: i32,
+    t0: i32,
+    t1: i32,
+}
+
+#[inline]
+fn make_ewa_params(
+    width: Float,
+    height: Float,
+    st: &Point2f,
+    dst0: Vector2f,
+    dst1: Vector2f,
+) -> EwaParams {
+    let st = Point2f::new(st[0] * width - 0.5, st[1] * height - 0.5);
+    let dst0 = Vector2f::new(dst0[0] * width, dst0[1] * height);
+    let dst1 = Vector2f::new(dst1[0] * width, dst1[1] * height);
+
+    let a = dst0[1] * dst0[1] + dst1[1] * dst1[1] + 1.0;
+    let b = -2.0 * (dst0[0] * dst0[1] + dst1[0] * dst1[1]);
+    let c = dst0[0] * dst0[0] + dst1[0] * dst1[0] + 1.0;
+    let inv_f = 1.0 / (a * c - b * b * 0.25);
+
+    let a = a * inv_f;
+    let b = b * inv_f;
+    let c = c * inv_f;
+
+    let det = -b * b + 4.0 * a * c;
+    let inv_det = 1.0 / det;
+    let u_sqrt = (det * c).sqrt();
+    let v_sqrt = (det * a).sqrt();
+    let s0 = Float::ceil(st[0] - 2.0 * inv_det * u_sqrt) as i32;
+    let s1 = Float::floor(st[0] + 2.0 * inv_det * u_sqrt) as i32;
+    let t0 = Float::ceil(st[1] - 2.0 * inv_det * v_sqrt) as i32;
+    let t1 = Float::floor(st[1] + 2.0 * inv_det * v_sqrt) as i32;
+
+    EwaParams {
+        st,
+        a,
+        b,
+        c,
+        s0,
+        s1,
+        t0,
+        t1,
+    }
+}
+
+#[inline]
+fn ewa_core<const C: usize, F>(params: &EwaParams, mut fetch: F) -> [Float; C]
+where
+    F: FnMut(i32, i32) -> [Float; C],
+{
+    let mut sum = [0.0; C];
+    let mut sum_wts = 0.0;
+    for it in params.t0..=params.t1 {
+        let tt = it as Float - params.st[1];
+        for is in params.s0..=params.s1 {
+            let ss = is as Float - params.st[0];
+            let r2 = params.a * ss * ss + params.b * ss * tt + params.c * tt * tt;
+            if r2 < 1.0 {
+                let index = usize::min(
+                    (r2 * MIPMAP_WEIGHT_LUT.len() as Float) as usize,
+                    MIPMAP_WEIGHT_LUT.len() - 1,
+                );
+                let weight = MIPMAP_WEIGHT_LUT[index];
+                let v = fetch(is, it);
+                for c in 0..C {
+                    sum[c] += v[c] * weight;
+                }
+                sum_wts += weight;
+            }
+        }
+    }
+    let inv_sum = 1.0 / sum_wts;
+    for c in 0..C {
+        sum[c] *= inv_sum;
+    }
+    sum
 }
 
 struct ResampleWeight {
@@ -297,12 +404,12 @@ fn resample_image(
 }
 
 fn make_pyramid<T>(
-    pyramid: &mut Vec<Box<dyn MIPMapImage<T>>>,
+    pyramid: &mut Vec<F32MIPMapImage>,
     channels: usize,
     resolution: (usize, usize),
     data: Vec<f32>,
 ) where
-    F32MIPMapImage: MIPMapImage<T>,
+    F32MIPMapImage: MIPMapTexel<T>,
 {
     let total = resolution.0 * resolution.1;
     if total != 1 {
@@ -324,11 +431,11 @@ fn make_pyramid<T>(
             (s_data, w, h)
         };
 
-        let image: Box<dyn MIPMapImage<T>> = Box::new(F32MIPMapImage { data, resolution });
+        let image = F32MIPMapImage { data, resolution };
         pyramid.push(image);
         make_pyramid(pyramid, c, (w, h), s_data);
     } else {
-        let image: Box<dyn MIPMapImage<T>> = Box::new(F32MIPMapImage { data, resolution });
+        let image = F32MIPMapImage { data, resolution };
         pyramid.push(image);
     }
 }
@@ -342,10 +449,10 @@ fn make_mipimages<T>(
     resolution: (usize, usize),
     swrap_mode: ImageWrap,
     twrap_mode: ImageWrap,
-) -> Vec<Box<dyn MIPMapImage<T>>>
+) -> Vec<F32MIPMapImage>
 where
     T: Clone + Debug,
-    F32MIPMapImage: MIPMapImage<T>,
+    F32MIPMapImage: MIPMapTexel<T>,
     F32MIPMapImage: for<'a> From<(&'a [T], (usize, usize))>,
 {
     let mipdata = F32MIPMapImage::from((data, resolution));
@@ -371,7 +478,7 @@ where
 
     //for i in 0..pyramid.len() {
     //    let filename = format!("mipmap_{}.exr", i);
-    //    let _ = write_spectrum_mipmap_image(&filename, &pyramid[i].as_data());
+    //    let _ = write_spectrum_mipmap_image(&filename, &pyramid[i]);
     //}
 
     return pyramid;
@@ -382,18 +489,19 @@ pub struct MIPMap<T> {
     pub max_anisotropy: Float,
     pub swrap_mode: ImageWrap,
     pub twrap_mode: ImageWrap,
-    pub pyramid: Vec<Box<dyn MIPMapImage<T>>>,
+    pub pyramid: Vec<F32MIPMapImage>,
+    _marker: PhantomData<T>,
 }
 
 impl<
         T: Default + Debug + Copy + std::ops::Add<T, Output = T> + std::ops::Mul<Float, Output = T>,
     > MIPMap<T>
 where
-    F32MIPMapImage: MIPMapImage<T>,
+    F32MIPMapImage: MIPMapTexel<T>,
     F32MIPMapImage: for<'a> From<(&'a [T], (usize, usize))>,
 {
     pub fn texel_static(
-        image: &dyn MIPMapImage<T>,
+        image: &F32MIPMapImage,
         s: i32,
         t: i32,
         swrap_mode: ImageWrap,
@@ -462,7 +570,7 @@ where
     }
 
     pub fn make_from_pyramid(
-        pyramid: Vec<Box<dyn MIPMapImage<T>>>,
+        pyramid: Vec<F32MIPMapImage>,
         do_trilinear: bool,
         max_anisotropy: Float,
         swrap_mode: ImageWrap,
@@ -472,7 +580,7 @@ where
             let total_consumption: usize = pyramid
                 .iter()
                 .map(|p| {
-                    let resolution = p.as_data().resolution;
+                    let resolution = p.resolution;
                     resolution.0 * resolution.1 * size_of::<T>()
                 })
                 .sum();
@@ -487,6 +595,7 @@ where
             swrap_mode,
             twrap_mode,
             pyramid,
+            _marker: PhantomData,
         };
         return mip;
     }
@@ -504,8 +613,7 @@ where
     }
 
     pub fn texel(&self, level: usize, s: i32, t: i32) -> T {
-        let image = &(self.pyramid[level]);
-        let image = image.deref();
+        let image = &self.pyramid[level];
         return Self::texel_static(image, s, t, self.swrap_mode, self.twrap_mode);
     }
 
@@ -649,6 +757,153 @@ where
         let c = self.texel(level, s0 + 1, t0 + 0) * (ds * (1.0 - dt));
         let d = self.texel(level, s0 + 1, t0 + 1) * (ds * dt);
         return a + b + c + d;
+    }
+}
+
+impl MIPMap<RGBSpectrum> {
+    #[inline(always)]
+    fn texel_rgb_components(&self, level: usize, s: i32, t: i32) -> [Float; 3] {
+        let image = &self.pyramid[level];
+        let w = image.get_width() as i32;
+        let h = image.get_height() as i32;
+        let s = match wrap_coord(s, w, self.swrap_mode) {
+            Some(v) => v,
+            None => return [0.0, 0.0, 0.0],
+        };
+        let t = match wrap_coord(t, h, self.twrap_mode) {
+            Some(v) => v,
+            None => return [0.0, 0.0, 0.0],
+        };
+        image.lookup_rgb_components((t * w + s) as usize)
+    }
+
+    fn ewa_rgb(&self, level: usize, st: &Point2f, dst0: Vector2f, dst1: Vector2f) -> RGBSpectrum {
+        if level >= self.levels() {
+            return self.texel(self.levels() - 1, 0, 0);
+        }
+        let image = &self.pyramid[level];
+        let w = image.get_width() as Float;
+        let h = image.get_height() as Float;
+        let wi = image.get_width() as i32;
+        let hi = image.get_height() as i32;
+        let params = make_ewa_params(w, h, st, dst0, dst1);
+        let sum = match (self.swrap_mode, self.twrap_mode) {
+            (ImageWrap::Repeat, ImageWrap::Repeat) => ewa_core::<3, _>(&params, |is, it| {
+                image.lookup_rgb_components(((it & (hi - 1)) * wi + (is & (wi - 1))) as usize)
+            }),
+            (ImageWrap::Repeat, ImageWrap::Clamp) => ewa_core::<3, _>(&params, |is, it| {
+                image.lookup_rgb_components((i32::clamp(it, 0, hi - 1) * wi + (is & (wi - 1))) as usize)
+            }),
+            (ImageWrap::Clamp, ImageWrap::Repeat) => ewa_core::<3, _>(&params, |is, it| {
+                image.lookup_rgb_components(((it & (hi - 1)) * wi + i32::clamp(is, 0, wi - 1)) as usize)
+            }),
+            (ImageWrap::Clamp, ImageWrap::Clamp) => ewa_core::<3, _>(&params, |is, it| {
+                image.lookup_rgb_components(
+                    (i32::clamp(it, 0, hi - 1) * wi + i32::clamp(is, 0, wi - 1)) as usize,
+                )
+            }),
+            _ => ewa_core::<3, _>(&params, |is, it| self.texel_rgb_components(level, is, it)),
+        };
+        RGBSpectrum::new(sum[0], sum[1], sum[2])
+    }
+
+    pub fn lookup_delta_rgb(&self, st: &Point2f, dst0: &Vector2f, dst1: &Vector2f) -> RGBSpectrum {
+        if self.do_trilinear {
+            return self.lookup_delta(st, dst0, dst1);
+        }
+        N_EWA_LOOKUPS.with(|n| n.inc());
+        let _p = ProfilePhase::new(Prof::TexFiltEWA);
+
+        let mut dst0 = *dst0;
+        let mut dst1 = *dst1;
+        if dst0.length_squared() < dst1.length_squared() {
+            std::mem::swap(&mut dst0, &mut dst1);
+        }
+        let major_length = dst0.length();
+        let mut minor_length = dst1.length();
+        if minor_length * self.max_anisotropy < major_length && minor_length > 0.0 {
+            let scale = major_length / (minor_length * self.max_anisotropy);
+            dst1 *= scale;
+            minor_length *= scale;
+        }
+        if minor_length <= 0.0 {
+            return self.lookup(st, 0.0);
+        }
+
+        let lod = Float::max(
+            0.0,
+            self.levels() as Float - 1.0 + Float::log2(minor_length),
+        );
+        let ilod = lod.floor() as usize;
+        RGBSpectrum::lerp(
+            lod - ilod as Float,
+            &self.ewa_rgb(ilod, st, dst0, dst1),
+            &self.ewa_rgb(ilod + 1, st, dst0, dst1),
+        )
+    }
+}
+
+impl MIPMap<Float> {
+    #[inline(always)]
+    fn texel_float_component(&self, level: usize, s: i32, t: i32) -> Float {
+        let image = &self.pyramid[level];
+        let w = image.get_width() as i32;
+        let h = image.get_height() as i32;
+        let s = match wrap_coord(s, w, self.swrap_mode) {
+            Some(v) => v,
+            None => return 0.0,
+        };
+        let t = match wrap_coord(t, h, self.twrap_mode) {
+            Some(v) => v,
+            None => return 0.0,
+        };
+        image.lookup_float_component((t * w + s) as usize)
+    }
+
+    fn ewa_float(&self, level: usize, st: &Point2f, dst0: Vector2f, dst1: Vector2f) -> Float {
+        if level >= self.levels() {
+            return self.texel(self.levels() - 1, 0, 0);
+        }
+        let image = &self.pyramid[level];
+        let w = image.get_width() as Float;
+        let h = image.get_height() as Float;
+        let params = make_ewa_params(w, h, st, dst0, dst1);
+        ewa_core::<1, _>(&params, |is, it| [self.texel_float_component(level, is, it)])[0]
+    }
+
+    pub fn lookup_delta_float(&self, st: &Point2f, dst0: &Vector2f, dst1: &Vector2f) -> Float {
+        if self.do_trilinear {
+            return self.lookup_delta(st, dst0, dst1);
+        }
+        N_EWA_LOOKUPS.with(|n| n.inc());
+        let _p = ProfilePhase::new(Prof::TexFiltEWA);
+
+        let mut dst0 = *dst0;
+        let mut dst1 = *dst1;
+        if dst0.length_squared() < dst1.length_squared() {
+            std::mem::swap(&mut dst0, &mut dst1);
+        }
+        let major_length = dst0.length();
+        let mut minor_length = dst1.length();
+        if minor_length * self.max_anisotropy < major_length && minor_length > 0.0 {
+            let scale = major_length / (minor_length * self.max_anisotropy);
+            dst1 *= scale;
+            minor_length *= scale;
+        }
+        if minor_length <= 0.0 {
+            return self.lookup(st, 0.0);
+        }
+
+        let lod = Float::max(
+            0.0,
+            self.levels() as Float - 1.0 + Float::log2(minor_length),
+        );
+        let ilod = lod.floor() as usize;
+        Self::lerp(
+            lod - ilod as Float,
+            self.ewa_float(ilod, st, dst0, dst1),
+            self.ewa_float(ilod + 1, st, dst0, dst1),
+        )
     }
 }
 

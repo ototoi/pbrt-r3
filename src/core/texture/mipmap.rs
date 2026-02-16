@@ -13,7 +13,8 @@ use std::mem::size_of;
 use log::*;
 use rayon::prelude::*;
 use std::fmt::Debug;
-use std::{ops::Deref, vec};
+use std::marker::PhantomData;
+use std::vec;
 
 thread_local!(static N_EWA_LOOKUPS: StatCounter = StatCounter::new("Texture/EWA lookups"));
 thread_local!(static N_TRILERP_LOOKUPS: StatCounter = StatCounter::new("Texture/Trilinear lookups"));
@@ -27,6 +28,16 @@ pub struct F32MIPMapImage {
 impl F32MIPMapImage {
     pub fn new(data: Vec<f32>, resolution: (usize, usize)) -> Self {
         F32MIPMapImage { resolution, data }
+    }
+
+    #[inline]
+    pub fn get_width(&self) -> usize {
+        self.resolution.0
+    }
+
+    #[inline]
+    pub fn get_height(&self) -> usize {
+        self.resolution.1
     }
 }
 
@@ -65,43 +76,22 @@ impl From<(&[RGBSpectrum], (usize, usize))> for F32MIPMapImage {
     }
 }
 
-pub trait MIPMapImage<T> {
+pub trait MIPMapTexel<T> {
     fn lookup(&self, i: usize) -> T;
-    fn get_width(&self) -> usize;
-    fn get_height(&self) -> usize;
-    fn as_data(&self) -> &F32MIPMapImage;
 }
 
-impl MIPMapImage<Float> for F32MIPMapImage {
+impl MIPMapTexel<Float> for F32MIPMapImage {
     fn lookup(&self, i: usize) -> Float {
         return self.data[i] as Float;
     }
-    fn get_width(&self) -> usize {
-        self.resolution.0
-    }
-    fn get_height(&self) -> usize {
-        self.resolution.1
-    }
-    fn as_data(&self) -> &F32MIPMapImage {
-        return self;
-    }
 }
 
-impl MIPMapImage<RGBSpectrum> for F32MIPMapImage {
+impl MIPMapTexel<RGBSpectrum> for F32MIPMapImage {
     fn lookup(&self, i: usize) -> RGBSpectrum {
         let r = self.data[3 * i + 0] as Float;
         let g = self.data[3 * i + 1] as Float;
         let b = self.data[3 * i + 2] as Float;
         return RGBSpectrum::rgb_from_rgb(&[r, g, b]);
-    }
-    fn get_width(&self) -> usize {
-        self.resolution.0
-    }
-    fn get_height(&self) -> usize {
-        self.resolution.1
-    }
-    fn as_data(&self) -> &F32MIPMapImage {
-        return self;
     }
 }
 
@@ -297,12 +287,12 @@ fn resample_image(
 }
 
 fn make_pyramid<T>(
-    pyramid: &mut Vec<Box<dyn MIPMapImage<T>>>,
+    pyramid: &mut Vec<F32MIPMapImage>,
     channels: usize,
     resolution: (usize, usize),
     data: Vec<f32>,
 ) where
-    F32MIPMapImage: MIPMapImage<T>,
+    F32MIPMapImage: MIPMapTexel<T>,
 {
     let total = resolution.0 * resolution.1;
     if total != 1 {
@@ -324,11 +314,11 @@ fn make_pyramid<T>(
             (s_data, w, h)
         };
 
-        let image: Box<dyn MIPMapImage<T>> = Box::new(F32MIPMapImage { data, resolution });
+        let image = F32MIPMapImage { data, resolution };
         pyramid.push(image);
         make_pyramid(pyramid, c, (w, h), s_data);
     } else {
-        let image: Box<dyn MIPMapImage<T>> = Box::new(F32MIPMapImage { data, resolution });
+        let image = F32MIPMapImage { data, resolution };
         pyramid.push(image);
     }
 }
@@ -342,10 +332,10 @@ fn make_mipimages<T>(
     resolution: (usize, usize),
     swrap_mode: ImageWrap,
     twrap_mode: ImageWrap,
-) -> Vec<Box<dyn MIPMapImage<T>>>
+) -> Vec<F32MIPMapImage>
 where
     T: Clone + Debug,
-    F32MIPMapImage: MIPMapImage<T>,
+    F32MIPMapImage: MIPMapTexel<T>,
     F32MIPMapImage: for<'a> From<(&'a [T], (usize, usize))>,
 {
     let mipdata = F32MIPMapImage::from((data, resolution));
@@ -371,7 +361,7 @@ where
 
     //for i in 0..pyramid.len() {
     //    let filename = format!("mipmap_{}.exr", i);
-    //    let _ = write_spectrum_mipmap_image(&filename, &pyramid[i].as_data());
+    //    let _ = write_spectrum_mipmap_image(&filename, &pyramid[i]);
     //}
 
     return pyramid;
@@ -382,18 +372,19 @@ pub struct MIPMap<T> {
     pub max_anisotropy: Float,
     pub swrap_mode: ImageWrap,
     pub twrap_mode: ImageWrap,
-    pub pyramid: Vec<Box<dyn MIPMapImage<T>>>,
+    pub pyramid: Vec<F32MIPMapImage>,
+    _marker: PhantomData<T>,
 }
 
 impl<
         T: Default + Debug + Copy + std::ops::Add<T, Output = T> + std::ops::Mul<Float, Output = T>,
     > MIPMap<T>
 where
-    F32MIPMapImage: MIPMapImage<T>,
+    F32MIPMapImage: MIPMapTexel<T>,
     F32MIPMapImage: for<'a> From<(&'a [T], (usize, usize))>,
 {
     pub fn texel_static(
-        image: &dyn MIPMapImage<T>,
+        image: &F32MIPMapImage,
         s: i32,
         t: i32,
         swrap_mode: ImageWrap,
@@ -462,7 +453,7 @@ where
     }
 
     pub fn make_from_pyramid(
-        pyramid: Vec<Box<dyn MIPMapImage<T>>>,
+        pyramid: Vec<F32MIPMapImage>,
         do_trilinear: bool,
         max_anisotropy: Float,
         swrap_mode: ImageWrap,
@@ -472,7 +463,7 @@ where
             let total_consumption: usize = pyramid
                 .iter()
                 .map(|p| {
-                    let resolution = p.as_data().resolution;
+                    let resolution = p.resolution;
                     resolution.0 * resolution.1 * size_of::<T>()
                 })
                 .sum();
@@ -487,6 +478,7 @@ where
             swrap_mode,
             twrap_mode,
             pyramid,
+            _marker: PhantomData,
         };
         return mip;
     }
@@ -504,8 +496,7 @@ where
     }
 
     pub fn texel(&self, level: usize, s: i32, t: i32) -> T {
-        let image = &(self.pyramid[level]);
-        let image = image.deref();
+        let image = &self.pyramid[level];
         return Self::texel_static(image, s, t, self.swrap_mode, self.twrap_mode);
     }
 

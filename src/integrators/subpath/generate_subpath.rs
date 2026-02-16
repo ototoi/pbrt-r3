@@ -423,6 +423,9 @@ fn mis_weight(
     if (s + t) == 2 {
         return 1.0;
     }
+    if s == 1 {
+        return mis_weight_s1(scene, light_vertices, camera_vertices, sampled, t);
+    }
 
     // Temporarily update vertex properties for current strategy (value-local copies)
     let mut qs = if s > 0 {
@@ -466,7 +469,7 @@ fn mis_weight(
         } else {
             v.pdf_light_origin(scene, pt_minus.as_ref().unwrap(), light_pdf, light_to_index)
         };
-        assert!(pdf >= 0.0);
+        debug_assert!(pdf >= 0.0);
         v.pdf_rev = pdf;
     }
 
@@ -476,14 +479,14 @@ fn mis_weight(
         } else {
             pt.as_ref().unwrap().pdf_light(scene, v)
         };
-        assert!(pdf >= 0.0);
+        debug_assert!(pdf >= 0.0);
         v.pdf_rev = pdf;
     }
 
     if let Some(v) = qs.as_mut() {
         if let Some(ptv) = pt.as_ref() {
             let pdf = ptv.pdf(scene, pt_minus.as_ref(), v);
-            assert!(pdf >= 0.0);
+            debug_assert!(pdf >= 0.0);
             v.pdf_rev = pdf;
         }
     }
@@ -491,7 +494,7 @@ fn mis_weight(
     if let Some(v) = qs_minus.as_mut() {
         if let Some(qsv) = qs.as_ref() {
             let pdf = qsv.pdf(scene, pt.as_ref(), v);
-            assert!(pdf >= 0.0);
+            debug_assert!(pdf >= 0.0);
             v.pdf_rev = pdf;
         }
     }
@@ -519,12 +522,12 @@ fn mis_weight(
 
             let pdf_rev = vert.pdf_rev;
             let pdf_fwd = vert.pdf_fwd;
-            assert!(pdf_fwd >= 0.0);
-            assert!(pdf_rev >= 0.0);
+            debug_assert!(pdf_fwd >= 0.0);
+            debug_assert!(pdf_rev >= 0.0);
 
             let pdf_delta = remap0(pdf_rev) / remap0(pdf_fwd);
-            assert!(pdf_delta.is_finite());
-            assert!(pdf_delta >= 0.0);
+            debug_assert!(pdf_delta.is_finite());
+            debug_assert!(pdf_delta >= 0.0);
             ri *= pdf_delta;
 
             let cur_delta = vert.delta;
@@ -552,12 +555,12 @@ fn mis_weight(
 
             let pdf_rev = vert.pdf_rev;
             let pdf_fwd = vert.pdf_fwd;
-            assert!(pdf_fwd >= 0.0);
-            assert!(pdf_rev >= 0.0);
+            debug_assert!(pdf_fwd >= 0.0);
+            debug_assert!(pdf_rev >= 0.0);
 
             let pdf_delta = remap0(pdf_rev) / remap0(pdf_fwd);
-            assert!(pdf_delta.is_finite());
-            assert!(pdf_delta >= 0.0);
+            debug_assert!(pdf_delta.is_finite());
+            debug_assert!(pdf_delta >= 0.0);
             // pbrt-r3
             // let pdf_delta = cushion_pdf(pdf_delta);
             // pbrt-r3
@@ -586,6 +589,93 @@ fn mis_weight(
     }
 
     return 1.0 / (1.0 + sum_ri);
+}
+
+#[inline]
+fn mis_weight_s1(
+    scene: &Scene,
+    light_vertices: &[Vertex],
+    camera_vertices: &[Vertex],
+    sampled: &Option<Vertex>,
+    t: i32,
+) -> Float {
+    debug_assert!(t > 1);
+    let qs = sampled.as_ref().unwrap();
+    let pt = &camera_vertices[(t - 1) as usize];
+    let pt_minus = if t > 1 {
+        Some(&camera_vertices[(t - 2) as usize])
+    } else {
+        None
+    };
+
+    let pt_pdf_rev = qs.pdf(scene, None, pt);
+    debug_assert!(pt_pdf_rev >= 0.0);
+
+    let pt_minus_pdf_rev = if let Some(v) = pt_minus {
+        let pdf = pt.pdf(scene, Some(qs), v);
+        debug_assert!(pdf >= 0.0);
+        Some(pdf)
+    } else {
+        None
+    };
+
+    let qs_pdf_rev = pt.pdf(scene, pt_minus, qs);
+    debug_assert!(qs_pdf_rev >= 0.0);
+
+    let mut sum_ri = 0.0;
+    {
+        let mut ri = 1.0;
+        // i = t - 1
+        {
+            let prev = camera_vertices[(t - 2) as usize].delta;
+            let pdf_delta = remap0(pt_pdf_rev) / remap0(pt.pdf_fwd);
+            debug_assert!(pdf_delta.is_finite());
+            debug_assert!(pdf_delta >= 0.0);
+            ri *= pdf_delta;
+            if !prev {
+                sum_ri += ri;
+            }
+        }
+        // i = t - 2
+        if t - 2 > 0 {
+            let v = camera_vertices[(t - 2) as usize]
+                .pdf_fwd;
+            let pdf_delta = remap0(pt_minus_pdf_rev.unwrap()) / remap0(v);
+            debug_assert!(pdf_delta.is_finite());
+            debug_assert!(pdf_delta >= 0.0);
+            ri *= pdf_delta;
+            let prev = camera_vertices[(t - 3) as usize].delta;
+            let cur = camera_vertices[(t - 2) as usize].delta;
+            if !cur && !prev {
+                sum_ri += ri;
+            }
+        }
+        // i = t - 3 ... 1
+        let mut i = t - 3;
+        while i > 0 {
+            let vert = &camera_vertices[i as usize];
+            let prev = &camera_vertices[(i - 1) as usize];
+            let pdf_delta = remap0(vert.pdf_rev) / remap0(vert.pdf_fwd);
+            debug_assert!(pdf_delta.is_finite());
+            debug_assert!(pdf_delta >= 0.0);
+            ri *= pdf_delta;
+            if !vert.delta && !prev.delta {
+                sum_ri += ri;
+            }
+            i -= 1;
+        }
+    }
+
+    {
+        let ri = remap0(qs_pdf_rev) / remap0(qs.pdf_fwd);
+        debug_assert!(ri.is_finite());
+        debug_assert!(ri >= 0.0);
+        if !light_vertices[0].is_delta_light() {
+            sum_ri += ri;
+        }
+    }
+
+    1.0 / (1.0 + sum_ri)
 }
 
 // ConnectBDPT

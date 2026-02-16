@@ -543,52 +543,67 @@ impl Integrator for SPPMIntegrator {
 
             // Allocate grid for SPPM visible points
             let hash_size = n_pixels;
-            let grid = Arc::new(RwLock::new(SPPMHashGrid {
-                nodes: vec![Vec::new(); hash_size],
-            }));
-            {
-                let pixel_indices: Vec<usize> = (0..n_pixels).collect();
-                pixel_indices.par_iter().for_each(|pixel_index| {
-                    let pixel = pixels.pixels[*pixel_index].read().unwrap();
-                    if !pixel.vp.beta.is_black() {
-                        // Add pixel's visible point to applicable grid cells
-                        let p = pixel.vp.p;
-                        let radius = pixel.radius;
-                        let (_, pmin) = to_grid(
-                            &(p - Vector3f::new(radius, radius, radius)),
-                            &grid_bounds,
-                            &grid_res,
-                        );
-                        let (_, pmax) = to_grid(
-                            &(p + Vector3f::new(radius, radius, radius)),
-                            &grid_bounds,
-                            &grid_res,
-                        );
-                        {
-                            let mut grid = grid.write().unwrap();
-                            let grid = &mut grid.nodes;
+            let pixel_indices: Vec<usize> = (0..n_pixels).collect();
+            let (entries, grid_cells_total) = pixel_indices
+                .into_par_iter()
+                .fold(
+                    || (Vec::<(usize, usize)>::new(), 0u64),
+                    |(mut entries, mut stat_total), pixel_index| {
+                        let pixel = pixels.pixels[pixel_index].read().unwrap();
+                        if !pixel.vp.beta.is_black() {
+                            // Add pixel's visible point to applicable grid cells
+                            let p = pixel.vp.p;
+                            let radius = pixel.radius;
+                            let (_, pmin) = to_grid(
+                                &(p - Vector3f::new(radius, radius, radius)),
+                                &grid_bounds,
+                                &grid_res,
+                            );
+                            let (_, pmax) = to_grid(
+                                &(p + Vector3f::new(radius, radius, radius)),
+                                &grid_bounds,
+                                &grid_res,
+                            );
+                            let grid_cells_per_visible_point =
+                                (1 + pmax.x - pmin.x) * (1 + pmax.y - pmin.y) * (1 + pmax.z - pmin.z);
+                            stat_total += grid_cells_per_visible_point as u64;
+                            entries.reserve(grid_cells_per_visible_point as usize);
                             for z in pmin.z..=pmax.z {
                                 for y in pmin.y..=pmax.y {
                                     for x in pmin.x..=pmax.x {
                                         // Add visible point to grid cell $(x, y, z)$
                                         let h = hash(&Point3i::new(x, y, z), hash_size);
-                                        grid[h].push(*pixel_index);
+                                        entries.push((h, pixel_index));
                                     }
                                 }
                             }
-
-                            // Update statistics on grid cell sizes
-                            {
-                                let grid_cells_per_visible_point = (1 + pmax.x - pmin.x)
-                                    * (1 + pmax.y - pmin.y)
-                                    * (1 + pmax.z - pmin.z);
-                                GRID_CELLS_PER_VISIBLE_POINT
-                                    .with(|c| c.add(grid_cells_per_visible_point as u64));
-                            }
                         }
-                    }
-                });
+                        (entries, stat_total)
+                    },
+                )
+                .reduce(
+                    || (Vec::<(usize, usize)>::new(), 0u64),
+                    |(mut a_entries, a_stat), (b_entries, b_stat)| {
+                        a_entries.extend(b_entries);
+                        (a_entries, a_stat + b_stat)
+                    },
+                );
+            GRID_CELLS_PER_VISIBLE_POINT.with(|c| c.add(grid_cells_total));
+
+            // Build hash buckets in one pass after parallel collection to avoid
+            // contention on per-cell pushes.
+            let mut counts = vec![0usize; hash_size];
+            for (h, _) in entries.iter() {
+                counts[*h] += 1;
             }
+            let mut nodes = vec![Vec::new(); hash_size];
+            for h in 0..hash_size {
+                nodes[h].reserve(counts[h]);
+            }
+            for (h, pixel_index) in entries {
+                nodes[h].push(pixel_index);
+            }
+            let grid = Arc::new(SPPMHashGrid { nodes });
             t_grid += grid_t0.elapsed().as_secs_f64();
 
             // Trace photons and accumulate contributions
@@ -664,7 +679,6 @@ impl Integrator for SPPMIntegrator {
                                             let h = hash(&photon_grid_index, hash_size);
                                             // Add photon contribution to visible points in
                                             // _grid[h]_
-                                            let grid = grid.read().unwrap();
                                             for pixel_index in grid.nodes[h].iter() {
                                                 let pixel = pixels.pixels[*pixel_index].read().unwrap();
                                                 let wi = -photon_ray.ray.d;

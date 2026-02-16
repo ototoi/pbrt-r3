@@ -23,23 +23,36 @@ impl VisibilityTester {
 
     pub fn tr(&self, scene: &Scene, sampler: &mut dyn Sampler) -> Spectrum {
         let mut ray = self.p0.spawn_ray_to(&self.p1);
-        // pbrt-r3:
-        //if !scene.intersect_p(&ray) {
-        //    return Spectrum::one();
-        //}
-        // pbrt-r3:
 
         let mut tr = Spectrum::one();
+
+        // Fast path: when the segment starts in vacuum, skip medium work as long
+        // as we don't encounter a medium transition boundary.
+        if ray.medium.is_none() {
+            loop {
+                let Some(isect) = scene.intersect(&ray) else {
+                    return tr;
+                };
+                if let Some(primitive) = isect.get_primitive() {
+                    if primitive.get_material().is_some() {
+                        return Spectrum::zero();
+                    }
+                }
+                let tisect = Interaction::from(isect);
+                let next_ray = tisect.spawn_ray_to(&self.p1);
+                if next_ray.medium.is_some() {
+                    ray = next_ray;
+                    break;
+                }
+                ray = next_ray;
+            }
+        }
+
         loop {
-            //let t_max = ray.t_max.get();
             if let Some(isect) = scene.intersect(&ray) {
                 if let Some(primitive) = isect.get_primitive() {
                     if primitive.get_material().is_some() {
-                        //ray.t_max.set(t_max);
-                        //if primitive.intersect_p(&ray) {
-                        //check if the ray intersects the primitive
                         return Spectrum::zero();
-                        //}
                     }
                 }
 

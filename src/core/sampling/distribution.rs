@@ -5,9 +5,10 @@ pub struct Distribution1D {
     pub func: Vec<Float>,
     pub cdf: Vec<Float>,
     pub func_int: Float,
+    inv_count: Float,
 }
 
-#[inline]
+#[inline(always)]
 fn find_interval_cdf(cdf: &[Float], u: Float) -> usize {
     let mut first = 0usize;
     let mut len = cdf.len();
@@ -21,7 +22,12 @@ fn find_interval_cdf(cdf: &[Float], u: Float) -> usize {
             len = half;
         }
     }
-    usize::clamp(first.saturating_sub(1), 0, cdf.len() - 2)
+    let idx = first.saturating_sub(1);
+    if idx > cdf.len() - 2 {
+        cdf.len() - 2
+    } else {
+        idx
+    }
 }
 
 impl Distribution1D {
@@ -47,6 +53,7 @@ impl Distribution1D {
             func,
             cdf,
             func_int,
+            inv_count: 1.0 / (n as Float),
         }
     }
 
@@ -55,12 +62,16 @@ impl Distribution1D {
     }
 
     //value, pdf, offset
+    #[inline(always)]
     pub fn sample_continuous(&self, u: Float) -> (Float, Float, usize) {
         let offset = find_interval_cdf(&self.cdf, u);
 
-        let mut du = u - self.cdf[offset];
-        if (self.cdf[offset + 1] - self.cdf[offset]) > 0.0 {
-            du /= self.cdf[offset + 1] - self.cdf[offset];
+        let cdf0 = self.cdf[offset];
+        let cdf1 = self.cdf[offset + 1];
+        let mut du = u - cdf0;
+        let cdf_span = cdf1 - cdf0;
+        if cdf_span > 0.0 {
+            du /= cdf_span;
         }
         // Compute PDF for sampled offset
         let pdf = if self.func_int > 0.0 {
@@ -68,21 +79,24 @@ impl Distribution1D {
         } else {
             0.0
         };
-        let r = ((offset as Float) + du) / (self.count() as Float);
+        let r = ((offset as Float) + du) * self.inv_count;
         return (r, pdf, offset);
     }
 
     //offset, pdf, remapped
+    #[inline(always)]
     pub fn sample_discrete(&self, u: Float) -> (usize, Float, Float) {
         let offset = find_interval_cdf(&self.cdf, u);
-        assert!(self.cdf[offset] <= u);
-        assert!(u <= self.cdf[offset + 1]);
+        let cdf0 = self.cdf[offset];
+        let cdf1 = self.cdf[offset + 1];
+        assert!(cdf0 <= u);
+        assert!(u <= cdf1);
         let pdf = if self.func_int > 0.0 {
-            self.func[offset] / (self.func_int * self.count() as Float)
+            self.func[offset] * self.inv_count / self.func_int
         } else {
             0.0
         };
-        let remapped = (u - self.cdf[offset]) / (self.cdf[offset + 1] - self.cdf[offset]);
+        let remapped = (u - cdf0) / (cdf1 - cdf0);
         assert!(remapped >= 0.0 && remapped <= 1.0);
         return (offset, pdf, remapped);
     }

@@ -2,9 +2,6 @@ use super::vertex::*;
 use super::vertex_interaction::*;
 use crate::core::prelude::*;
 
-use std::ops::Deref;
-use std::sync::Arc;
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum VertexClass {
     Any,
@@ -37,15 +34,13 @@ fn is_vertex_class(vc: VertexClass, vertex: &Vertex) -> bool {
             return false;
         }
         VertexClass::Surface => {
-            let interaction = vertex.interaction.value.read().unwrap();
-            if let VertexInteraction::Surface(_si) = interaction.deref() {
+            if let VertexInteraction::Surface(_si) = &vertex.interaction {
                 return true;
             }
             return false;
         }
         VertexClass::TransmissionSurface => {
-            let interaction = vertex.interaction.value.read().unwrap();
-            if let VertexInteraction::Surface(si) = interaction.deref() {
+            if let VertexInteraction::Surface(si) = &vertex.interaction {
                 if let Some(bsdf) = si.bsdf.as_ref() {
                     return bsdf.has_components(BSDF_TRANSMISSION);
                 }
@@ -53,8 +48,7 @@ fn is_vertex_class(vc: VertexClass, vertex: &Vertex) -> bool {
             return false;
         }
         VertexClass::SpecularSurface => {
-            let interaction = vertex.interaction.value.read().unwrap();
-            if let VertexInteraction::Surface(si) = interaction.deref() {
+            if let VertexInteraction::Surface(si) = &vertex.interaction {
                 if let Some(bsdf) = si.bsdf.as_ref() {
                     return bsdf.has_components(BSDF_SPECULAR);
                 }
@@ -67,8 +61,8 @@ fn is_vertex_class(vc: VertexClass, vertex: &Vertex) -> bool {
 pub fn classify_subpath(
     camera_classes: &[VertexClass],
     light_classes: &[VertexClass],
-    camera_vertices: &[Arc<Vertex>],
-    light_vertices: &[Arc<Vertex>],
+    camera_vertices: &[Vertex],
+    light_vertices: &[Vertex],
 ) -> bool {
     if camera_vertices.len() < camera_classes.len() {
         return false;
@@ -77,12 +71,12 @@ pub fn classify_subpath(
         return false;
     }
     for i in 0..camera_classes.len() {
-        if !is_vertex_class(camera_classes[i], &*camera_vertices[i]) {
+        if !is_vertex_class(camera_classes[i], &camera_vertices[i]) {
             return false;
         }
     }
     for i in 0..light_classes.len() {
-        if !is_vertex_class(light_classes[i], &*light_vertices[i]) {
+        if !is_vertex_class(light_classes[i], &light_vertices[i]) {
             return false;
         }
     }

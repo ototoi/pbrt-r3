@@ -95,6 +95,17 @@ impl MIPMapTexel<RGBSpectrum> for F32MIPMapImage {
     }
 }
 
+impl F32MIPMapImage {
+    #[inline(always)]
+    fn lookup_rgb_components(&self, i: usize) -> [Float; 3] {
+        [
+            self.data[3 * i + 0] as Float,
+            self.data[3 * i + 1] as Float,
+            self.data[3 * i + 2] as Float,
+        ]
+    }
+}
+
 struct ResampleWeight {
     first_texel: i32,
     weight: [f32; 4],
@@ -640,6 +651,131 @@ where
         let c = self.texel(level, s0 + 1, t0 + 0) * (ds * (1.0 - dt));
         let d = self.texel(level, s0 + 1, t0 + 1) * (ds * dt);
         return a + b + c + d;
+    }
+}
+
+impl MIPMap<RGBSpectrum> {
+    #[inline(always)]
+    fn wrap_coord(i: i32, n: i32, mode: ImageWrap) -> Option<i32> {
+        match mode {
+            ImageWrap::Repeat => Some(i & (n - 1)),
+            ImageWrap::Clamp => Some(i32::clamp(i, 0, n - 1)),
+            _ => {
+                if i < 0 || n <= i {
+                    None
+                } else {
+                    Some(i)
+                }
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn texel_rgb_components(&self, level: usize, s: i32, t: i32) -> [Float; 3] {
+        let image = &self.pyramid[level];
+        let w = image.get_width() as i32;
+        let h = image.get_height() as i32;
+        let s = match Self::wrap_coord(s, w, self.swrap_mode) {
+            Some(v) => v,
+            None => return [0.0, 0.0, 0.0],
+        };
+        let t = match Self::wrap_coord(t, h, self.twrap_mode) {
+            Some(v) => v,
+            None => return [0.0, 0.0, 0.0],
+        };
+        image.lookup_rgb_components((t * w + s) as usize)
+    }
+
+    fn ewa_rgb(&self, level: usize, st: &Point2f, dst0: Vector2f, dst1: Vector2f) -> RGBSpectrum {
+        if level >= self.levels() {
+            return self.texel(self.levels() - 1, 0, 0);
+        }
+        let image = &self.pyramid[level];
+        let w = image.get_width() as Float;
+        let h = image.get_height() as Float;
+
+        let st = Point2f::new(st[0] * w - 0.5, st[1] * h - 0.5);
+        let dst0 = Vector2f::new(dst0[0] * w, dst0[1] * h);
+        let dst1 = Vector2f::new(dst1[0] * w, dst1[1] * h);
+
+        let a = dst0[1] * dst0[1] + dst1[1] * dst1[1] + 1.0;
+        let b = -2.0 * (dst0[0] * dst0[1] + dst1[0] * dst1[1]);
+        let c = dst0[0] * dst0[0] + dst1[0] * dst1[0] + 1.0;
+        let inv_f = 1.0 / (a * c - b * b * 0.25);
+
+        let a = a * inv_f;
+        let b = b * inv_f;
+        let c = c * inv_f;
+
+        let det = -b * b + 4.0 * a * c;
+        let inv_det = 1.0 / det;
+        let u_sqrt = (det * c).sqrt();
+        let v_sqrt = (det * a).sqrt();
+        let s0 = Float::ceil(st[0] - 2.0 * inv_det * u_sqrt) as i32;
+        let s1 = Float::floor(st[0] + 2.0 * inv_det * u_sqrt) as i32;
+        let t0 = Float::ceil(st[1] - 2.0 * inv_det * v_sqrt) as i32;
+        let t1 = Float::floor(st[1] + 2.0 * inv_det * v_sqrt) as i32;
+
+        let mut r = 0.0;
+        let mut g = 0.0;
+        let mut bsum = 0.0;
+        let mut sum_wts = 0.0;
+        for it in t0..=t1 {
+            let tt = it as Float - st[1];
+            for is in s0..=s1 {
+                let ss = is as Float - st[0];
+                let r2 = a * ss * ss + b * ss * tt + c * tt * tt;
+                if r2 < 1.0 {
+                    let index = usize::min(
+                        (r2 * MIPMAP_WEIGHT_LUT.len() as Float) as usize,
+                        MIPMAP_WEIGHT_LUT.len() - 1,
+                    );
+                    let weight = MIPMAP_WEIGHT_LUT[index];
+                    let c = self.texel_rgb_components(level, is, it);
+                    r += c[0] * weight;
+                    g += c[1] * weight;
+                    bsum += c[2] * weight;
+                    sum_wts += weight;
+                }
+            }
+        }
+        let inv_sum = 1.0 / sum_wts;
+        RGBSpectrum::new(r * inv_sum, g * inv_sum, bsum * inv_sum)
+    }
+
+    pub fn lookup_delta_rgb(&self, st: &Point2f, dst0: &Vector2f, dst1: &Vector2f) -> RGBSpectrum {
+        if self.do_trilinear {
+            return self.lookup_delta(st, dst0, dst1);
+        }
+        N_EWA_LOOKUPS.with(|n| n.inc());
+        let _p = ProfilePhase::new(Prof::TexFiltEWA);
+
+        let mut dst0 = *dst0;
+        let mut dst1 = *dst1;
+        if dst0.length_squared() < dst1.length_squared() {
+            std::mem::swap(&mut dst0, &mut dst1);
+        }
+        let major_length = dst0.length();
+        let mut minor_length = dst1.length();
+        if minor_length * self.max_anisotropy < major_length && minor_length > 0.0 {
+            let scale = major_length / (minor_length * self.max_anisotropy);
+            dst1 *= scale;
+            minor_length *= scale;
+        }
+        if minor_length <= 0.0 {
+            return self.lookup(st, 0.0);
+        }
+
+        let lod = Float::max(
+            0.0,
+            self.levels() as Float - 1.0 + Float::log2(minor_length),
+        );
+        let ilod = lod.floor() as usize;
+        RGBSpectrum::lerp(
+            lod - ilod as Float,
+            &self.ewa_rgb(ilod, st, dst0, dst1),
+            &self.ewa_rgb(ilod + 1, st, dst0, dst1),
+        )
     }
 }
 

@@ -3,6 +3,7 @@ use crate::samplers::*;
 
 use std::collections::HashMap;
 use std::ops::DerefMut;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::Instant;
@@ -127,6 +128,14 @@ impl Integrator for SPPMIntegrator {
             film.cropped_pixel_bounds
         };
         let timing_enabled = std::env::var_os("PBRT_R3_SPPM_TIMING").is_some();
+        let camera_timing_enabled = std::env::var_os("PBRT_R3_SPPM_CAMERA_TIMING").is_some();
+        let cam_intersect_ns = Arc::new(AtomicU64::new(0));
+        let cam_scatter_ns = Arc::new(AtomicU64::new(0));
+        let cam_direct_ns = Arc::new(AtomicU64::new(0));
+        let cam_bsdf_sample_ns = Arc::new(AtomicU64::new(0));
+        let cam_emit_ns = Arc::new(AtomicU64::new(0));
+        let cam_apply_ns = Arc::new(AtomicU64::new(0));
+        let cam_intersect_count = Arc::new(AtomicU64::new(0));
         let render_t0 = Instant::now();
         let mut t_camera = 0.0f64;
         let mut t_grid = 0.0f64;
@@ -228,6 +237,13 @@ impl Integrator for SPPMIntegrator {
                     let mut arena = MemoryArena::new();
                     //let pixel_bounds = tile.5;
                     let pixels = pixels.clone();
+                    let cam_intersect_ns = cam_intersect_ns.clone();
+                    let cam_scatter_ns = cam_scatter_ns.clone();
+                    let cam_direct_ns = cam_direct_ns.clone();
+                    let cam_bsdf_sample_ns = cam_bsdf_sample_ns.clone();
+                    let cam_emit_ns = cam_emit_ns.clone();
+                    let cam_apply_ns = cam_apply_ns.clone();
+                    let cam_intersect_count = cam_intersect_count.clone();
                     let camera = camera.as_ref();
                     //let tile = Point2i::new(tile.0, tile.1);
                     let tile_bounds = tile.2;
@@ -265,10 +281,27 @@ impl Integrator for SPPMIntegrator {
                                     // Follow camera ray path until a visible point is created
                                     let mut depth = 0;
                                     while depth < max_depth {
+                                        let t_intersect = if camera_timing_enabled {
+                                            Some(Instant::now())
+                                        } else {
+                                            None
+                                        };
                                         if let Some(mut isect) = scene.intersect(&ray.ray) {
+                                        if let Some(t0) = t_intersect {
+                                            cam_intersect_ns.fetch_add(
+                                                t0.elapsed().as_nanos() as u64,
+                                                Ordering::Relaxed,
+                                            );
+                                            cam_intersect_count.fetch_add(1, Ordering::Relaxed);
+                                        }
                                         // Process SPPM camera ray intersection
 
                                         // Compute BSDF at SPPM camera ray intersection
+                                        let t_scatter = if camera_timing_enabled {
+                                            Some(Instant::now())
+                                        } else {
+                                            None
+                                        };
                                         {
                                             isect.compute_scattering_functions(
                                                 &ray,
@@ -277,22 +310,58 @@ impl Integrator for SPPMIntegrator {
                                                 true,
                                             );
                                         }
-                                            //isect.ComputeScatteringFunctions(ray, arena, true);
+                                        if let Some(t0) = t_scatter {
+                                            cam_scatter_ns.fetch_add(
+                                                t0.elapsed().as_nanos() as u64,
+                                                Ordering::Relaxed,
+                                            );
+                                        }
+                                        //isect.ComputeScatteringFunctions(ray, arena, true);
                                             if let Some(bsdf) = isect.bsdf.as_ref() {
                                             // Accumulate direct illumination at SPPM camera ray
                                             // intersection
                                             let wo = -ray.ray.d;
-                                            let mut ld = beta
-                                                * uniform_sample_one_light_surface(
-                                                    &isect,
-                                                    scene,
-                                                    &mut arena,
-                                                    tile_sampler.deref_mut() as &mut dyn Sampler,
-                                                    false,
-                                                    None,
-                                                );
+                                            let mut ld = Spectrum::zero();
+                                            // Skip direct-light sampling when the BSDF is purely
+                                            // specular; this path contributes zero with the
+                                            // non-specular lighting estimator.
+                                            if bsdf.num_components(BSDF_ALL & !(BSDF_SPECULAR as u32))
+                                                > 0
+                                            {
+                                                let t_direct = if camera_timing_enabled {
+                                                    Some(Instant::now())
+                                                } else {
+                                                    None
+                                                };
+                                                ld = beta
+                                                    * uniform_sample_one_light_surface(
+                                                        &isect,
+                                                        scene,
+                                                        &mut arena,
+                                                        tile_sampler.deref_mut() as &mut dyn Sampler,
+                                                        false,
+                                                        None,
+                                                    );
+                                                if let Some(t0) = t_direct {
+                                                    cam_direct_ns.fetch_add(
+                                                        t0.elapsed().as_nanos() as u64,
+                                                        Ordering::Relaxed,
+                                                    );
+                                                }
+                                            }
                                             if depth == 0 || specular_bounce {
+                                                let t_emit = if camera_timing_enabled {
+                                                    Some(Instant::now())
+                                                } else {
+                                                    None
+                                                };
                                                 ld += beta * isect.le(&wo);
+                                                if let Some(t0) = t_emit {
+                                                    cam_emit_ns.fetch_add(
+                                                        t0.elapsed().as_nanos() as u64,
+                                                        Ordering::Relaxed,
+                                                    );
+                                                }
                                             }
                                             pixel_ld += ld;
                                                 // Possibly create visible point and end camera path
@@ -325,11 +394,22 @@ impl Integrator for SPPMIntegrator {
                                                 // Spawn ray from SPPM camera path vertex
                                                 if depth < max_depth - 1 {
                                                     let bsdf = bsdf.as_ref();
+                                                    let t_bsdf_sample = if camera_timing_enabled {
+                                                        Some(Instant::now())
+                                                    } else {
+                                                        None
+                                                    };
                                                     if let Some((f, wi, pdf, t)) = bsdf.sample_f(
                                                         &wo,
                                                         &tile_sampler.get_2d(),
                                                         BSDF_ALL,
                                                     ) {
+                                                        if let Some(t0) = t_bsdf_sample {
+                                                            cam_bsdf_sample_ns.fetch_add(
+                                                                t0.elapsed().as_nanos() as u64,
+                                                                Ordering::Relaxed,
+                                                            );
+                                                        }
                                                         if pdf <= 0.0 || f.is_black() {
                                                             break;
                                                         }
@@ -358,9 +438,26 @@ impl Integrator for SPPMIntegrator {
                                                 continue;
                                             }
                                         } else {
+                                            if let Some(t0) = t_intersect {
+                                                cam_intersect_ns.fetch_add(
+                                                    t0.elapsed().as_nanos() as u64,
+                                                    Ordering::Relaxed,
+                                                );
+                                            }
                                             for light in scene.lights.iter() {
+                                                let t_emit = if camera_timing_enabled {
+                                                    Some(Instant::now())
+                                                } else {
+                                                    None
+                                                };
                                                 let light = light.as_ref();
                                                 pixel_ld += beta * light.le(&ray);
+                                                if let Some(t0) = t_emit {
+                                                    cam_emit_ns.fetch_add(
+                                                        t0.elapsed().as_nanos() as u64,
+                                                        Ordering::Relaxed,
+                                                    );
+                                                }
                                             }
                                             break;
                                         }
@@ -377,6 +474,11 @@ impl Integrator for SPPMIntegrator {
                         }
                     }
 
+                    let t_apply = if camera_timing_enabled {
+                        Some(Instant::now())
+                    } else {
+                        None
+                    };
                     for update in tile_updates {
                         let mut pixel = pixels.pixels[update.index].write().unwrap();
                         pixel.vp.beta = Spectrum::zero();
@@ -385,6 +487,12 @@ impl Integrator for SPPMIntegrator {
                         if let Some(vp) = update.vp {
                             pixel.vp = vp;
                         }
+                    }
+                    if let Some(t0) = t_apply {
+                        cam_apply_ns.fetch_add(
+                            t0.elapsed().as_nanos() as u64,
+                            Ordering::Relaxed,
+                        );
                     }
                 });
             }
@@ -791,6 +899,38 @@ impl Integrator for SPPMIntegrator {
                 other,
                 100.0 * other / denom
             );
+            if camera_timing_enabled {
+                let cam_total = t_camera;
+                let cam_denom = if cam_total > 0.0 { cam_total } else { 1.0 };
+                let intersect = cam_intersect_ns.load(Ordering::Relaxed) as f64 * 1e-9;
+                let scatter = cam_scatter_ns.load(Ordering::Relaxed) as f64 * 1e-9;
+                let direct = cam_direct_ns.load(Ordering::Relaxed) as f64 * 1e-9;
+                let bsdf_sample = cam_bsdf_sample_ns.load(Ordering::Relaxed) as f64 * 1e-9;
+                let emit = cam_emit_ns.load(Ordering::Relaxed) as f64 * 1e-9;
+                let apply = cam_apply_ns.load(Ordering::Relaxed) as f64 * 1e-9;
+                let known = intersect + scatter + direct + bsdf_sample + emit + apply;
+                let misc = (cam_total - known).max(0.0);
+                let n_isect = cam_intersect_count.load(Ordering::Relaxed);
+                eprintln!(
+                    "[SPPM camera timing] camera={:.3}s intersect={:.3}s ({:.1}%) scatter={:.3}s ({:.1}%) direct={:.3}s ({:.1}%) bsdf_sample={:.3}s ({:.1}%) emit={:.3}s ({:.1}%) apply={:.3}s ({:.1}%) misc={:.3}s ({:.1}%) intersect_count={}",
+                    cam_total,
+                    intersect,
+                    100.0 * intersect / cam_denom,
+                    scatter,
+                    100.0 * scatter / cam_denom,
+                    direct,
+                    100.0 * direct / cam_denom,
+                    bsdf_sample,
+                    100.0 * bsdf_sample / cam_denom,
+                    emit,
+                    100.0 * emit / cam_denom,
+                    apply,
+                    100.0 * apply / cam_denom,
+                    misc,
+                    100.0 * misc / cam_denom,
+                    n_isect
+                );
+            }
         }
     }
 

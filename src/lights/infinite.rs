@@ -1,7 +1,9 @@
 use crate::core::prelude::*;
 
 use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
 
 #[derive(Debug, Default, Copy, Clone)]
 struct WorldBound {
@@ -12,8 +14,58 @@ struct WorldBound {
 pub struct InfiniteAreaLight {
     base: BaseLight,
     lmap: MIPMap<RGBSpectrum>,
-    bound: RwLock<WorldBound>,
+    bound: OnceLock<WorldBound>,
     distribution: Distribution2D,
+}
+
+static INFINITE_LIGHT_TIMING_ENABLED: OnceLock<bool> = OnceLock::new();
+static INFINITE_SAMPLE_LI_CALLS: AtomicU64 = AtomicU64::new(0);
+static INFINITE_SAMPLE_LI_TOTAL_NS: AtomicU64 = AtomicU64::new(0);
+static INFINITE_SAMPLE_LI_DISTR_NS: AtomicU64 = AtomicU64::new(0);
+static INFINITE_SAMPLE_LI_DIR_PDF_NS: AtomicU64 = AtomicU64::new(0);
+static INFINITE_SAMPLE_LI_LMAP_NS: AtomicU64 = AtomicU64::new(0);
+static INFINITE_SAMPLE_LI_VIS_NS: AtomicU64 = AtomicU64::new(0);
+
+#[inline]
+fn infinite_light_timing_enabled() -> bool {
+    *INFINITE_LIGHT_TIMING_ENABLED
+        .get_or_init(|| std::env::var_os("PBRT_R3_BDPT_TIMING").is_some())
+}
+
+pub fn reset_infinite_light_sample_timing_counters() {
+    INFINITE_SAMPLE_LI_CALLS.store(0, Ordering::Relaxed);
+    INFINITE_SAMPLE_LI_TOTAL_NS.store(0, Ordering::Relaxed);
+    INFINITE_SAMPLE_LI_DISTR_NS.store(0, Ordering::Relaxed);
+    INFINITE_SAMPLE_LI_DIR_PDF_NS.store(0, Ordering::Relaxed);
+    INFINITE_SAMPLE_LI_LMAP_NS.store(0, Ordering::Relaxed);
+    INFINITE_SAMPLE_LI_VIS_NS.store(0, Ordering::Relaxed);
+}
+
+pub fn report_infinite_light_sample_timing_counters(label: &str) {
+    let calls = INFINITE_SAMPLE_LI_CALLS.load(Ordering::Relaxed);
+    if calls == 0 {
+        return;
+    }
+    let total = INFINITE_SAMPLE_LI_TOTAL_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let t_distr = INFINITE_SAMPLE_LI_DISTR_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let t_dir = INFINITE_SAMPLE_LI_DIR_PDF_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let t_lmap = INFINITE_SAMPLE_LI_LMAP_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let t_vis = INFINITE_SAMPLE_LI_VIS_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let denom = if total > 0.0 { total } else { 1.0 };
+    eprintln!(
+        "[infinite sample_li timing:{}] calls={} total={:.3}s distr={:.3}s ({:.1}%) dir_pdf={:.3}s ({:.1}%) lmap={:.3}s ({:.1}%) vis={:.3}s ({:.1}%)",
+        label,
+        calls,
+        total,
+        t_distr,
+        100.0 * t_distr / denom,
+        t_dir,
+        100.0 * t_dir / denom,
+        t_lmap,
+        100.0 * t_lmap / denom,
+        t_vis,
+        100.0 * t_vis / denom
+    );
 }
 
 impl InfiniteAreaLight {
@@ -32,17 +84,16 @@ impl InfiniteAreaLight {
         InfiniteAreaLight {
             base,
             lmap,
-            bound: RwLock::new(WorldBound {
-                center: Point3f::new(0.0, 0.0, 0.0),
-                radius: Float::INFINITY,
-            }),
+            bound: OnceLock::new(),
             distribution,
         }
     }
 
     fn get_bound(&self) -> WorldBound {
-        let bound = self.bound.read().unwrap();
-        return *bound;
+        self.bound.get().copied().unwrap_or(WorldBound {
+            center: Point3f::new(0.0, 0.0, 0.0),
+            radius: Float::INFINITY,
+        })
     }
 }
 
@@ -96,14 +147,11 @@ impl Light for InfiniteAreaLight {
     fn preprocess(&self, scene: &Scene) {
         //scene.WorldBound().BoundingSphere(&worldCenter, &worldRadius);
         let (center, radius) = scene.world_bound.bounding_sphere();
-        let mut bound = self.bound.write().unwrap();
-        bound.center = center;
-        bound.radius = radius;
+        let _ = self.bound.set(WorldBound { center, radius });
     }
 
     fn power(&self) -> Spectrum {
-        let bound = self.bound.read().unwrap();
-        let world_radius = bound.radius;
+        let world_radius = self.get_bound().radius;
         let rgb = self.lmap.lookup(&Point2f::new(0.5, 0.5), 0.5);
         return Spectrum::from_rgb(&rgb.to_rgb(), SpectrumType::Illuminant)
             * (PI * world_radius * world_radius);
@@ -128,15 +176,25 @@ impl Light for InfiniteAreaLight {
         u: &Point2f,
     ) -> Option<(Spectrum, Vector3f, Float, VisibilityTester)> {
         let _p = ProfilePhase::new(Prof::LightSample);
+        let timing = infinite_light_timing_enabled();
+        let t_total = if timing { Some(Instant::now()) } else { None };
+        if timing {
+            INFINITE_SAMPLE_LI_CALLS.fetch_add(1, Ordering::Relaxed);
+        }
 
         // Find $(u,v)$ sample coordinates in infinite light texture
+        let t_distr = if timing { Some(Instant::now()) } else { None };
         let (uv, map_pdf) = self.distribution.sample_continuous(u);
+        if let Some(t0) = t_distr {
+            INFINITE_SAMPLE_LI_DISTR_NS.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        }
         if map_pdf <= 0.0 {
             return None;
         }
         let bound = self.get_bound();
 
         // Convert infinite light sample point to direction
+        let t_dir = if timing { Some(Instant::now()) } else { None };
         let theta = uv[1] * PI;
         let phi = uv[0] * 2.0 * PI;
         let cos_theta = Float::cos(theta);
@@ -151,13 +209,27 @@ impl Light for InfiniteAreaLight {
         } else {
             map_pdf / (2.0 * PI * PI * sin_theta)
         };
+        if let Some(t0) = t_dir {
+            INFINITE_SAMPLE_LI_DIR_PDF_NS.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        }
         let world_radius = bound.radius;
         let p = inter.get_p() + wi * (2.0 * world_radius);
+        let t_vis = if timing { Some(Instant::now()) } else { None };
         let inter_light =
             Interaction::from_light_sample(&p, inter.get_time(), &self.base.medium_interface);
         let vis = VisibilityTester::from((inter, &inter_light));
+        if let Some(t0) = t_vis {
+            INFINITE_SAMPLE_LI_VIS_NS.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        }
+        let t_lmap = if timing { Some(Instant::now()) } else { None };
         let rgb = self.lmap.lookup(&uv, 0.0);
+        if let Some(t0) = t_lmap {
+            INFINITE_SAMPLE_LI_LMAP_NS.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        }
         let spc = Spectrum::from_rgb(&rgb.to_rgb(), SpectrumType::Illuminant);
+        if let Some(t0) = t_total {
+            INFINITE_SAMPLE_LI_TOTAL_NS.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        }
         return Some((spc, wi, pdf, vis));
     }
 

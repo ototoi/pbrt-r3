@@ -3,10 +3,141 @@ use super::vertex_interaction::*;
 use crate::core::prelude::*;
 
 use std::sync::Arc;
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
 
 thread_local!(static PATHS: StatPercent = StatPercent::new("Integrator/Zero-radiance paths"));
 thread_local!(static PATH_LENGTH: StatIntDistribution = StatIntDistribution::new("Integrator/Path length"));
 
+static BDPT_TIMING_ENABLED: OnceLock<bool> = OnceLock::new();
+static BDPT_CONNECT_CALLS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_TOTAL_NS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_S0_CALLS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_S0_NS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_T1_CALLS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_T1_NS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_S1_CALLS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_S1_NS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_S1_SAMPLE_DISCRETE_NS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_S1_SAMPLE_LI_NS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_S1_PDF_LIGHT_ORIGIN_NS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_S1_F_EVAL_NS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_S1_VIS_TR_NS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_OTHER_CALLS: AtomicU64 = AtomicU64::new(0);
+static BDPT_CONNECT_OTHER_NS: AtomicU64 = AtomicU64::new(0);
+static BDPT_MIS_CALLS: AtomicU64 = AtomicU64::new(0);
+static BDPT_MIS_NS: AtomicU64 = AtomicU64::new(0);
+static BDPT_SAMPLER_GET1D_CALLS: AtomicU64 = AtomicU64::new(0);
+static BDPT_SAMPLER_GET2D_CALLS: AtomicU64 = AtomicU64::new(0);
+
+#[inline]
+fn bdpt_timing_enabled() -> bool {
+    *BDPT_TIMING_ENABLED.get_or_init(|| std::env::var_os("PBRT_R3_BDPT_TIMING").is_some())
+}
+
+pub fn reset_bdpt_timing_counters() {
+    BDPT_CONNECT_CALLS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_TOTAL_NS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_S0_CALLS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_S0_NS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_T1_CALLS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_T1_NS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_S1_CALLS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_S1_NS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_S1_SAMPLE_DISCRETE_NS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_S1_SAMPLE_LI_NS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_S1_PDF_LIGHT_ORIGIN_NS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_S1_F_EVAL_NS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_S1_VIS_TR_NS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_OTHER_CALLS.store(0, Ordering::Relaxed);
+    BDPT_CONNECT_OTHER_NS.store(0, Ordering::Relaxed);
+    BDPT_MIS_CALLS.store(0, Ordering::Relaxed);
+    BDPT_MIS_NS.store(0, Ordering::Relaxed);
+    BDPT_SAMPLER_GET1D_CALLS.store(0, Ordering::Relaxed);
+    BDPT_SAMPLER_GET2D_CALLS.store(0, Ordering::Relaxed);
+}
+
+pub fn report_bdpt_timing_counters(label: &str) {
+    let connect_calls = BDPT_CONNECT_CALLS.load(Ordering::Relaxed);
+    if connect_calls == 0 {
+        return;
+    }
+    let connect_total = BDPT_CONNECT_TOTAL_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let s0_calls = BDPT_CONNECT_S0_CALLS.load(Ordering::Relaxed);
+    let s0_t = BDPT_CONNECT_S0_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let t1_calls = BDPT_CONNECT_T1_CALLS.load(Ordering::Relaxed);
+    let t1_t = BDPT_CONNECT_T1_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let s1_calls = BDPT_CONNECT_S1_CALLS.load(Ordering::Relaxed);
+    let s1_t = BDPT_CONNECT_S1_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let s1_sample_discrete_t =
+        BDPT_CONNECT_S1_SAMPLE_DISCRETE_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let s1_sample_li_t = BDPT_CONNECT_S1_SAMPLE_LI_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let s1_pdf_origin_t =
+        BDPT_CONNECT_S1_PDF_LIGHT_ORIGIN_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let s1_f_eval_t = BDPT_CONNECT_S1_F_EVAL_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let s1_vis_tr_t = BDPT_CONNECT_S1_VIS_TR_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let other_calls = BDPT_CONNECT_OTHER_CALLS.load(Ordering::Relaxed);
+    let other_t = BDPT_CONNECT_OTHER_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let mis_calls = BDPT_MIS_CALLS.load(Ordering::Relaxed);
+    let mis_t = BDPT_MIS_NS.load(Ordering::Relaxed) as f64 * 1e-9;
+    let get1d = BDPT_SAMPLER_GET1D_CALLS.load(Ordering::Relaxed);
+    let get2d = BDPT_SAMPLER_GET2D_CALLS.load(Ordering::Relaxed);
+    let denom = if connect_total > 0.0 { connect_total } else { 1.0 };
+    eprintln!(
+        "[bdpt timing:{}] connect_calls={} total={:.3}s s0={} ({:.3}s,{:.1}%) t1={} ({:.3}s,{:.1}%) s1={} ({:.3}s,{:.1}%) other={} ({:.3}s,{:.1}%) mis_calls={} mis={:.3}s get1d_calls={} get2d_calls={}",
+        label,
+        connect_calls,
+        connect_total,
+        s0_calls,
+        s0_t,
+        100.0 * s0_t / denom,
+        t1_calls,
+        t1_t,
+        100.0 * t1_t / denom,
+        s1_calls,
+        s1_t,
+        100.0 * s1_t / denom,
+        other_calls,
+        other_t,
+        100.0 * other_t / denom,
+        mis_calls,
+        mis_t,
+        get1d,
+        get2d
+    );
+    let s1_denom = if s1_t > 0.0 { s1_t } else { 1.0 };
+    eprintln!(
+        "[bdpt timing:{}] s1-breakdown sample_discrete={:.3}s ({:.1}%) sample_li={:.3}s ({:.1}%) pdf_light_origin={:.3}s ({:.1}%) f_eval={:.3}s ({:.1}%) vis_tr={:.3}s ({:.1}%)",
+        label,
+        s1_sample_discrete_t,
+        100.0 * s1_sample_discrete_t / s1_denom,
+        s1_sample_li_t,
+        100.0 * s1_sample_li_t / s1_denom,
+        s1_pdf_origin_t,
+        100.0 * s1_pdf_origin_t / s1_denom,
+        s1_f_eval_t,
+        100.0 * s1_f_eval_t / s1_denom,
+        s1_vis_tr_t,
+        100.0 * s1_vis_tr_t / s1_denom
+    );
+}
+
+#[inline]
+fn bdpt_get1d(sampler: &mut dyn Sampler) -> Float {
+    if bdpt_timing_enabled() {
+        BDPT_SAMPLER_GET1D_CALLS.fetch_add(1, Ordering::Relaxed);
+    }
+    sampler.get_1d()
+}
+
+#[inline]
+fn bdpt_get2d(sampler: &mut dyn Sampler) -> Point2f {
+    if bdpt_timing_enabled() {
+        BDPT_SAMPLER_GET2D_CALLS.fetch_add(1, Ordering::Relaxed);
+    }
+    sampler.get_2d()
+}
 // RandomWalk
 fn random_walk(
     scene: &Scene,
@@ -528,30 +659,61 @@ pub fn connect_bdpt(
         // Sample a point on a light and connect it to the camera subpath
         let pt = &camera_vertices[(t - 1) as usize];
         if pt.is_connectible() {
-            let (light_num, light_pdf, _remapped) = light_distr.sample_discrete(sampler.get_1d());
-            let light = scene.lights[light_num].clone();
+            let t_sample_discrete = if timing { Some(Instant::now()) } else { None };
+            let (light_num, light_pdf, _remapped) =
+                light_distr.sample_discrete(bdpt_get1d(sampler));
+            if let Some(t0) = t_sample_discrete {
+                BDPT_CONNECT_S1_SAMPLE_DISCRETE_NS
+                    .fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
+            let light = &scene.lights[light_num];
             let inter = pt.get_interaction();
-            if let Some((light_weight, wi, pdf, vis)) = light.sample_li(&inter, &sampler.get_2d()) {
+            let t_sample_li = if timing { Some(Instant::now()) } else { None };
+            if let Some((light_weight, wi, pdf, vis)) = light.sample_li(&inter, &bdpt_get2d(sampler))
+            {
+                if let Some(t0) = t_sample_li {
+                    BDPT_CONNECT_S1_SAMPLE_LI_NS
+                        .fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+                }
                 if pdf > 0.0 && !light_weight.is_black() {
                     let ei = EndpointInteraction::from_light_interaction(&light, &vis.p1);
                     let sampled_beta = light_weight / (pdf * light_pdf);
                     let mut sampled_v =
                         Vertex::create_light_from_endpoint(&ei, &sampled_beta, 0.0);
-                    let pdf_fwd = sampled_v.pdf_light_origin(scene, pt, light_distr, light_to_index);
+                    let t_pdf_origin = if timing { Some(Instant::now()) } else { None };
+                    let pdf_fwd =
+                        sampled_v.pdf_light_origin(scene, pt, light_distr, light_to_index);
+                    if let Some(t0) = t_pdf_origin {
+                        BDPT_CONNECT_S1_PDF_LIGHT_ORIGIN_NS
+                            .fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+                    }
                     assert!(pdf_fwd >= 0.0);
                     sampled_v.pdf_fwd = pdf_fwd;
+                    let t_f_eval = if timing { Some(Instant::now()) } else { None };
                     l = pt.beta * pt.f(&sampled_v, TransportMode::Radiance) * sampled_beta;
+                    if let Some(t0) = t_f_eval {
+                        BDPT_CONNECT_S1_F_EVAL_NS
+                            .fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+                    }
 
                     if pt.is_on_surface() {
                         l *= Vector3f::abs_dot(&wi, &pt.get_ns());
                     }
                     // Only check visibility if the path would carry radiance.
                     if !l.is_black() {
+                        let t_vis_tr = if timing { Some(Instant::now()) } else { None };
                         l *= vis.tr(scene, sampler);
+                        if let Some(t0) = t_vis_tr {
+                            BDPT_CONNECT_S1_VIS_TR_NS
+                                .fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+                        }
                     }
 
                     sampled = Some(sampled_v);
                 }
+            } else if let Some(t0) = t_sample_li {
+                BDPT_CONNECT_S1_SAMPLE_LI_NS
+                    .fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
             }
         }
     } else {

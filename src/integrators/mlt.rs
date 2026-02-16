@@ -253,8 +253,8 @@ impl MLTIntegrator {
         light_distr: &Distribution1D,
         light_to_index: &LightIndexMap,
         sampler: &mut MLTSampler,
-        camera_vertices: &mut Vec<Arc<Vertex>>,
-        light_vertices: &mut Vec<Arc<Vertex>>,
+        camera_vertices: &mut Vec<Vertex>,
+        light_vertices: &mut Vec<Vertex>,
         depth: u32,
     ) -> (Spectrum, Point2f) {
         let camera = self.camera.clone();

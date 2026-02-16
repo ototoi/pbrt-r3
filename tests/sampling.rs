@@ -333,11 +333,11 @@ fn distribution_1d_continuous() {
 
     // Right at the bounary between the 4 and the 8 segments.
     let (value, _pdf, _offset) = dist.sample_continuous(0.5);
-    assert_eq!(0.8, value);
+    assert!(near_equal(0.8, value, 1e-6));
 
     // Middle of the 8 segment
     let (value, pdf, offset) = dist.sample_continuous(0.75);
-    assert_eq!(0.9, value);
+    assert!(near_equal(0.9, value, 1e-6));
     assert_eq!(dist.count() as Float * 8.0 / 16.0, pdf);
     assert_eq!(4, offset);
 

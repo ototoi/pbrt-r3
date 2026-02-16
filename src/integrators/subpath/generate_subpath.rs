@@ -692,6 +692,11 @@ pub fn connect_bdpt(
     p_raster: &Point2f,
 ) -> Option<(Spectrum, Float, Point2f)> {
     let _p = ProfilePhase::new(Prof::BDPTConnectSubpaths);
+    let timing = bdpt_timing_enabled();
+    let t_connect = if timing { Some(Instant::now()) } else { None };
+    if timing {
+        BDPT_CONNECT_CALLS.fetch_add(1, Ordering::Relaxed);
+    }
 
     let mut p_raster = *p_raster;
     // Ignore invalid connections related to infinite area lights
@@ -706,6 +711,7 @@ pub fn connect_bdpt(
     let mut sampled: Option<Vertex> = None;
                             // Perform connection and write contribution to _L_
     if s == 0 {
+        let t_branch = if timing { Some(Instant::now()) } else { None };
         assert!(t >= 1);
         // Interpret the camera subpath as a complete path
         let pt = &camera_vertices[(t - 1) as usize];
@@ -714,14 +720,19 @@ pub fn connect_bdpt(
             let target = &camera_vertices[(t - 2) as usize];
             l = pt.le(scene, target) * pt.beta;
         }
+        if let Some(t0) = t_branch {
+            BDPT_CONNECT_S0_CALLS.fetch_add(1, Ordering::Relaxed);
+            BDPT_CONNECT_S0_NS.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        }
     } else if t == 1 {
+        let t_branch = if timing { Some(Instant::now()) } else { None };
         assert!(s >= 1);
         // Sample a point on the camera and connect it to the light subpath
         let qs = &light_vertices[(s - 1) as usize];
         if qs.is_connectible() {
             let intersection = &qs.get_interaction();
             if let Some((spec, wi, pdf, pr, vis)) =
-                camera.as_ref().sample_wi(intersection, &sampler.get_2d())
+                camera.as_ref().sample_wi(intersection, &bdpt_get2d(sampler))
             {
                 p_raster = pr;
                 if pdf > 0.0 && !spec.is_black() {
@@ -744,7 +755,12 @@ pub fn connect_bdpt(
                 }
             }
         }
+        if let Some(t0) = t_branch {
+            BDPT_CONNECT_T1_CALLS.fetch_add(1, Ordering::Relaxed);
+            BDPT_CONNECT_T1_NS.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        }
     } else if s == 1 {
+        let t_branch = if timing { Some(Instant::now()) } else { None };
         assert!(t >= 1);
         // Sample a point on a light and connect it to the camera subpath
         let pt = &camera_vertices[(t - 1) as usize];
@@ -806,7 +822,12 @@ pub fn connect_bdpt(
                     .fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
             }
         }
+        if let Some(t0) = t_branch {
+            BDPT_CONNECT_S1_CALLS.fetch_add(1, Ordering::Relaxed);
+            BDPT_CONNECT_S1_NS.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        }
     } else {
+        let t_branch = if timing { Some(Instant::now()) } else { None };
         assert!(s >= 1);
         assert!(t >= 1);
         // Handle all other bidirectional connection cases
@@ -820,6 +841,10 @@ pub fn connect_bdpt(
             if !l.is_black() {
                 l *= g(scene, sampler, qs, pt);
             }
+        }
+        if let Some(t0) = t_branch {
+            BDPT_CONNECT_OTHER_CALLS.fetch_add(1, Ordering::Relaxed);
+            BDPT_CONNECT_OTHER_NS.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
         }
     }
 
@@ -842,7 +867,8 @@ pub fn connect_bdpt(
     let mis_weight = if l.is_black() {
         0.0
     } else {
-        mis_weight(
+        let t_mis = if timing { Some(Instant::now()) } else { None };
+        let w = mis_weight(
             scene,
             light_vertices,
             camera_vertices,
@@ -851,13 +877,21 @@ pub fn connect_bdpt(
             t,
             light_distr,
             light_to_index,
-        )
+        );
+        if let Some(t0) = t_mis {
+            BDPT_MIS_CALLS.fetch_add(1, Ordering::Relaxed);
+            BDPT_MIS_NS.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        }
+        w
     };
 
     assert!(l.is_valid());
     assert!(mis_weight.is_finite());
 
     l *= mis_weight;
+    if let Some(t0) = t_connect {
+        BDPT_CONNECT_TOTAL_NS.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
+    }
 
     return Some((l, mis_weight, p_raster));
 }

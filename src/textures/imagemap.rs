@@ -63,7 +63,7 @@ impl Texture<Float> for ImageTexture<Float, Float> {
 impl Texture<Spectrum> for ImageTexture<RGBSpectrum, Spectrum> {
     fn evaluate(&self, si: &SurfaceInteraction) -> Spectrum {
         let (st, dstdx, dstdy) = self.mapping.map(si);
-        return Self::convert_out(&self.mipmap.lookup_delta_rgb(&st, &dstdx, &dstdy));
+        return Self::convert_out(&self.mipmap.lookup_delta(&st, &dstdx, &dstdy));
     }
 }
 

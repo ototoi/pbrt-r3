@@ -26,8 +26,7 @@ pub fn correct_shading_normal(
 ) -> Float {
     if mode == TransportMode::Importance {
         let num = Vector3f::abs_dot(wo, &isect.shading.n) * Vector3f::abs_dot(wi, &isect.n);
-        let denom =
-            Vector3f::abs_dot(wo, &isect.n) * Vector3f::abs_dot(wi, &isect.shading.n);
+        let denom = Vector3f::abs_dot(wo, &isect.n) * Vector3f::abs_dot(wi, &isect.shading.n);
         if denom == 0.0 {
             return 0.0;
         }
@@ -253,8 +252,9 @@ impl Vertex {
             VertexType::Surface => {
                 let si = self.interaction.as_surface().unwrap();
                 let bsdf = si.bsdf.as_ref().unwrap();
-                bsdf.num_components(BSDF_DIFFUSE | BSDF_GLOSSY | BSDF_REFLECTION | BSDF_TRANSMISSION)
-                    > 0
+                bsdf.num_components(
+                    BSDF_DIFFUSE | BSDF_GLOSSY | BSDF_REFLECTION | BSDF_TRANSMISSION,
+                ) > 0
             }
         }
     }
@@ -295,7 +295,8 @@ impl Vertex {
             VertexInteraction::EndPoint(ei) => {
                 let mut le = Spectrum::zero();
                 if ei.is_infinite_light() {
-                    let ray = RayDifferential::from(Ray::new(&self.get_p(), &-w, Float::INFINITY, 0.0));
+                    let ray =
+                        RayDifferential::from(Ray::new(&self.get_p(), &-w, Float::INFINITY, 0.0));
                     for light in scene.infinite_lights.iter() {
                         le += light.le(&ray);
                     }
@@ -363,7 +364,13 @@ impl Vertex {
         beta: &Spectrum,
         pdf: Float,
     ) -> Self {
-        let v = Vertex::new(*beta, VertexInteraction::EndPoint(ei.clone()), false, pdf, 0.0);
+        let v = Vertex::new(
+            *beta,
+            VertexInteraction::EndPoint(ei.clone()),
+            false,
+            pdf,
+            0.0,
+        );
         assert!(v.get_type() == VertexType::Light);
         v
     }
@@ -374,7 +381,13 @@ impl Vertex {
         pdf: Float,
         prev: &Vertex,
     ) -> Self {
-        let mut v = Vertex::new(*beta, VertexInteraction::Surface(si.clone()), false, 0.0, 0.0);
+        let mut v = Vertex::new(
+            *beta,
+            VertexInteraction::Surface(si.clone()),
+            false,
+            0.0,
+            0.0,
+        );
         v.pdf_fwd = prev.convert_density(pdf, &v);
         assert!(v.get_type() == VertexType::Surface);
         v
@@ -386,7 +399,13 @@ impl Vertex {
         pdf: Float,
         prev: &Vertex,
     ) -> Self {
-        let mut v = Vertex::new(*beta, VertexInteraction::Medium(mi.clone()), false, 0.0, 0.0);
+        let mut v = Vertex::new(
+            *beta,
+            VertexInteraction::Medium(mi.clone()),
+            false,
+            0.0,
+            0.0,
+        );
         v.pdf_fwd = prev.convert_density(pdf, &v);
         assert!(v.get_type() == VertexType::Medium);
         v

@@ -30,6 +30,7 @@ pub struct SpatialLightDistribution {
     lights: Vec<Arc<dyn Light>>,
     voxels: [u32; 3],
     hash_table: Vec<RwLock<Option<HashEntry>>>,
+    hash_table_size: u64,
 }
 
 impl SpatialLightDistribution {
@@ -50,7 +51,7 @@ impl SpatialLightDistribution {
         }
 
         let hash_table_size = (4 * voxels[0] * voxels[1] * voxels[2]) as usize;
-        let mut hash_table = Vec::new();
+        let mut hash_table = Vec::with_capacity(hash_table_size);
         for _ in 0..hash_table_size {
             hash_table.push(RwLock::new(None));
         }
@@ -59,12 +60,12 @@ impl SpatialLightDistribution {
             lights: scene.lights.clone(),
             voxels,
             hash_table,
+            hash_table_size: hash_table_size as u64,
         }
     }
 
+    #[inline]
     pub fn make_hash(&self, packed_pos: u64) -> u64 {
-        let hash_table_size = self.hash_table.len() as u64;
-
         // Compute a hash value from the packed voxel coordinates.  We could
         // just take packedPos mod the hash table size, but since packedPos
         // isn't necessarily well distributed on its own, it's worthwhile to do
@@ -77,7 +78,7 @@ impl SpatialLightDistribution {
         hash ^= hash.wrapping_shr(27); //hash >> 27)
         hash = hash.wrapping_mul(0x81dadef4bc2dd44d); //hash *= 0x81dadef4bc2dd44d;
         hash ^= hash.wrapping_shr(33); //(hash >> 33);
-        hash %= hash_table_size;
+        hash %= self.hash_table_size;
         return hash;
     }
 
@@ -199,39 +200,51 @@ impl SpatialLightDistribution {
 impl LightDistribution for SpatialLightDistribution {
     fn lookup(&self, p: &Point3f) -> Arc<Distribution1D> {
         let (packed_pos, mut hash, pi) = self.get_hash_key(p);
-        assert!((hash as usize) < self.hash_table.len());
+        debug_assert!((hash as usize) < self.hash_table.len());
 
         // Now, see if the hash table already has an entry for the voxel. We'll
         // use quadratic probing when the hash table entry is already used for
         // another value; step stores the square root of the probe step.
         let mut step = 1;
         let mut n_probes = 0;
+        let hash_table_size = self.hash_table_size;
         loop {
             n_probes += 1;
+            let slot = &self.hash_table[hash as usize];
             // Fast path: shared lock for populated entries.
             {
-                let hash_entry = self.hash_table[hash as usize].read().unwrap();
+                let hash_entry = slot.read().unwrap();
                 if let Some(entry) = hash_entry.as_ref() {
                     if entry.packed_pos == packed_pos {
                         N_PROBES_PER_LOOKUP.with(|c| c.add(n_probes));
-                        return entry.distribution.clone();
+                        return Arc::clone(&entry.distribution);
                     }
+                    // Collision with another voxel: continue probing without
+                    // taking a write lock.
+                    hash += step * step;
+                    if hash >= hash_table_size {
+                        hash %= hash_table_size;
+                    }
+                    step += 1;
+                    continue;
                 }
             }
 
-            // Slow path: exclusive lock to initialize empty slots.
+            // Slow path: slot looked empty under read lock; take exclusive lock
+            // and initialize if still empty.
             {
-                let mut hash_entry = self.hash_table[hash as usize].write().unwrap();
+                let mut hash_entry = slot.write().unwrap();
                 if let Some(entry) = hash_entry.as_ref() {
                     if entry.packed_pos == packed_pos {
                         N_PROBES_PER_LOOKUP.with(|c| c.add(n_probes));
-                        return entry.distribution.clone();
+                        return Arc::clone(&entry.distribution);
                     }
+                    // Another thread inserted a different entry; treat as collision.
                 } else {
                     let distrib = self.compute_distribution(&pi);
                     *hash_entry = Some(HashEntry {
                         packed_pos,
-                        distribution: distrib.clone(),
+                        distribution: Arc::clone(&distrib),
                     });
                     N_PROBES_PER_LOOKUP.with(|c| c.add(n_probes));
                     return distrib;
@@ -240,7 +253,6 @@ impl LightDistribution for SpatialLightDistribution {
 
             // Collision: quadratic probing to the next candidate slot.
             hash += step * step;
-            let hash_table_size = self.hash_table.len() as u64;
             if hash >= hash_table_size {
                 hash %= hash_table_size;
             }

@@ -11,9 +11,26 @@ pub enum TransportMode {
     Importance,
 }
 
+#[inline]
+fn make_bump_eval_si(si: &SurfaceInteraction) -> SurfaceInteraction {
+    let mut eval = SurfaceInteraction::default();
+    // Texture evaluation only needs geometric/uv/differential fields.
+    eval.p = si.p;
+    eval.uv = si.uv;
+    eval.n = si.n;
+    eval.dpdx = si.dpdx;
+    eval.dpdy = si.dpdy;
+    eval.dudx = si.dudx;
+    eval.dudy = si.dudy;
+    eval.dvdx = si.dvdx;
+    eval.dvdy = si.dvdy;
+    eval.shading = si.shading;
+    eval
+}
+
 pub fn material_bump(d: &Arc<dyn Texture<Float>>, si: &mut SurfaceInteraction) {
     // Compute offset positions and evaluate displacement texture
-    let mut si_eval: SurfaceInteraction = si.clone();
+    let mut si_eval = make_bump_eval_si(si);
 
     // Shift _siEval_ _du_ in the $u$ direction
     let mut du = 0.5 * (Float::abs(si.dudx) + Float::abs(si.dudy));

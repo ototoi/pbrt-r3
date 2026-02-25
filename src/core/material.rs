@@ -11,9 +11,26 @@ pub enum TransportMode {
     Importance,
 }
 
+#[inline]
+fn make_bump_eval_si(si: &SurfaceInteraction) -> SurfaceInteraction {
+    let mut eval = SurfaceInteraction::default();
+    // Texture evaluation only needs geometric/uv/differential fields.
+    eval.p = si.p;
+    eval.uv = si.uv;
+    eval.n = si.n;
+    eval.dpdx = si.dpdx;
+    eval.dpdy = si.dpdy;
+    eval.dudx = si.dudx;
+    eval.dudy = si.dudy;
+    eval.dvdx = si.dvdx;
+    eval.dvdy = si.dvdy;
+    eval.shading = si.shading;
+    eval
+}
+
 pub fn material_bump(d: &Arc<dyn Texture<Float>>, si: &mut SurfaceInteraction) {
     // Compute offset positions and evaluate displacement texture
-    let mut si_eval: SurfaceInteraction = si.clone();
+    let mut si_eval = make_bump_eval_si(si);
 
     // Shift _siEval_ _du_ in the $u$ direction
     let mut du = 0.5 * (Float::abs(si.dudx) + Float::abs(si.dudy));
@@ -27,7 +44,7 @@ pub fn material_bump(d: &Arc<dyn Texture<Float>>, si: &mut SurfaceInteraction) {
     si_eval.p = si.p + du * si.shading.dpdu;
     si_eval.uv = si.uv + Vector2f::new(du, 0.0);
     si_eval.n = (Vector3f::cross(&si.shading.dpdu, &si.shading.dpdv) + du * si.dndu).normalize();
-    let u_displace = d.as_ref().evaluate(&si_eval);
+    let u_displace = d.evaluate(&si_eval);
 
     // Shift _siEval_ _dv_ in the $v$ direction
     let mut dv = 0.5 * (Float::abs(si.dvdx) + Float::abs(si.dvdy));
@@ -37,8 +54,8 @@ pub fn material_bump(d: &Arc<dyn Texture<Float>>, si: &mut SurfaceInteraction) {
     si_eval.p = si.p + dv * si.shading.dpdv;
     si_eval.uv = si.uv + Vector2f::new(0.0, dv);
     si_eval.n = (Vector3f::cross(&si.shading.dpdu, &si.shading.dpdv) + dv * si.dndv).normalize();
-    let v_displace = d.as_ref().evaluate(&si_eval);
-    let displace = d.as_ref().evaluate(si);
+    let v_displace = d.evaluate(&si_eval);
+    let displace = d.evaluate(si);
 
     // Compute bump-mapped differential geometry
     {

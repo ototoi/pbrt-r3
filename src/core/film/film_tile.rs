@@ -31,6 +31,8 @@ pub struct FilmTile {
     pub filter_table: Arc<RwLock<[Float; FT_SZ]>>,
     pub pixels: Vec<FilmTilePixel>,
     pub max_sample_luminance: Float,
+    ifx_scratch: Vec<i32>,
+    ify_scratch: Vec<i32>,
 }
 
 impl FilmTile {
@@ -48,6 +50,8 @@ impl FilmTile {
             filter_table: Arc::clone(filter_table),
             pixels: vec![FilmTilePixel::zero(); pixel_bounds.area() as usize],
             max_sample_luminance,
+            ifx_scratch: Vec::new(),
+            ify_scratch: Vec::new(),
         };
     }
 
@@ -107,7 +111,8 @@ impl FilmTile {
         }
 
         let filter_table_size = FT_W;
-        let mut ifx: Vec<i32> = vec![0; delta.x as usize];
+        let mut ifx = std::mem::take(&mut self.ifx_scratch);
+        ifx.resize(delta.x as usize, 0);
         let lx = inv_filter_radius.x * (filter_table_size - 1) as Float;
         for x in p0.x..p1.x {
             let d = Float::abs(x as Float + 0.5 - p_film_discrete.x);
@@ -119,7 +124,8 @@ impl FilmTile {
             ifx[(x - p0.x) as usize] = id;
         }
 
-        let mut ify: Vec<i32> = vec![0; delta.y as usize];
+        let mut ify = std::mem::take(&mut self.ify_scratch);
+        ify.resize(delta.y as usize, 0);
         let ly = inv_filter_radius.y * (filter_table_size - 1) as Float;
         for y in p0.y..p1.y {
             let d = Float::abs(y as Float + 0.5 - p_film_discrete.y);
@@ -130,41 +136,43 @@ impl FilmTile {
             };
             ify[(y - p0.y) as usize] = id;
         }
-        let mut weights = vec![0.0; ifx.len() * ify.len()];
-        for y in p0.y..p1.y {
-            let yidx = (y - p0.y) as usize;
+        let mut sum = 0.0;
+        for yidx in 0..ify.len() {
             let iy = ify[yidx];
             if iy < 0 {
                 continue;
             }
-            for x in p0.x..p1.x {
-                let xidx = (x - p0.x) as usize;
+            for xidx in 0..ifx.len() {
                 let ix = ifx[xidx];
                 if ix < 0 {
                     continue;
                 }
                 let offset = (iy * filter_table_size as i32 + ix) as usize;
-                let filter_weight = filter_table[offset];
-                weights[(yidx * ifx.len() + xidx) as usize] = filter_weight;
+                sum += filter_table[offset];
             }
         }
-        {
-            let sum = weights.iter().sum::<Float>();
-            if sum <= 0.0 {
-                return;
-            }
-            let isum = 1.0 / sum;
-            for w in weights.iter_mut() {
-                *w *= isum;
-            }
+        if sum <= 0.0 {
+            self.ifx_scratch = ifx;
+            self.ify_scratch = ify;
+            return;
         }
+        let isum = 1.0 / sum;
 
         let width = (self.pixel_bounds.max.x - self.pixel_bounds.min.x) as usize;
         for y in p0.y..p1.y {
             for x in p0.x..p1.x {
                 let xidx = (x - p0.x) as usize;
                 let yidx = (y - p0.y) as usize;
-                let filter_weight = weights[yidx * ifx.len() + xidx];
+                let iy = ify[yidx];
+                if iy < 0 {
+                    continue;
+                }
+                let ix = ifx[xidx];
+                if ix < 0 {
+                    continue;
+                }
+                let offset = (iy * filter_table_size as i32 + ix) as usize;
+                let filter_weight = filter_table[offset] * isum;
 
                 let xx = x - self.pixel_bounds.min.x;
                 let yy = y - self.pixel_bounds.min.y;
@@ -180,6 +188,8 @@ impl FilmTile {
                 self.pixels[pindex].filter_weight_sum += filter_weight;
             }
         }
+        self.ifx_scratch = ifx;
+        self.ify_scratch = ify;
     }
 
     pub fn add_sample_single(&mut self, p_film: &Point2f, l: &Spectrum, _sample_weight: Float) {

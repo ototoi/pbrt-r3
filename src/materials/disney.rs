@@ -463,7 +463,7 @@ impl BSSRDF for DisneyBSSRDF {
                     self.base.base.eta,
                     self.base.mode,
                 ));
-                b.add(&adapter);
+                b.add(adapter);
                 let bsdf = Arc::new(b);
                 si.bsdf = Some(bsdf);
                 si.wo = si.shading.n;
@@ -691,24 +691,24 @@ impl Material for DisneyMaterial {
                 let r: Arc<dyn BxDF> = Arc::new(DisneyDiffuse::new(
                     diffuse_weight * (1.0 - flat) * (1.0 - dt) * c,
                 ));
-                b.add(&r);
+                b.add(r);
                 let r: Arc<dyn BxDF> = Arc::new(DisneyFakeSS::new(
                     diffuse_weight * flat * (1.0 - dt) * c,
                     rough,
                 ));
-                b.add(&r);
+                b.add(r);
             } else {
                 let sd = self.scatter_distance.evaluate(si);
                 if sd.is_black() {
                     // No subsurface scattering; use regular (Fresnel modified)
                     // diffuse.
                     let r: Arc<dyn BxDF> = Arc::new(DisneyDiffuse::new(diffuse_weight * c));
-                    b.add(&r);
+                    b.add(r);
                 } else {
                     // Use a BSSRDF instead.
                     let r: Arc<dyn BxDF> =
                         Arc::new(SpecularTransmission::new(&Spectrum::one(), 1.0, e, mode));
-                    b.add(&r);
+                    b.add(r);
                     todo!();
                     //let r: Arc<dyn BxDF> = Arc::new(DisneyBSSRDF::new(diffuse_weight * c, sd, si, e, BSSRDFMaterialRawPointer::Disney, TransportMode::Radiance));//todo
                     // DisneyBSSRDF
@@ -718,14 +718,14 @@ impl Material for DisneyMaterial {
             // Retro-reflection.
             {
                 let r: Arc<dyn BxDF> = Arc::new(DisneyRetro::new(diffuse_weight * c, rough));
-                b.add(&r);
+                b.add(r);
             }
 
             // Sheen (if enabled)
             if sheen_weight > 0.0 {
                 let r: Arc<dyn BxDF> =
                     Arc::new(DisneySheen::new(diffuse_weight * sheen_weight * c_sheen));
-                b.add(&r);
+                b.add(r);
             }
         }
 
@@ -754,7 +754,7 @@ impl Material for DisneyMaterial {
                 distrib,
                 fresnel,
             ));
-            b.add(&r);
+            b.add(r);
         }
 
         // Clearcoat
@@ -762,7 +762,7 @@ impl Material for DisneyMaterial {
         if cc > 0.0 {
             let gloss = lerp(self.clearcoat_gloss.evaluate(si), 0.1, 0.001);
             let r: Arc<dyn BxDF> = Arc::new(DisneyClearcoat::new(cc, gloss));
-            b.add(&r);
+            b.add(r);
         }
 
         // BTDF
@@ -785,19 +785,19 @@ impl Material for DisneyMaterial {
                     e,
                     mode,
                 ));
-                b.add(&r);
+                b.add(r);
             } else {
                 let distrib: Box<dyn MicrofacetDistribution> = Box::new(distrib.clone());
 
                 let r: Arc<dyn BxDF> =
                     Arc::new(MicrofacetTransmission::new(&t, distrib, 1.0, e, mode));
-                b.add(&r);
+                b.add(r);
             }
         }
         if thin {
             // Lambertian, weighted by (1 - diffTrans)
             let r: Arc<dyn BxDF> = Arc::new(LambertianTransmission::new(&(dt * c)));
-            b.add(&r);
+            b.add(r);
         }
         si.bsdf = Some(Arc::new(b));
     }

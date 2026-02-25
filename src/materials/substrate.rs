@@ -59,8 +59,7 @@ impl Material for SubstrateMaterial {
 
             let distrib: Box<dyn MicrofacetDistribution> =
                 Box::new(TrowbridgeReitzDistribution::new(u_rough, v_rough, true));
-            let spec: Arc<dyn BxDF> = Arc::new(FresnelBlend::new(&d, &s, distrib));
-            b.add(&spec);
+            b.add(FresnelBlend::new(&d, &s, distrib));
         }
 
         si.bsdf = Some(Arc::new(b));

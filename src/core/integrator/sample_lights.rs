@@ -10,17 +10,6 @@ use crate::core::sampling::*;
 use crate::core::scene::*;
 use crate::core::spectrum::*;
 
-fn surface_as_interaction(it: &SurfaceInteraction) -> Interaction {
-    Interaction::from(BaseInteraction {
-        p: it.p,
-        p_error: it.p_error,
-        wo: it.wo,
-        n: it.n,
-        time: it.time,
-        medium_interface: it.medium_interface.clone(),
-    })
-}
-
 pub fn uniform_sample_all_lights(
     it: &Interaction,
     scene: &Scene,
@@ -346,13 +335,11 @@ pub fn estimate_direct_surface(
         BSDF_ALL & !BSDF_SPECULAR
     };
     let mut ld = Spectrum::zero();
-    let it_light = surface_as_interaction(it);
-
     // Sample light source with multiple importance sampling
     {
         let _p = ProfilePhase::new(Prof::SampleLightImportance);
 
-        if let Some((mut li, wi, light_pdf, visibilty)) = light.sample_li(&it_light, u_light) {
+        if let Some((mut li, wi, light_pdf, visibilty)) = light.sample_li_surface(it, u_light) {
             if light_pdf > 0.0 && !li.is_black() {
                 // Compute BSDF's value for light sample
                 let mut f = Spectrum::zero();
@@ -413,7 +400,7 @@ pub fn estimate_direct_surface(
             if !f.is_black() && scattering_pdf > 0.0 {
                 let mut weight = 1.0;
                 if !sampled_specular {
-                    let light_pdf = light.pdf_li(&it_light, &wi);
+                    let light_pdf = light.pdf_li_surface(it, &wi);
                     if light_pdf == 0.0 {
                         return ld;
                     }

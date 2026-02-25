@@ -22,31 +22,22 @@ impl MixMaterial {
     }
 }
 
-fn scaled_bsdf(b1: &BSDF, b2: &BSDF, s1: &Spectrum, s2: &Spectrum, b: &mut BSDF) {
+fn scaled_bsdf(mut b1: BSDF, mut b2: BSDF, s1: &Spectrum, s2: &Spectrum, b: &mut BSDF) {
     assert!(b.bxdfs.len() == 0);
     {
-        //let n = b1.num_components(BSDF_ALL) as usize;
-        //assert!(b1.bxdfs.len() == n);
         let n = b1.bxdfs.len();
-        for i in 0..n {
-            let new_bxdf: Arc<dyn BxDF> = Arc::new(ScaledBxDF::new(&b1.bxdfs[i], &s1));
-            b.add(&new_bxdf);
+        for bxdf in b1.bxdfs.drain(..) {
+            b.add(ScaledBxDF::new(bxdf, s1));
         }
+        debug_assert_eq!(n, b.bxdfs.len());
     }
     {
-        //let n = b2.num_components(BSDF_ALL) as usize;
-        //assert!(b2.bxdfs.len() == n);
+        let n_before = b.bxdfs.len();
         let n = b2.bxdfs.len();
-        for i in 0..n {
-            let new_bxdf: Arc<dyn BxDF> = Arc::new(ScaledBxDF::new(&b2.bxdfs[i], &s2));
-            b.add(&new_bxdf);
+        for bxdf in b2.bxdfs.drain(..) {
+            b.add(ScaledBxDF::new(bxdf, s2));
         }
-    }
-    {
-        let n1 = b1.bxdfs.len();
-        let n2 = b2.bxdfs.len();
-        let nn = b.bxdfs.len();
-        assert!(nn == n1 + n2);
+        debug_assert_eq!(n, b.bxdfs.len() - n_before);
     }
 }
 
@@ -62,27 +53,51 @@ impl Material for MixMaterial {
         let s1 = self.scale.as_ref().evaluate(si).clamp_zero();
         let s2 = (Spectrum::one() - s1).clamp_zero();
 
-        let mut si2 = si.clone();
+        // Save the original interaction state so m2 can be evaluated from the
+        // same input as m1 without cloning the entire SurfaceInteraction.
+        let n0 = si.n;
+        let wo0 = si.wo;
+        let shading0 = si.shading;
 
         self.m1
             .as_ref()
             .compute_scattering_functions(si, arena, mode, allow_multiple_lobes);
-        self.m2
-            .as_ref()
-            .compute_scattering_functions(&mut si2, arena, mode, allow_multiple_lobes);
 
         assert!(si.bsdf.is_some());
-        assert!(si2.bsdf.is_some());
+        let bsdf1 = Arc::try_unwrap(si.bsdf.take().unwrap())
+            .expect("MixMaterial expects unique BSDF ownership for m1");
 
-        if let Some(bsdf1) = si.bsdf.as_ref() {
-            if let Some(bsdf2) = si2.bsdf.as_ref() {
-                let mut b = arena.alloc_bsdf(si, bsdf1.eta);
-                let bsdf1 = bsdf1.as_ref();
-                let bsdf2 = bsdf2.as_ref();
-                scaled_bsdf(bsdf1, bsdf2, &s1, &s2, &mut b);
-                si.bsdf = Some(Arc::new(b));
-            }
-        }
+        // Preserve m1's resulting shading and optional BSSRDF; original code
+        // returned m1-mutated interaction state.
+        let n1 = si.n;
+        let wo1 = si.wo;
+        let shading1 = si.shading;
+        let bssrdf1 = si.bssrdf.take();
+
+        // Reset only fields materials may mutate before evaluating m2.
+        si.n = n0;
+        si.wo = wo0;
+        si.shading = shading0;
+        si.bsdf = None;
+        si.bssrdf = None;
+
+        self.m2
+            .as_ref()
+            .compute_scattering_functions(si, arena, mode, allow_multiple_lobes);
+
+        assert!(si.bsdf.is_some());
+        let bsdf2 = Arc::try_unwrap(si.bsdf.take().unwrap())
+            .expect("MixMaterial expects unique BSDF ownership for m2");
+
+        let mut b = arena.alloc_bsdf(si, bsdf1.eta);
+        scaled_bsdf(bsdf1, bsdf2, &s1, &s2, &mut b);
+
+        // Restore m1 interaction side effects to keep behavior consistent.
+        si.n = n1;
+        si.wo = wo1;
+        si.shading = shading1;
+        si.bssrdf = bssrdf1;
+        si.bsdf = Some(Arc::new(b));
     }
 }
 

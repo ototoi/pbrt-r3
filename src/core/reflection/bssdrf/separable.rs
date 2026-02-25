@@ -108,8 +108,8 @@ pub trait SeparableBSSRDF {
         let p = self.get_p() + r * (vx * Float::cos(phi) + vy * Float::sin(phi)) - l * vz * 0.5;
         let time = self.get_time();
         let mut base = SurfaceInteraction {
-            p: p,
-            time: time,
+            p,
+            time,
             ..Default::default()
         };
         let p_target = p + l * vz;
@@ -125,7 +125,13 @@ pub trait SeparableBSSRDF {
             let r = base.spawn_ray_to_point(&p_target);
 
             if let Some(si) = scene.intersect(&r) {
-                base = si.clone();
+                // Keep only fields required by spawn_ray_to_point for the next step.
+                base.p = si.p;
+                base.p_error = si.p_error;
+                base.n = si.n;
+                base.time = si.time;
+                base.medium_interface = si.medium_interface.clone();
+
                 if let Some(primitive) = si.primitive.as_ref() {
                     let primitive = primitive.upgrade().unwrap();
                     let primitive = primitive.as_ref();
@@ -151,7 +157,7 @@ pub trait SeparableBSSRDF {
         let n_found = chain.len();
         //println!("n_found:{:?}", n_found);
         let selected = usize::clamp((u1 * n_found as Float) as usize, 0, n_found - 1);
-        let pi = chain[selected].clone();
+        let pi = chain.swap_remove(selected);
 
         // Compute sample PDF and return the spatial BSSRDF term $\Sp$
         let pdf = self.pdf_sp(&pi) / (n_found as Float);

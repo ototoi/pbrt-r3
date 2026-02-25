@@ -73,12 +73,11 @@ impl Material for MetalMaterial {
         let fresnel: Box<dyn Fresnel> = Box::new(FresnelConductor::new(&Spectrum::one(), &eta, &k));
         let distrib: Box<dyn MicrofacetDistribution> =
             Box::new(TrowbridgeReitzDistribution::new(u_rough, v_rough, true));
-        let spec: Arc<dyn BxDF> = Arc::new(MicrofacetReflection::new(
+        b.add(MicrofacetReflection::new(
             &Spectrum::one(),
             distrib,
             fresnel,
         ));
-        b.add(&spec);
 
         si.bsdf = Some(Arc::new(b));
     }

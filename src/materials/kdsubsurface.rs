@@ -76,7 +76,7 @@ impl Material for KdSubsurfaceMaterial {
                 if is_specular && allow_multiple_lobes {
                     let reflection: Arc<dyn BxDF> =
                         Arc::new(FresnelSpecular::new(&r, &t, 1.0, eta, mode));
-                    b.add(&reflection);
+                    b.add(reflection);
                 } else {
                     if self.remaproughness {
                         u_rough = TrowbridgeReitzDistribution::roughness_to_alpha(u_rough);
@@ -87,27 +87,27 @@ impl Material for KdSubsurfaceMaterial {
                         if is_specular {
                             let reflection: Arc<dyn BxDF> =
                                 Arc::new(SpecularReflection::new(&r, fresnel));
-                            b.add(&reflection);
+                            b.add(reflection);
                         } else {
                             let distrib: Box<dyn MicrofacetDistribution> =
                                 Box::new(TrowbridgeReitzDistribution::new(u_rough, v_rough, true));
                             let reflection: Arc<dyn BxDF> =
                                 Arc::new(MicrofacetReflection::new(&r, distrib, fresnel));
-                            b.add(&reflection);
+                            b.add(reflection);
                         }
                     }
                     if !t.is_black() {
                         if is_specular {
                             let trans: Arc<dyn BxDF> =
                                 Arc::new(SpecularTransmission::new(&t, 1.0, eta, mode));
-                            b.add(&trans);
+                            b.add(trans);
                         } else {
                             //println!("tt!");
                             let distrib: Box<dyn MicrofacetDistribution> =
                                 Box::new(TrowbridgeReitzDistribution::new(u_rough, v_rough, true));
                             let trans: Arc<dyn BxDF> =
                                 Arc::new(MicrofacetTransmission::new(&t, distrib, 1.0, eta, mode));
-                            b.add(&trans);
+                            b.add(trans);
                         }
                     }
                 }

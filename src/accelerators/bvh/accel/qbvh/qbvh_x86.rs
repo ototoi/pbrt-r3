@@ -67,6 +67,7 @@ unsafe fn test_aabb(
 }
 
 const EMPTY_MASK: usize = !0;
+const NODE_STACK_CAPACITY: usize = 64;
 
 #[inline]
 fn is_empty(i: usize) -> bool {
@@ -86,6 +87,48 @@ impl Default for SIMDBVHNode {
                 axis_right: 0,
                 is_leaf: 0,
             }
+        }
+    }
+}
+
+#[derive(Clone)]
+struct NodeVisitStack {
+    fixed: [usize; NODE_STACK_CAPACITY],
+    len: usize,
+    overflow: Vec<usize>,
+}
+
+impl Default for NodeVisitStack {
+    fn default() -> Self {
+        Self {
+            fixed: [0; NODE_STACK_CAPACITY],
+            len: 0,
+            overflow: Vec::new(),
+        }
+    }
+}
+
+impl NodeVisitStack {
+    #[inline]
+    fn push(&mut self, index: usize) {
+        if self.len < NODE_STACK_CAPACITY {
+            self.fixed[self.len] = index;
+            self.len += 1;
+        } else {
+            self.overflow.push(index);
+        }
+    }
+
+    #[inline]
+    fn pop(&mut self) -> Option<usize> {
+        if let Some(index) = self.overflow.pop() {
+            return Some(index);
+        }
+        if self.len == 0 {
+            None
+        } else {
+            self.len -= 1;
+            Some(self.fixed[self.len])
         }
     }
 }
@@ -236,7 +279,7 @@ unsafe fn intersect_simd(
     tmax: Float,
 ) -> Option<SurfaceInteraction> {
     let mut isect = None;
-    let mut nodes_to_visit: Vec<usize> = Vec::with_capacity(16);
+    let mut nodes_to_visit = NodeVisitStack::default();
 
     let org: [__m128; 3] = [
         _mm_set1_ps(r.o.x as f32),
@@ -294,7 +337,7 @@ unsafe fn intersect_simd_p(
     tmin: Float,
     tmax: Float,
 ) -> bool {
-    let mut nodes_to_visit: Vec<usize> = Vec::with_capacity(16);
+    let mut nodes_to_visit = NodeVisitStack::default();
 
     let org: [__m128; 3] = [
         _mm_set1_ps(r.o.x as f32),

@@ -78,6 +78,38 @@ impl Light for SpotLight {
         return Some((intensity, wi, pdf, vis));
     }
 
+    fn sample_li_surface(
+        &self,
+        inter: &SurfaceInteraction,
+        _u: &Point2f,
+    ) -> Option<(Spectrum, Vector3f, Float, VisibilityTester)> {
+        let _p = ProfilePhase::new(Prof::LightSample);
+
+        let wi = (self.p_light - inter.p).normalize();
+        let pdf: Float = 1.0;
+        let intensity = self.intensity
+            * (self.falloff(&-wi) / Vector3f::distance_squared(&self.p_light, &inter.p));
+
+        let p0 = BaseInteraction {
+            p: inter.p,
+            p_error: inter.p_error,
+            wo: inter.wo,
+            n: inter.n,
+            time: inter.time,
+            medium_interface: inter.medium_interface.clone(),
+        };
+        let p1 = BaseInteraction {
+            p: self.p_light,
+            p_error: Vector3f::zero(),
+            wo: Vector3f::zero(),
+            n: Normal3f::zero(),
+            time: inter.time,
+            medium_interface: self.base.medium_interface.clone(),
+        };
+        let vis = VisibilityTester::from((p0, p1));
+        Some((intensity, wi, pdf, vis))
+    }
+
     fn power(&self) -> Spectrum {
         return self.intensity
             * (2.0 * PI * (1.0 - 0.5 * (self.cos_falloff_start - self.cos_total_width)));

@@ -46,8 +46,7 @@ impl Material for PlasticMaterial {
         // Initialize diffuse component of plastic material
         let kd = kd.evaluate(si).clamp_zero();
         if !kd.is_black() {
-            let r: Arc<dyn BxDF> = Arc::new(LambertianReflection::new(&kd));
-            b.add(&r);
+            b.add(LambertianReflection::new(&kd));
         }
 
         // Initialize specular component of plastic material
@@ -62,8 +61,7 @@ impl Material for PlasticMaterial {
             let fresnel: Box<dyn Fresnel> = Box::new(FresnelDielectric::new(1.5, 1.0));
             let distrib: Box<dyn MicrofacetDistribution> =
                 Box::new(TrowbridgeReitzDistribution::new(rough, rough, true));
-            let spec: Arc<dyn BxDF> = Arc::new(MicrofacetReflection::new(&ks, distrib, fresnel));
-            b.add(&spec);
+            b.add(MicrofacetReflection::new(&ks, distrib, fresnel));
         }
 
         si.bsdf = Some(Arc::new(b));

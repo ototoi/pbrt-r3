@@ -82,13 +82,13 @@ impl Material for UberMaterial {
 
         if !t.is_black() {
             let tr: Arc<dyn BxDF> = Arc::new(SpecularTransmission::new(&t, 1.0, 1.0, mode));
-            b.add(&tr);
+            b.add(tr);
         }
 
         let kd = op * self.kd.as_ref().evaluate(si).clamp_zero();
         if !kd.is_black() {
             let r: Arc<dyn BxDF> = Arc::new(LambertianReflection::new(&kd));
-            b.add(&r);
+            b.add(r);
         }
 
         let ks = op * self.ks.as_ref().evaluate(si).clamp_zero();
@@ -106,20 +106,20 @@ impl Material for UberMaterial {
             let distrib: Box<dyn MicrofacetDistribution> =
                 Box::new(TrowbridgeReitzDistribution::new(u_rough, v_rough, true));
             let spec: Arc<dyn BxDF> = Arc::new(MicrofacetReflection::new(&ks, distrib, fresnel));
-            b.add(&spec);
+            b.add(spec);
         }
 
         let kr = op * self.kr.as_ref().evaluate(si).clamp_zero();
         if !kr.is_black() {
             let fresnel: Box<dyn Fresnel> = Box::new(FresnelDielectric::new(1.0, e));
             let reflection: Arc<dyn BxDF> = Arc::new(SpecularReflection::new(&kr, fresnel));
-            b.add(&reflection);
+            b.add(reflection);
         }
 
         let kt = op * self.kt.as_ref().evaluate(si).clamp_zero();
         if !kt.is_black() {
             let trans: Arc<dyn BxDF> = Arc::new(SpecularTransmission::new(&kt, 1.0, e, mode));
-            b.add(&trans);
+            b.add(trans);
         }
 
         si.bsdf = Some(Arc::new(b));

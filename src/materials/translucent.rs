@@ -61,12 +61,10 @@ impl Material for TranslucentMaterial {
         let kd = kd.evaluate(si).clamp_zero();
         if !kd.is_black() {
             if !r.is_black() {
-                let refl: Arc<dyn BxDF> = Arc::new(LambertianReflection::new(&(r * kd)));
-                b.add(&refl);
+                b.add(LambertianReflection::new(&(r * kd)));
             }
             if !t.is_black() {
-                let refl: Arc<dyn BxDF> = Arc::new(LambertianTransmission::new(&(t * kd)));
-                b.add(&refl);
+                b.add(LambertianTransmission::new(&(t * kd)));
             }
         }
 
@@ -84,21 +82,18 @@ impl Material for TranslucentMaterial {
                     let distrib: Box<dyn MicrofacetDistribution> =
                         Box::new(TrowbridgeReitzDistribution::new(rough, rough, true));
                     let fresnel: Box<dyn Fresnel> = Box::new(FresnelDielectric::new(1.0, eta));
-                    let rs: Arc<dyn BxDF> =
-                        Arc::new(MicrofacetReflection::new(&(r * ks), distrib, fresnel));
-                    b.add(&rs);
+                    b.add(MicrofacetReflection::new(&(r * ks), distrib, fresnel));
                 }
                 if !t.is_black() {
                     let distrib: Box<dyn MicrofacetDistribution> =
                         Box::new(TrowbridgeReitzDistribution::new(rough, rough, true));
-                    let rt: Arc<dyn BxDF> = Arc::new(MicrofacetTransmission::new(
+                    b.add(MicrofacetTransmission::new(
                         &(t * ks),
                         distrib,
                         1.0,
                         eta,
                         mode,
                     ));
-                    b.add(&rt);
                 }
             }
         }

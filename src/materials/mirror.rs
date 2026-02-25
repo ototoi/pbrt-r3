@@ -33,7 +33,7 @@ impl Material for MirrorMaterial {
         if !r.is_black() {
             let fresnel: Box<dyn Fresnel> = Box::new(FresnelNoOp::new());
             let r: Arc<dyn BxDF> = Arc::new(SpecularReflection::new(&r, fresnel));
-            b.add(&r);
+            b.add(r);
         }
 
         si.bsdf = Some(Arc::new(b));

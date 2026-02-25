@@ -26,6 +26,21 @@ pub trait Light: Sync + Send {
         inter: &Interaction,
         u: &Point2f,
     ) -> Option<(Spectrum, Vector3f, Float, VisibilityTester)>;
+    fn sample_li_surface(
+        &self,
+        inter: &SurfaceInteraction,
+        u: &Point2f,
+    ) -> Option<(Spectrum, Vector3f, Float, VisibilityTester)> {
+        let it = Interaction::from(BaseInteraction {
+            p: inter.p,
+            p_error: inter.p_error,
+            wo: inter.wo,
+            n: inter.n,
+            time: inter.time,
+            medium_interface: inter.medium_interface.clone(),
+        });
+        self.sample_li(&it, u)
+    }
     fn power(&self) -> Spectrum {
         return Spectrum::zero();
     }
@@ -43,6 +58,17 @@ pub trait Light: Sync + Send {
     }
     fn pdf_li(&self, _inter: &Interaction, _wi: &Vector3f) -> Float {
         return 0.0;
+    }
+    fn pdf_li_surface(&self, inter: &SurfaceInteraction, wi: &Vector3f) -> Float {
+        let it = Interaction::from(BaseInteraction {
+            p: inter.p,
+            p_error: inter.p_error,
+            wo: inter.wo,
+            n: inter.n,
+            time: inter.time,
+            medium_interface: inter.medium_interface.clone(),
+        });
+        self.pdf_li(&it, wi)
     }
     fn pdf_le(&self, _ray: &Ray, _n_light: &Normal3f) -> Option<(Float, Float)> {
         return None;

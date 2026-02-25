@@ -37,7 +37,7 @@ impl Material for FourierMaterial {
         // table was successfully read from the file.
         if self.bsdf_table.as_ref().n_channels > 0 {
             let fourier: Arc<dyn BxDF> = Arc::new(FourierBSDF::new(&self.bsdf_table, mode));
-            b.add(&fourier);
+            b.add(fourier);
         }
         si.bsdf = Some(Arc::new(b));
     }

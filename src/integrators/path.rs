@@ -83,7 +83,7 @@ impl SamplerIntegrator for PathIntegrator {
         let mut specular_bounce = false;
         let mut bounces = 0;
         loop {
-            let found_intersection = scene.intersect(&ray.ray);
+            let mut found_intersection = scene.intersect(&ray.ray);
             if bounces == 0 || specular_bounce {
                 if let Some(isect) = found_intersection.as_ref() {
                     let w = -(ray.ray.d);
@@ -102,7 +102,7 @@ impl SamplerIntegrator for PathIntegrator {
                 break;
             }
 
-            let mut isect = found_intersection.unwrap();
+            let isect = found_intersection.as_mut().unwrap();
             isect.compute_scattering_functions(&ray, arena, TransportMode::Radiance, true);
 
             if isect.bsdf.is_none() {
@@ -116,7 +116,7 @@ impl SamplerIntegrator for PathIntegrator {
             // assert!(beta.max_component_value() <= 1.0);
             // Sample illumination from lights to find path contribution.
             // (But skip this for perfectly specular BSDFs.)
-            if bsdf.num_components(BSDF_ALL & !(BSDF_SPECULAR as u32)) > 0 {
+            if bsdf.has_non_specular_components() {
                 PATHS.with(|stat| stat.add_denom(1)); //totalPaths
 
                 let ld = beta
@@ -164,7 +164,7 @@ impl SamplerIntegrator for PathIntegrator {
                         1.0 / (eta * eta)
                     }
                 }
-                ray = isect.spawn_ray(&wi).into();
+                let mut next_ray = isect.spawn_ray(&wi).into();
 
                 // Account for subsurface scattering, if applicable
                 if let Some(bssrdf) = isect.bssrdf.as_ref() {
@@ -205,7 +205,7 @@ impl SamplerIntegrator for PathIntegrator {
                                     beta *= f * (Vector3f::abs_dot(&wi, &pi.shading.n) / pdf);
                                     assert!(Float::is_finite(beta.y()));
                                     specular_bounce = (flags & BSDF_SPECULAR) != 0;
-                                    ray = pi.spawn_ray(&wi).into();
+                                    next_ray = pi.spawn_ray(&wi).into();
                                 } else {
                                     break;
                                 }
@@ -215,6 +215,7 @@ impl SamplerIntegrator for PathIntegrator {
                         }
                     }
                 }
+                ray = next_ray;
 
                 // Possibly terminate the path with Russian roulette.
                 // Factor out radiance scaling due to refraction in rrBeta.

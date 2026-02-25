@@ -40,11 +40,9 @@ impl Material for MatteMaterial {
         let sig = Float::clamp(self.sigma.as_ref().evaluate(si), 0.0, 90.0);
         if !r.is_black() {
             if sig == 0.0 {
-                let r: Arc<dyn BxDF> = Arc::new(LambertianReflection::new(&r));
-                b.add(&r);
+                b.add(LambertianReflection::new(&r));
             } else {
-                let r: Arc<dyn BxDF> = Arc::new(OrenNayar::new(&r, sig));
-                b.add(&r);
+                b.add(OrenNayar::new(&r, sig));
             }
         }
 

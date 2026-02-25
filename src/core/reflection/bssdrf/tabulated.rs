@@ -135,7 +135,7 @@ impl BSSRDF for TabulatedBSSRDF {
                     self.base.base.eta,
                     self.base.mode,
                 ));
-                b.add(&adapter);
+                b.add(adapter);
                 let bsdf = Arc::new(b);
                 si.bsdf = Some(bsdf);
                 si.wo = si.shading.n;

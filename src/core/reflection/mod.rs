@@ -1,6 +1,7 @@
 pub mod bsdf;
 pub mod bssdrf;
 pub mod bxdf;
+pub mod bxdf_enum;
 pub mod fourier;
 pub mod fresnel;
 pub mod fresnel_blend;
@@ -14,6 +15,7 @@ pub mod specular;
 pub use bsdf::*;
 pub use bssdrf::*;
 pub use bxdf::*;
+pub use bxdf_enum::*;
 pub use fourier::*;
 pub use fresnel::*;
 pub use fresnel_blend::*;

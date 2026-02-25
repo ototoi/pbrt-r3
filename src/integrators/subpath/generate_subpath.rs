@@ -591,8 +591,12 @@ pub fn connect_bdpt(
                 if pdf > 0.0 && !spec.is_black() {
                     // Initialize dynamically sampled vertex and _L_ for $t=1$ case
                     let sampled_beta = spec / pdf;
-                    let sampled_v =
-                        Vertex::create_camera_from_interaction(camera, &vis.p1, &sampled_beta);
+                    let vis_p1 = vis.p1.to_interaction();
+                    let sampled_v = Vertex::create_camera_from_interaction(
+                        camera,
+                        &vis_p1,
+                        &sampled_beta,
+                    );
                     l = qs.beta * qs.f(&sampled_v, TransportMode::Importance) * sampled_beta;
                     if qs.is_on_surface() {
                         l *= Vector3f::abs_dot(&wi, &qs.get_ns());
@@ -618,7 +622,8 @@ pub fn connect_bdpt(
             let inter = pt.get_interaction();
             if let Some((light_weight, wi, pdf, vis)) = light.sample_li(&inter, &sampler.get_2d()) {
                 if pdf > 0.0 && !light_weight.is_black() {
-                    let ei = EndpointInteraction::from_light_interaction(&light, &vis.p1);
+                    let vis_p1 = vis.p1.to_interaction();
+                    let ei = EndpointInteraction::from_light_interaction(&light, &vis_p1);
                     let sampled_beta = light_weight / (pdf * light_pdf);
                     let mut sampled_v = Vertex::create_light_from_endpoint(&ei, &sampled_beta, 0.0);
                     let pdf_fwd =

@@ -281,7 +281,7 @@ impl Material for HairMaterial {
             // Offset along width
             let h = -1.0 + 2.0 * si.uv[1];
             let hair: Arc<dyn BxDF> = Arc::new(HairBSDF::new(h, e, sig_a, bm, bn, a));
-            b.add(&hair);
+            b.add(hair);
         }
 
         si.bsdf = Some(Arc::new(b));

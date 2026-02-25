@@ -2,20 +2,22 @@ use super::bxdf::*;
 use crate::core::base::*;
 use crate::core::interaction::*;
 use crate::core::profile::*;
+use crate::core::reflection::bxdf_enum::BxDFEnum;
 use crate::core::spectrum::*;
+use smallvec::SmallVec;
 
 use std::fmt::Formatter;
 use std::fmt::Result;
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
-#[derive(Clone)]
 pub struct BSDF {
     pub eta: Float,
     pub ns: Normal3f,
     pub ng: Normal3f,
     pub ss: Vector3f,
     pub ts: Vector3f,
-    pub bxdfs: Vec<Arc<dyn BxDF>>,
+    pub bxdfs: SmallVec<[BxDFEnum; 8]>,
+    component_counts: [i32; 32],
 }
 
 impl Debug for BSDF {
@@ -37,6 +39,11 @@ fn is_finite(v: &Vector3f) -> bool {
 }
 
 impl BSDF {
+    #[inline]
+    fn flag_index(t: BxDFType) -> usize {
+        (t & BSDF_ALL) as usize
+    }
+
     pub fn new(si: &SurfaceInteraction, eta: Float) -> Self {
         let ns = si.shading.n;
         let ng = si.n;
@@ -48,30 +55,29 @@ impl BSDF {
             ng,
             ss,
             ts,
-            bxdfs: Vec::new(),
+            // Most materials add only a handful of lobes.
+            bxdfs: SmallVec::new(),
+            component_counts: [0; 32],
         }
     }
 
     pub fn num_components(&self, t: BxDFType) -> i32 {
-        let mut num = 0;
-        for it in self.bxdfs.iter() {
-            let bxdf = it.as_ref();
-            if bxdf.matches_flags(t) {
-                num += 1;
-            }
-        }
-        return num;
+        self.component_counts[Self::flag_index(t)]
     }
 
     // pbrt-r3
     pub fn has_components(&self, t: BxDFType) -> bool {
         for it in self.bxdfs.iter() {
-            let bxdf = it.as_ref();
-            if (bxdf.get_type() & t) != 0 {
+            if (it.get_type() & t) != 0 {
                 return true;
             }
         }
-        return false;
+        false
+    }
+
+    #[inline]
+    pub fn has_non_specular_components(&self) -> bool {
+        self.component_counts[Self::flag_index(BSDF_ALL & !BSDF_SPECULAR)] > 0
     }
     // pbrt-r3
 
@@ -116,7 +122,7 @@ impl BSDF {
             //2 1 1 0 0
             let mut count = comp;
             for i in 0..n_bxdfs {
-                let bxdf = self.bxdfs[i].as_ref();
+                let bxdf = &self.bxdfs[i];
                 if bxdf.matches_flags(flags) {
                     if count == 0 {
                         target_index = i as i32;
@@ -129,7 +135,7 @@ impl BSDF {
         //assert!(target_index >= 0);
         assert!(target_index >= 0);
         let index = target_index as usize;
-        let found_bxdf = self.bxdfs[index].as_ref();
+        let found_bxdf = &self.bxdfs[index];
         // Remap _BxDF_ sample _u_ to $[0,1)^2$
         let remapped = Vector2f::from((
             Float::min(
@@ -163,7 +169,7 @@ impl BSDF {
             if (bxdf_type & BSDF_SPECULAR) == 0 && matching_comps > 1 {
                 for i in 0..n_bxdfs {
                     if i != index {
-                        let bxdf = self.bxdfs[i].as_ref();
+                        let bxdf = &self.bxdfs[i];
                         if bxdf.matches_flags(flags) {
                             pdf += bxdf.pdf(&wo, &wi);
                         }
@@ -245,31 +251,28 @@ impl BSDF {
             return 0.0;
         }
 
-        let targets: Vec<_> = self
-            .bxdfs
-            .iter()
-            .filter(|b| -> bool {
-                let bxdf = b.as_ref();
-                return bxdf.matches_flags(flags);
-            })
-            .collect();
-        let count = targets.len();
-        if count > 0 {
-            let pdf = targets
-                .iter()
-                .map(|b| -> Float {
-                    let bxdf = b.as_ref();
-                    return bxdf.pdf(&wo, &wi);
-                })
-                .fold(0.0 as Float, |a, b| a + b)
-                / (count as Float);
-            return pdf;
-        } else {
+        let mut count = 0;
+        let mut sum_pdf = 0.0;
+        for bxdf in self.bxdfs.iter() {
+            if bxdf.matches_flags(flags) {
+                count += 1;
+                sum_pdf += bxdf.pdf(&wo, &wi);
+            }
+        }
+        if count == 0 {
             return 0.0;
         }
+        return sum_pdf / (count as Float);
     }
 
-    pub fn add(&mut self, bxdf: &Arc<dyn BxDF>) {
-        self.bxdfs.push(Arc::clone(bxdf));
+    pub fn add<B: Into<BxDFEnum>>(&mut self, bxdf: B) {
+        let bxdf = bxdf.into();
+        let tp = bxdf.get_type() & BSDF_ALL;
+        for flags in 0..=BSDF_ALL {
+            if (tp & flags) == tp {
+                self.component_counts[flags as usize] += 1;
+            }
+        }
+        self.bxdfs.push(bxdf);
     }
 }

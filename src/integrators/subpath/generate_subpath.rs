@@ -211,13 +211,8 @@ pub fn generate_light_subpath(
         }
 
         // Generate first vertex on light subpath and start random walk
-        let vertex = Vertex::create_light_from_ray(
-            &light,
-            &ray,
-            &n_light,
-            &le,
-            pdf_pos * light_pdf,
-        );
+        let vertex =
+            Vertex::create_light_from_ray(&light, &ray, &n_light, &le, pdf_pos * light_pdf);
         path.push(vertex);
         if max_depth == 1 {
             return path.len();
@@ -332,8 +327,7 @@ fn mis_weight(
 
     if let Some(v) = pt.as_mut() {
         let pdf = if s > 0 {
-            qs.as_ref().unwrap()
-                .pdf(scene, qs_minus.as_ref(), v)
+            qs.as_ref().unwrap().pdf(scene, qs_minus.as_ref(), v)
         } else {
             v.pdf_light_origin(scene, pt_minus.as_ref().unwrap(), light_pdf, light_to_index)
         };
@@ -383,7 +377,9 @@ fn mis_weight(
             let prev = if (i - 1) == t - 1 {
                 pt.as_ref().unwrap_or(&camera_vertices[(i - 1) as usize])
             } else if (i - 1) == t - 2 {
-                pt_minus.as_ref().unwrap_or(&camera_vertices[(i - 1) as usize])
+                pt_minus
+                    .as_ref()
+                    .unwrap_or(&camera_vertices[(i - 1) as usize])
             } else {
                 &camera_vertices[(i - 1) as usize]
             };
@@ -440,7 +436,9 @@ fn mis_weight(
                 let prev = if (i - 1) == s - 1 {
                     qs.as_ref().unwrap_or(&light_vertices[(i - 1) as usize])
                 } else if (i - 1) == s - 2 {
-                    qs_minus.as_ref().unwrap_or(&light_vertices[(i - 1) as usize])
+                    qs_minus
+                        .as_ref()
+                        .unwrap_or(&light_vertices[(i - 1) as usize])
                 } else {
                     &light_vertices[(i - 1) as usize]
                 };
@@ -506,8 +504,7 @@ fn mis_weight_s1(
         }
         // i = t - 2
         if t - 2 > 0 {
-            let v = camera_vertices[(t - 2) as usize]
-                .pdf_fwd;
+            let v = camera_vertices[(t - 2) as usize].pdf_fwd;
             let pdf_delta = remap0(pt_minus_pdf_rev.unwrap()) / remap0(v);
             debug_assert!(pdf_delta.is_finite());
             debug_assert!(pdf_delta >= 0.0);
@@ -571,7 +568,7 @@ pub fn connect_bdpt(
 
     let mut l = Spectrum::zero();
     let mut sampled: Option<Vertex> = None;
-                            // Perform connection and write contribution to _L_
+    // Perform connection and write contribution to _L_
     if s == 0 {
         assert!(t >= 1);
         // Interpret the camera subpath as a complete path
@@ -616,17 +613,14 @@ pub fn connect_bdpt(
         // Sample a point on a light and connect it to the camera subpath
         let pt = &camera_vertices[(t - 1) as usize];
         if pt.is_connectible() {
-            let (light_num, light_pdf, _remapped) =
-                light_distr.sample_discrete(sampler.get_1d());
+            let (light_num, light_pdf, _remapped) = light_distr.sample_discrete(sampler.get_1d());
             let light = &scene.lights[light_num];
             let inter = pt.get_interaction();
-            if let Some((light_weight, wi, pdf, vis)) = light.sample_li(&inter, &sampler.get_2d())
-            {
+            if let Some((light_weight, wi, pdf, vis)) = light.sample_li(&inter, &sampler.get_2d()) {
                 if pdf > 0.0 && !light_weight.is_black() {
                     let ei = EndpointInteraction::from_light_interaction(&light, &vis.p1);
                     let sampled_beta = light_weight / (pdf * light_pdf);
-                    let mut sampled_v =
-                        Vertex::create_light_from_endpoint(&ei, &sampled_beta, 0.0);
+                    let mut sampled_v = Vertex::create_light_from_endpoint(&ei, &sampled_beta, 0.0);
                     let pdf_fwd =
                         sampled_v.pdf_light_origin(scene, pt, light_distr, light_to_index);
                     assert!(pdf_fwd >= 0.0);

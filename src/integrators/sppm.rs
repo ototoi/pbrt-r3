@@ -250,9 +250,10 @@ impl Integrator for SPPMIntegrator {
                     //let tile_index = tile.1 * n_tiles.x + tile.0;
                     let tile_sampler = tile.3.clone();
                     let mut tile_sampler = tile_sampler.write().unwrap();
-                    let mut tile_updates =
-                        Vec::with_capacity((tile_bounds.max.x - tile_bounds.min.x) as usize
-                            * (tile_bounds.max.y - tile_bounds.min.y) as usize);
+                    let mut tile_updates = Vec::with_capacity(
+                        (tile_bounds.max.x - tile_bounds.min.x) as usize
+                            * (tile_bounds.max.y - tile_bounds.min.y) as usize,
+                    );
                     // Follow camera paths for _tile_ in image for SPPM
                     for y in tile_bounds.min.y..tile_bounds.max.y {
                         for x in tile_bounds.min.x..tile_bounds.max.x {
@@ -262,16 +263,17 @@ impl Integrator for SPPMIntegrator {
 
                             // Get _SPPMPixel_ index for _pPixel_ and compute per-pixel update locally.
                             let p_pixel_o = p_pixel - pixel_bounds.min;
-                            let pixel_offset =
-                                (p_pixel_o.x + p_pixel_o.y * (pixel_bounds.max.x - pixel_bounds.min.x))
-                                    as usize;
+                            let pixel_offset = (p_pixel_o.x
+                                + p_pixel_o.y * (pixel_bounds.max.x - pixel_bounds.min.x))
+                                as usize;
                             let mut specular_bounce = false;
                             let mut pixel_ld = Spectrum::zero();
                             let mut visible_point: Option<SPPMVisiblePoint> = None;
 
                             // Generate camera ray for pixel for SPPM
                             let camera_sample = tile_sampler.get_camera_sample(&p_pixel);
-                            if let Some((beta, mut ray)) = camera.generate_ray_differential(&camera_sample)
+                            if let Some((beta, mut ray)) =
+                                camera.generate_ray_differential(&camera_sample)
                             {
                                 if beta > 0.0 {
                                     ray.scale_differentials(inv_sqrt_spp);
@@ -287,83 +289,85 @@ impl Integrator for SPPMIntegrator {
                                             None
                                         };
                                         if let Some(mut isect) = scene.intersect(&ray.ray) {
-                                        if let Some(t0) = t_intersect {
-                                            cam_intersect_ns.fetch_add(
-                                                t0.elapsed().as_nanos() as u64,
-                                                Ordering::Relaxed,
-                                            );
-                                            cam_intersect_count.fetch_add(1, Ordering::Relaxed);
-                                        }
-                                        // Process SPPM camera ray intersection
+                                            if let Some(t0) = t_intersect {
+                                                cam_intersect_ns.fetch_add(
+                                                    t0.elapsed().as_nanos() as u64,
+                                                    Ordering::Relaxed,
+                                                );
+                                                cam_intersect_count.fetch_add(1, Ordering::Relaxed);
+                                            }
+                                            // Process SPPM camera ray intersection
 
-                                        // Compute BSDF at SPPM camera ray intersection
-                                        let t_scatter = if camera_timing_enabled {
-                                            Some(Instant::now())
-                                        } else {
-                                            None
-                                        };
-                                        {
-                                            isect.compute_scattering_functions(
-                                                &ray,
-                                                &mut arena,
-                                                TransportMode::Radiance,
-                                                true,
-                                            );
-                                        }
-                                        if let Some(t0) = t_scatter {
-                                            cam_scatter_ns.fetch_add(
-                                                t0.elapsed().as_nanos() as u64,
-                                                Ordering::Relaxed,
-                                            );
-                                        }
-                                        //isect.ComputeScatteringFunctions(ray, arena, true);
-                                            if let Some(bsdf) = isect.bsdf.as_ref() {
-                                            // Accumulate direct illumination at SPPM camera ray
-                                            // intersection
-                                            let wo = -ray.ray.d;
-                                            let mut ld = Spectrum::zero();
-                                            // Skip direct-light sampling when the BSDF is purely
-                                            // specular; this path contributes zero with the
-                                            // non-specular lighting estimator.
-                                            if bsdf.num_components(BSDF_ALL & !(BSDF_SPECULAR as u32))
-                                                > 0
+                                            // Compute BSDF at SPPM camera ray intersection
+                                            let t_scatter = if camera_timing_enabled {
+                                                Some(Instant::now())
+                                            } else {
+                                                None
+                                            };
                                             {
-                                                let t_direct = if camera_timing_enabled {
-                                                    Some(Instant::now())
-                                                } else {
-                                                    None
-                                                };
-                                                ld = beta
-                                                    * uniform_sample_one_light_surface(
-                                                        &isect,
-                                                        scene,
-                                                        &mut arena,
-                                                        tile_sampler.deref_mut() as &mut dyn Sampler,
-                                                        false,
-                                                        None,
-                                                    );
-                                                if let Some(t0) = t_direct {
-                                                    cam_direct_ns.fetch_add(
-                                                        t0.elapsed().as_nanos() as u64,
-                                                        Ordering::Relaxed,
-                                                    );
-                                                }
+                                                isect.compute_scattering_functions(
+                                                    &ray,
+                                                    &mut arena,
+                                                    TransportMode::Radiance,
+                                                    true,
+                                                );
                                             }
-                                            if depth == 0 || specular_bounce {
-                                                let t_emit = if camera_timing_enabled {
-                                                    Some(Instant::now())
-                                                } else {
-                                                    None
-                                                };
-                                                ld += beta * isect.le(&wo);
-                                                if let Some(t0) = t_emit {
-                                                    cam_emit_ns.fetch_add(
-                                                        t0.elapsed().as_nanos() as u64,
-                                                        Ordering::Relaxed,
-                                                    );
-                                                }
+                                            if let Some(t0) = t_scatter {
+                                                cam_scatter_ns.fetch_add(
+                                                    t0.elapsed().as_nanos() as u64,
+                                                    Ordering::Relaxed,
+                                                );
                                             }
-                                            pixel_ld += ld;
+                                            //isect.ComputeScatteringFunctions(ray, arena, true);
+                                            if let Some(bsdf) = isect.bsdf.as_ref() {
+                                                // Accumulate direct illumination at SPPM camera ray
+                                                // intersection
+                                                let wo = -ray.ray.d;
+                                                let mut ld = Spectrum::zero();
+                                                // Skip direct-light sampling when the BSDF is purely
+                                                // specular; this path contributes zero with the
+                                                // non-specular lighting estimator.
+                                                if bsdf.num_components(
+                                                    BSDF_ALL & !(BSDF_SPECULAR as u32),
+                                                ) > 0
+                                                {
+                                                    let t_direct = if camera_timing_enabled {
+                                                        Some(Instant::now())
+                                                    } else {
+                                                        None
+                                                    };
+                                                    ld = beta
+                                                        * uniform_sample_one_light_surface(
+                                                            &isect,
+                                                            scene,
+                                                            &mut arena,
+                                                            tile_sampler.deref_mut()
+                                                                as &mut dyn Sampler,
+                                                            false,
+                                                            None,
+                                                        );
+                                                    if let Some(t0) = t_direct {
+                                                        cam_direct_ns.fetch_add(
+                                                            t0.elapsed().as_nanos() as u64,
+                                                            Ordering::Relaxed,
+                                                        );
+                                                    }
+                                                }
+                                                if depth == 0 || specular_bounce {
+                                                    let t_emit = if camera_timing_enabled {
+                                                        Some(Instant::now())
+                                                    } else {
+                                                        None
+                                                    };
+                                                    ld += beta * isect.le(&wo);
+                                                    if let Some(t0) = t_emit {
+                                                        cam_emit_ns.fetch_add(
+                                                            t0.elapsed().as_nanos() as u64,
+                                                            Ordering::Relaxed,
+                                                        );
+                                                    }
+                                                }
+                                                pixel_ld += ld;
                                                 // Possibly create visible point and end camera path
 
                                                 let (is_diffuse, is_glossy) = {
@@ -380,7 +384,8 @@ impl Integrator for SPPMIntegrator {
                                                     ) > 0;
                                                     (b1, b2)
                                                 };
-                                                if is_diffuse || (is_glossy && depth == max_depth - 1)
+                                                if is_diffuse
+                                                    || (is_glossy && depth == max_depth - 1)
                                                 {
                                                     visible_point = Some(SPPMVisiblePoint {
                                                         p: isect.p,
@@ -422,8 +427,10 @@ impl Integrator for SPPMIntegrator {
 
                                                         let beta_y = beta.y();
                                                         if beta_y < 0.25 {
-                                                            let continue_prob = Float::min(1.0, beta_y);
-                                                            if tile_sampler.get_1d() > continue_prob {
+                                                            let continue_prob =
+                                                                Float::min(1.0, beta_y);
+                                                            if tile_sampler.get_1d() > continue_prob
+                                                            {
                                                                 break;
                                                             }
                                                             beta /= continue_prob;
@@ -489,10 +496,7 @@ impl Integrator for SPPMIntegrator {
                         }
                     }
                     if let Some(t0) = t_apply {
-                        cam_apply_ns.fetch_add(
-                            t0.elapsed().as_nanos() as u64,
-                            Ordering::Relaxed,
-                        );
+                        cam_apply_ns.fetch_add(t0.elapsed().as_nanos() as u64, Ordering::Relaxed);
                     }
                 });
             }
@@ -564,8 +568,9 @@ impl Integrator for SPPMIntegrator {
                                 &grid_bounds,
                                 &grid_res,
                             );
-                            let grid_cells_per_visible_point =
-                                (1 + pmax.x - pmin.x) * (1 + pmax.y - pmin.y) * (1 + pmax.z - pmin.z);
+                            let grid_cells_per_visible_point = (1 + pmax.x - pmin.x)
+                                * (1 + pmax.y - pmin.y)
+                                * (1 + pmax.z - pmin.z);
                             stat_total += grid_cells_per_visible_point as u64;
                             entries.reserve(grid_cells_per_visible_point as usize);
                             for z in pmin.z..=pmax.z {
@@ -613,155 +618,158 @@ impl Integrator for SPPMIntegrator {
                 let photon_accum = (0..photons_per_iteration)
                     .into_par_iter()
                     .fold(
-                        || {
-                            (
-                                MemoryArena::new(),
-                                HashMap::<usize, (Spectrum, i64)>::new(),
-                            )
-                        },
+                        || (MemoryArena::new(), HashMap::<usize, (Spectrum, i64)>::new()),
                         |(mut arena, mut local), photon_index| {
-                        let light_distr = light_distr.clone();
-                        // Follow photon path for _photonIndex_
-                        let halton_index =
-                            iter as u64 * photons_per_iteration as u64 + photon_index as u64;
+                            let light_distr = light_distr.clone();
+                            // Follow photon path for _photonIndex_
+                            let halton_index =
+                                iter as u64 * photons_per_iteration as u64 + photon_index as u64;
 
-                        let mut halton_dim = 0;
+                            let mut halton_dim = 0;
 
-                        // Choose light to shoot photon from
-                        let light_sample = radical_inverse(halton_dim, halton_index);
-                        let (light_num, light_pdf, _remapped) =
-                            light_distr.sample_discrete(light_sample);
-                        let light = scene.lights[light_num].clone();
+                            // Choose light to shoot photon from
+                            let light_sample = radical_inverse(halton_dim, halton_index);
+                            let (light_num, light_pdf, _remapped) =
+                                light_distr.sample_discrete(light_sample);
+                            let light = scene.lights[light_num].clone();
 
-                        // Compute sample values for photon from light
-                        let u_light0 = Point2f::new(
-                            radical_inverse(halton_dim, halton_index),
-                            radical_inverse(halton_dim + 1, halton_index),
-                        );
-                        let u_light1 = Point2f::new(
-                            radical_inverse(halton_dim + 2, halton_index),
-                            radical_inverse(halton_dim + 3, halton_index),
-                        );
-                        let camera = camera.as_ref();
-                        let shutter = camera.get_shutter();
-                        let u_light_time = lerp(
-                            radical_inverse(halton_dim + 4, halton_index),
-                            shutter.0,
-                            shutter.1,
-                        );
-                        halton_dim += 5;
+                            // Compute sample values for photon from light
+                            let u_light0 = Point2f::new(
+                                radical_inverse(halton_dim, halton_index),
+                                radical_inverse(halton_dim + 1, halton_index),
+                            );
+                            let u_light1 = Point2f::new(
+                                radical_inverse(halton_dim + 2, halton_index),
+                                radical_inverse(halton_dim + 3, halton_index),
+                            );
+                            let camera = camera.as_ref();
+                            let shutter = camera.get_shutter();
+                            let u_light_time = lerp(
+                                radical_inverse(halton_dim + 4, halton_index),
+                                shutter.0,
+                                shutter.1,
+                            );
+                            halton_dim += 5;
 
-                        // Generate _photonRay_ from light source and initialize _beta_
-                        let light = light.as_ref();
-                        if let Some((le, photon_ray, n_light, pdf_pos, pdf_dir)) =
-                            light.sample_le(&u_light0, &u_light1, u_light_time)
-                        {
-                            if le.is_black() || pdf_pos == 0.0 || pdf_dir == 0.0 {
-                                return (arena, local);
-                            }
-                            let mut beta = (le * n_light.abs_dot(&photon_ray.d))
-                                / (light_pdf * pdf_pos * pdf_dir);
-                            if beta.is_black() {
-                                return (arena, local);
-                            }
+                            // Generate _photonRay_ from light source and initialize _beta_
+                            let light = light.as_ref();
+                            if let Some((le, photon_ray, n_light, pdf_pos, pdf_dir)) =
+                                light.sample_le(&u_light0, &u_light1, u_light_time)
+                            {
+                                if le.is_black() || pdf_pos == 0.0 || pdf_dir == 0.0 {
+                                    return (arena, local);
+                                }
+                                let mut beta = (le * n_light.abs_dot(&photon_ray.d))
+                                    / (light_pdf * pdf_pos * pdf_dir);
+                                if beta.is_black() {
+                                    return (arena, local);
+                                }
 
-                            let mut photon_ray: RayDifferential = photon_ray.into();
+                                let mut photon_ray: RayDifferential = photon_ray.into();
 
-                            // Follow photon path through scene and record intersections
-                            let mut depth = 0;
-                            while depth < max_depth {
-                                if let Some(mut isect) = scene.intersect(&photon_ray.ray) {
-                                    if depth > 0 {
-                                        // Add photon contribution to nearby visible points
-                                        let (in_bounds, photon_grid_index) =
-                                            to_grid(&isect.p, &grid_bounds, &grid_res);
-                                        if in_bounds {
-                                            let h = hash(&photon_grid_index, hash_size);
-                                            // Add photon contribution to visible points in
-                                            // _grid[h]_
-                                            for pixel_index in grid.nodes[h].iter() {
-                                                let pixel = pixels.pixels[*pixel_index].read().unwrap();
-                                                let wi = -photon_ray.ray.d;
-                                                let radius = pixel.radius;
-                                                if Vector3f::distance_squared(&pixel.vp.p, &isect.p)
-                                                    <= (radius * radius)
-                                                {
-                                                    if let Some(bsdf) = pixel.vp.bsdf.as_ref() {
-                                                        let phi =
-                                                            beta * bsdf.f(&pixel.vp.wo, &wi, BSDF_ALL);
-                                                        let e = local
-                                                            .entry(*pixel_index)
-                                                            .or_insert((Spectrum::zero(), 0));
-                                                        e.0 += phi;
-                                                        e.1 += 1;
+                                // Follow photon path through scene and record intersections
+                                let mut depth = 0;
+                                while depth < max_depth {
+                                    if let Some(mut isect) = scene.intersect(&photon_ray.ray) {
+                                        if depth > 0 {
+                                            // Add photon contribution to nearby visible points
+                                            let (in_bounds, photon_grid_index) =
+                                                to_grid(&isect.p, &grid_bounds, &grid_res);
+                                            if in_bounds {
+                                                let h = hash(&photon_grid_index, hash_size);
+                                                // Add photon contribution to visible points in
+                                                // _grid[h]_
+                                                for pixel_index in grid.nodes[h].iter() {
+                                                    let pixel =
+                                                        pixels.pixels[*pixel_index].read().unwrap();
+                                                    let wi = -photon_ray.ray.d;
+                                                    let radius = pixel.radius;
+                                                    if Vector3f::distance_squared(
+                                                        &pixel.vp.p,
+                                                        &isect.p,
+                                                    ) <= (radius * radius)
+                                                    {
+                                                        if let Some(bsdf) = pixel.vp.bsdf.as_ref() {
+                                                            let phi = beta
+                                                                * bsdf.f(
+                                                                    &pixel.vp.wo,
+                                                                    &wi,
+                                                                    BSDF_ALL,
+                                                                );
+                                                            let e = local
+                                                                .entry(*pixel_index)
+                                                                .or_insert((Spectrum::zero(), 0));
+                                                            e.0 += phi;
+                                                            e.1 += 1;
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
-                                    }
-                                    // Sample new photon ray direction
+                                        // Sample new photon ray direction
 
-                                    // Compute BSDF at photon intersection point
-                                    isect.compute_scattering_functions(
-                                        &photon_ray,
-                                        &mut arena,
-                                        TransportMode::Importance,
-                                        true,
-                                    );
-                                    if isect.bsdf.is_none() {
-                                        // Skip over medium boundaries for photon tracing
-                                        photon_ray = isect.spawn_ray(&photon_ray.ray.d).into();
-                                        continue;
-                                    }
-
-                                    if let Some(photon_bsdf) = isect.bsdf.as_ref() {
-                                        // Sample BSDF for photon scattering
-                                        let wo = -photon_ray.ray.d;
-                                        // Generate _bsdfSample_ for outgoing photon sample
-                                        let bsdf_sample = Point2f::new(
-                                            radical_inverse(halton_dim, halton_index),
-                                            radical_inverse(halton_dim + 1, halton_index),
+                                        // Compute BSDF at photon intersection point
+                                        isect.compute_scattering_functions(
+                                            &photon_ray,
+                                            &mut arena,
+                                            TransportMode::Importance,
+                                            true,
                                         );
-                                        halton_dim += 2;
+                                        if isect.bsdf.is_none() {
+                                            // Skip over medium boundaries for photon tracing
+                                            photon_ray = isect.spawn_ray(&photon_ray.ray.d).into();
+                                            continue;
+                                        }
 
-                                        let photon_bsdf = photon_bsdf.as_ref();
-                                        if let Some((fr, wi, pdf, _flags)) =
-                                            photon_bsdf.sample_f(&wo, &bsdf_sample, BSDF_ALL)
-                                        {
-                                            if fr.is_black() || pdf == 0.0 {
+                                        if let Some(photon_bsdf) = isect.bsdf.as_ref() {
+                                            // Sample BSDF for photon scattering
+                                            let wo = -photon_ray.ray.d;
+                                            // Generate _bsdfSample_ for outgoing photon sample
+                                            let bsdf_sample = Point2f::new(
+                                                radical_inverse(halton_dim, halton_index),
+                                                radical_inverse(halton_dim + 1, halton_index),
+                                            );
+                                            halton_dim += 2;
+
+                                            let photon_bsdf = photon_bsdf.as_ref();
+                                            if let Some((fr, wi, pdf, _flags)) =
+                                                photon_bsdf.sample_f(&wo, &bsdf_sample, BSDF_ALL)
+                                            {
+                                                if fr.is_black() || pdf == 0.0 {
+                                                    break;
+                                                }
+                                                //
+                                                let bnew = beta
+                                                    * fr
+                                                    * (Vector3f::abs_dot(&wi, &isect.shading.n)
+                                                        / pdf);
+
+                                                // Possibly terminate photon path with Russian roulette
+                                                let q = Float::max(0.0, 1.0 - bnew.y() / beta.y());
+                                                let t = radical_inverse(halton_dim, halton_index);
+                                                halton_dim += 1;
+                                                if t < q {
+                                                    break;
+                                                }
+                                                beta = bnew / (1.0 - q);
+                                                photon_ray = isect.spawn_ray(&wi).into();
+                                            } else {
                                                 break;
                                             }
-                                            //
-                                            let bnew = beta
-                                                * fr
-                                                * (Vector3f::abs_dot(&wi, &isect.shading.n) / pdf);
-
-                                            // Possibly terminate photon path with Russian roulette
-                                            let q = Float::max(0.0, 1.0 - bnew.y() / beta.y());
-                                            let t = radical_inverse(halton_dim, halton_index);
-                                            halton_dim += 1;
-                                            if t < q {
-                                                break;
-                                            }
-                                            beta = bnew / (1.0 - q);
-                                            photon_ray = isect.spawn_ray(&wi).into();
                                         } else {
                                             break;
                                         }
                                     } else {
                                         break;
                                     }
-                                } else {
-                                    break;
+                                    depth += 1;
                                 }
-                                depth += 1;
+                            } else {
+                                return (arena, local);
                             }
-                        } else {
-                            return (arena, local);
-                        }
-                        arena.reset();
-                        (arena, local)
-                    },
+                            arena.reset();
+                            (arena, local)
+                        },
                     )
                     .map(|(_, local)| local)
                     .reduce(HashMap::new, |mut a, b| {

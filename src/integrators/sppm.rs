@@ -154,7 +154,7 @@ impl Integrator for SPPMIntegrator {
         let setup_film_t0 = Instant::now();
         {
             let film = self.get_film();
-            let mut film = film.write().unwrap();
+            let film = film.read().unwrap();
             film.render_start();
         }
         t_setup_film += setup_film_t0.elapsed().as_secs_f64();
@@ -838,7 +838,7 @@ impl Integrator for SPPMIntegrator {
                     }
                     {
                         let film = self.get_film();
-                        let mut film = film.write().unwrap();
+                        let film = film.read().unwrap();
                         film.set_image(&image);
                         if write_image {
                             film.write_image();
@@ -867,7 +867,7 @@ impl Integrator for SPPMIntegrator {
         let finalize_t0 = Instant::now();
         {
             let film = self.get_film();
-            let mut film = film.write().unwrap();
+            let film = film.read().unwrap();
             film.render_end();
             film.write_image();
         }

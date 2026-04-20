@@ -46,7 +46,7 @@ pub struct Film {
     pub filter: Arc<dyn Filter>,
     pub filename: String,
     pub cropped_pixel_bounds: Bounds2i,
-    pub display: MutipleDisplay,
+    display: Mutex<MutipleDisplay>,
 
     pixels: Mutex<Vec<Pixel>>,
 
@@ -150,7 +150,7 @@ impl Film {
             filter: Arc::clone(filter),
             filename: String::from(filename),
             cropped_pixel_bounds,
-            display: MutipleDisplay::new(),
+            display: Mutex::new(MutipleDisplay::new()),
 
             pixels: Mutex::new(pixels),
 
@@ -216,7 +216,7 @@ impl Film {
         )
     }
 
-    pub fn merge_film_tile(&mut self, tile: &FilmTile) {
+    pub fn merge_film_tile(&self, tile: &FilmTile) {
         let _p = ProfilePhase::new(Prof::MergeFilmTile);
 
         let bounds = tile.get_pixel_bounds();
@@ -240,7 +240,7 @@ impl Film {
         }
     }
 
-    pub fn merge_splats(&mut self, splat_scale: Float) {
+    pub fn merge_splats(&self, splat_scale: Float) {
         for tile in self.splat_tiles.iter() {
             let mut tile = tile.write().unwrap();
             if !tile.dirty {
@@ -275,12 +275,16 @@ impl Film {
         }
     }
 
-    pub fn update_display(&mut self, bounds: &Bounds2i) {
+    pub fn update_display(&self, bounds: &Bounds2i) {
         self.update_display_scale(bounds, 1.0);
     }
 
-    pub fn update_display_scale(&mut self, bounds: &Bounds2i, scale: Float) {
-        if self.display.is_empty() {
+    pub fn update_display_scale(&self, bounds: &Bounds2i, scale: Float) {
+        let has_display = {
+            let display = self.display.lock().unwrap();
+            !display.is_empty()
+        };
+        if !has_display {
             return;
         }
 
@@ -341,13 +345,14 @@ impl Film {
                 height: theight,
                 buffer,
             };
-            self.display.update(&display_tile).unwrap_or_else(|e| {
+            let mut display = self.display.lock().unwrap();
+            display.update(&display_tile).unwrap_or_else(|e| {
                 warn!("{:}", e);
             });
         }
     }
 
-    pub fn set_image(&mut self, img: &[Spectrum]) {
+    pub fn set_image(&self, img: &[Spectrum]) {
         let mut pixels = self.pixels.lock().unwrap();
         let n_pixels = self.cropped_pixel_bounds.area() as usize;
         if n_pixels <= img.len() {
@@ -359,7 +364,7 @@ impl Film {
         }
     }
 
-    pub fn add_splat(&mut self, p: &Vector2f, v: &Spectrum) {
+    pub fn add_splat(&self, p: &Vector2f, v: &Spectrum) {
         let _p = ProfilePhase::new(Prof::SplatFilm);
 
         let pi = Point2i::new(p.x.floor() as i32, p.y.floor() as i32);
@@ -407,7 +412,7 @@ impl Film {
         }
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&self) {
         let mut pixels = self.pixels.lock().unwrap();
         for index in 0..pixels.len() {
             for i in 0..3 {
@@ -417,19 +422,19 @@ impl Film {
         }
     }
 
-    pub fn render_start(&mut self) {
+    pub fn render_start(&self) {
         let resolution = [
             self.full_resolution[0] as usize,
             self.full_resolution[1] as usize,
         ];
         let channel_names = ["R", "G", "B"];
-        let _ = self
-            .display
-            .start(&self.filename, &resolution, &channel_names);
+        let mut display = self.display.lock().unwrap();
+        let _ = display.start(&self.filename, &resolution, &channel_names);
     }
 
-    pub fn render_end(&mut self) {
-        let _ = self.display.end();
+    pub fn render_end(&self) {
+        let mut display = self.display.lock().unwrap();
+        let _ = display.end();
     }
 
     pub fn write_image(&self) {
@@ -489,8 +494,9 @@ impl Film {
         return offset;
     }
 
-    pub fn add_display(&mut self, display: &Arc<RwLock<dyn Display>>) {
-        self.display.add_display(display);
+    pub fn add_display(&self, display: &Arc<RwLock<dyn Display>>) {
+        let mut displays = self.display.lock().unwrap();
+        displays.add_display(display);
     }
 }
 

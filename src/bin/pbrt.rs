@@ -300,7 +300,7 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
                         let integrator = integrator.as_ref().read().unwrap();
                         let camera = integrator.get_camera();
                         let film = camera.as_ref().get_film();
-                        let mut f = film.as_ref().write().unwrap();
+                        let f = film.as_ref().read().unwrap();
                         f.add_display(&display);
                     }
                     Err(e) => {
@@ -316,7 +316,7 @@ fn render_scene(input_path: &Path, opts: &CommandOptions) -> i32 {
                 let integrator = integrator.as_ref().read().unwrap();
                 let camera = integrator.get_camera();
                 let film = camera.as_ref().get_film();
-                let mut f = film.as_ref().write().unwrap();
+                let f = film.as_ref().read().unwrap();
                 f.add_display(&display);
             }
 

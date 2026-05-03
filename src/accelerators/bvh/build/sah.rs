@@ -1,3 +1,4 @@
+use super::equal_counts::*;
 use super::node::*;
 use super::types::*;
 use crate::core::base::*;
@@ -131,6 +132,15 @@ pub fn split_sah(
                         .max(0) as usize;
                     b <= min_cost_split_bucket
                 });
+            if left.is_empty() || right.is_empty() {
+                return split_equal_counts(
+                    dim,
+                    primitive_info,
+                    ordered_indices,
+                    max_prims_in_node,
+                    split_method,
+                );
+            }
             let c0 = Some(recursive_build(
                 &mut left,
                 ordered_indices,

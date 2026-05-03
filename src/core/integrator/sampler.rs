@@ -184,7 +184,7 @@ impl SampleIntegratorCore {
     }
 
     pub fn merge_film_tile(film: &Arc<RwLock<Film>>, tile: &FilmTile) {
-        let mut film = film.write().unwrap();
+        let film = film.read().unwrap();
         film.merge_film_tile(tile);
         film.update_display(&tile.get_pixel_bounds());
     }
@@ -265,7 +265,7 @@ impl SampleIntegratorCore {
     ) {
         let mut tile_indices = Vec::new();
         {
-            let mut film = film.as_ref().write().unwrap();
+            let film = film.as_ref().read().unwrap();
             let sample_bounds = film.get_sample_bounds();
             let sample_extent = sample_bounds.diagonal();
             const TILE_SIZE: i32 = 16;
@@ -318,7 +318,7 @@ impl SampleIntegratorCore {
         }
 
         {
-            let mut film = film.as_ref().write().unwrap();
+            let film = film.as_ref().read().unwrap();
             film.render_end();
             film.write_image();
         }

@@ -121,7 +121,7 @@ impl Integrator for BDPTIntegrator {
         {
             let camera = self.camera.as_ref();
             let film = camera.get_film();
-            let mut film = film.write().unwrap();
+            let film = film.read().unwrap();
             film.render_start();
         }
 
@@ -298,17 +298,17 @@ impl Integrator for BDPTIntegrator {
                                                     } else {
                                                         l_path
                                                     };
-                                                    let mut film = weight_films
+                                                    let film = weight_films
                                                         .get(&(s, t))
                                                         .unwrap()
-                                                        .write()
+                                                        .read()
                                                         .unwrap();
                                                     film.add_splat(&p_film_new, &value);
                                                 }
                                                 if t != 1 {
                                                     l += l_path;
                                                 } else {
-                                                    let mut f = film.write().unwrap();
+                                                    let f = film.read().unwrap();
                                                     f.add_splat(&p_film_new, &l_path);
                                                 }
                                             }
@@ -326,7 +326,7 @@ impl Integrator for BDPTIntegrator {
                         }
 
                         {
-                            let mut f = film.write().unwrap();
+                            let f = film.read().unwrap();
                             f.merge_film_tile(&film_tile);
                             f.update_display(&film_tile.pixel_bounds);
                         }
@@ -334,7 +334,7 @@ impl Integrator for BDPTIntegrator {
                             let mut prev_time = prev_time.lock().unwrap();
                             let elapsed = prev_time.elapsed();
                             if elapsed.as_millis() > UPDATE_DISPLAY_INTERVAL {
-                                let mut f = film.write().unwrap();
+                                let f = film.read().unwrap();
                                 f.merge_splats(1.0 / samples_per_pixel as Float);
                                 f.update_display(&cropped_pixel_bounds);
                                 *prev_time = Instant::now();
@@ -351,7 +351,7 @@ impl Integrator for BDPTIntegrator {
         {
             let camera = self.camera.as_ref();
             let film = camera.get_film();
-            let mut film = film.as_ref().write().unwrap();
+            let film = film.as_ref().read().unwrap();
             film.merge_splats(1.0 / samples_per_pixel as Float);
             film.update_display(&cropped_pixel_bounds);
             film.render_end();
@@ -360,7 +360,7 @@ impl Integrator for BDPTIntegrator {
 
         if visualize_info {
             for film in weight_films.values() {
-                let mut film = film.write().unwrap();
+                let film = film.read().unwrap();
                 film.merge_splats(1.0);
                 film.write_image();
             }

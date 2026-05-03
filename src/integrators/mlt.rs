@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::sync::RwLock;
 use std::time::Instant;
 
-use rayon::iter::*;
+use rayon::prelude::*;
 
 // MLTSampler Constants
 const CAMERA_STREAM_INDEX: u64 = 0;
@@ -17,6 +17,7 @@ const N_SAMPLE_STREAMS: u64 = 3;
 
 // MLT Constants
 const PROGRESS_FREQUENCY: u32 = 32768;
+const BOOTSTRAP_PROGRESS_FREQUENCY: usize = 256;
 const UPDATE_DISPLAY_INTERVAL: u128 = 1000;
 
 #[derive(Debug, PartialEq, Default, Clone)]
@@ -352,7 +353,7 @@ impl Integrator for MLTIntegrator {
         {
             let camera = self.camera.clone();
             let film = camera.get_film();
-            let mut film = film.write().unwrap();
+            let film = film.read().unwrap();
             film.render_start();
         }
 
@@ -376,7 +377,7 @@ impl Integrator for MLTIntegrator {
         let max_depth = self.max_depth as u32;
         let n_bootstrap_samples = n_bootstrap * (max_depth + 1);
 
-        let bootstrap_weights = Mutex::new(vec![0.0; n_bootstrap_samples as usize]);
+        let mut bootstrap_weights = vec![0.0; n_bootstrap_samples as usize];
         if scene.lights.len() > 0 {
             let reporter = Arc::new(RwLock::new(ProgressReporter::new(
                 n_bootstrap as usize,
@@ -386,52 +387,54 @@ impl Integrator for MLTIntegrator {
             let sigma = self.sigma;
             let large_step_probability = self.large_step_probability;
             let n_sample_streams = N_SAMPLE_STREAMS;
-            (0..n_bootstrap).into_par_iter().for_each(|i| {
-                // Generate _i_th bootstrap sample
-                let mut arena = MemoryArena::new();
-                let mut camera_vertices = Vec::with_capacity(max_depth as usize + 2);
-                let mut light_vertices = Vec::with_capacity(max_depth as usize + 1);
+            bootstrap_weights
+                .par_chunks_mut((max_depth + 1) as usize)
+                .enumerate()
+                .for_each(|(i, weights)| {
+                    // Generate _i_th bootstrap sample
+                    let mut arena = MemoryArena::new();
+                    let mut camera_vertices = Vec::with_capacity(max_depth as usize + 2);
+                    let mut light_vertices = Vec::with_capacity(max_depth as usize + 1);
 
-                for depth in 0..=max_depth {
-                    let rng_index = i * (max_depth + 1) + depth;
-                    let mut sampler = MLTSampler::new(
-                        mutations_per_pixel,
-                        rng_index as u64,
-                        sigma,
-                        large_step_probability,
-                        n_sample_streams,
-                    );
-                    let (l, _p_raster) = self.l(
-                        scene,
-                        &mut arena,
-                        &light_distr,
-                        &light_to_index,
-                        &mut sampler,
-                        &mut camera_vertices,
-                        &mut light_vertices,
-                        depth,
-                    );
-                    let y = l.y();
-                    if y > 0.0 {
-                        let mut bootstrap_weights = bootstrap_weights.lock().unwrap();
-                        bootstrap_weights[rng_index as usize] = y;
+                    for depth in 0..=max_depth {
+                        let rng_index = (i as u32) * (max_depth + 1) + depth;
+                        let mut sampler = MLTSampler::new(
+                            mutations_per_pixel,
+                            rng_index as u64,
+                            sigma,
+                            large_step_probability,
+                            n_sample_streams,
+                        );
+                        let (l, _p_raster) = self.l(
+                            scene,
+                            &mut arena,
+                            &light_distr,
+                            &light_to_index,
+                            &mut sampler,
+                            &mut camera_vertices,
+                            &mut light_vertices,
+                            depth,
+                        );
+                        weights[depth as usize] = l.y();
+                        arena.reset();
                     }
-                }
-                {
-                    let mut reporter = reporter.write().unwrap();
-                    reporter.update(1);
-                }
-            });
+                    if (i + 1) % BOOTSTRAP_PROGRESS_FREQUENCY == 0 {
+                        let mut reporter = reporter.write().unwrap();
+                        reporter.update(BOOTSTRAP_PROGRESS_FREQUENCY);
+                    }
+                });
+            let remainder = (n_bootstrap as usize) % BOOTSTRAP_PROGRESS_FREQUENCY;
+            if remainder != 0 {
+                let mut reporter = reporter.write().unwrap();
+                reporter.update(remainder);
+            }
             {
                 let mut reporter = reporter.write().unwrap();
                 reporter.done();
             }
         }
 
-        let bootstrap = {
-            let bootstrap_weights = bootstrap_weights.lock().unwrap();
-            Distribution1D::new(&bootstrap_weights)
-        };
+        let bootstrap = Distribution1D::new(&bootstrap_weights);
         let b = bootstrap.func_int * (max_depth + 1) as Float;
         let splat_scale = b as Float / mutations_per_pixel as Float;
         //println!("b: {}, {}", bootstrap.func_int, max_depth);
@@ -540,7 +543,7 @@ impl Integrator for MLTIntegrator {
 
                     // Splat both current and proposed samples to _film_
                     {
-                        let mut film = film.write().unwrap();
+                        let film = film.read().unwrap();
                         if accept > 0.0 {
                             let spec = l_proposed * (accept / l_proposed.y());
                             film.add_splat(&p_proposed, &spec);
@@ -560,18 +563,16 @@ impl Integrator for MLTIntegrator {
                     }
                     //totalMutations++;
 
-                    {
-                        let mut reporter = reporter.write().unwrap();
-                        reporter.update(1);
-                    }
-
-                    let iteration = count_iteration.fetch_add(1, Ordering::Acquire);
-                    {
-                        if (iteration % progress_frequency) == 0 {
-                            let mut prev_time = prev_time.lock().unwrap();
-                            let elapsed = prev_time.elapsed();
-                            if elapsed.as_millis() > UPDATE_DISPLAY_INTERVAL {
-                                let mut film = film.write().unwrap();
+                    let iteration = count_iteration.fetch_add(1, Ordering::Relaxed) + 1;
+                    if (iteration % progress_frequency) == 0 {
+                        {
+                            let mut reporter = reporter.write().unwrap();
+                            reporter.update(progress_frequency);
+                        }
+                        let mut prev_time = prev_time.lock().unwrap();
+                        let elapsed = prev_time.elapsed();
+                        if elapsed.as_millis() > UPDATE_DISPLAY_INTERVAL {
+                            if let Ok(film) = film.try_read() {
                                 film.merge_splats(splat_scale);
                                 let display_scale =
                                     n_total_iterations as Float / iteration as Float;
@@ -580,15 +581,15 @@ impl Integrator for MLTIntegrator {
                             }
                         }
                     }
+                    arena.reset();
                 }
-                arena.reset();
             });
 
             // Store final image computed with MLT
             {
                 let camera = self.camera.clone();
                 let film = camera.get_film();
-                let mut film = film.write().unwrap();
+                let film = film.read().unwrap();
                 film.merge_splats(splat_scale);
                 film.update_display(&pixel_bounds);
                 film.render_end();
@@ -596,7 +597,12 @@ impl Integrator for MLTIntegrator {
             }
 
             {
+                let completed_iterations = count_iteration.load(Ordering::Relaxed);
+                let remainder = completed_iterations % progress_frequency;
                 let mut reporter = reporter.write().unwrap();
+                if remainder != 0 {
+                    reporter.update(remainder);
+                }
                 reporter.done();
             }
         }

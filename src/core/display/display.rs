@@ -8,7 +8,7 @@ pub struct DisplayTile {
     pub buffer: Vec<f32>,
 }
 
-pub trait Display: Sync {
+pub trait Display: Sync + Send {
     fn start(
         &mut self,
         title: &str,

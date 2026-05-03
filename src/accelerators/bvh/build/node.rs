@@ -53,26 +53,25 @@ pub fn recursive_build(
             c_bounds = c_bounds.union_p(&p);
         }
         let dim = c_bounds.maximum_extent();
+        if c_bounds.min[dim] == c_bounds.max[dim] {
+            let offset = ordered_indices.len();
+            for i in start..end {
+                ordered_indices.push(primitive_info[i].primitive_number);
+            }
+            return Arc::new(BVHBuildNode::init_leaf(offset, n_primitives, &bounds));
+        }
         match split_method {
             SplitMethod::Middle => {
                 //let mid = (start + end) / 2;
-                if c_bounds.min[dim] == c_bounds.max[dim] {
-                    let offset = ordered_indices.len();
-                    for i in start..end {
-                        ordered_indices.push(primitive_info[i].primitive_number);
-                    }
-                    return Arc::new(BVHBuildNode::init_leaf(offset, n_primitives, &bounds));
-                } else {
-                    let p_mid = (c_bounds.min[dim] + c_bounds.max[dim]) / 2.0;
-                    return split_middle(
-                        dim,
-                        p_mid,
-                        primitive_info,
-                        ordered_indices,
-                        max_prims_in_node,
-                        split_method,
-                    );
-                }
+                let p_mid = (c_bounds.min[dim] + c_bounds.max[dim]) / 2.0;
+                return split_middle(
+                    dim,
+                    p_mid,
+                    primitive_info,
+                    ordered_indices,
+                    max_prims_in_node,
+                    split_method,
+                );
             }
             SplitMethod::EqualCounts => {
                 return split_equal_counts(
